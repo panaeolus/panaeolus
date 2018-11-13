@@ -15,4 +15,5 @@
 .DS_STORE
 /native
 .cpcache
-.dir-locals.el
+.dir-locals.el*
+*.log

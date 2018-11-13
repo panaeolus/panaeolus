@@ -2,7 +2,7 @@
   (:require
    [overtone.sc.synth :refer [synth-form]]
    [overtone.studio.inst :as sudio-inst]
-   [panaeolus.overtone.pattern-control :refer [pattern-control]]
+   [panaeolus.overtone.pattern-control :refer [pattern-control fill-missing-keys-for-ctl]]
    [panaeolus.overtone.event-callback]))
 
 (defmacro adapt-fx
@@ -21,7 +21,7 @@
     `(def ~new-name-and-meta
        (fn [& args#]
          [~original-fx-name ~original-fx
-          (--fill-missing-keys-for-ctl args# (mapv keyword (first ~new-arglists)))]))))
+          (fill-missing-keys-for-ctl args# (mapv keyword (first ~new-arglists)))]))))
 
 (defmacro definst+
   "Defines an instrument like definst does, but returns it

@@ -7,7 +7,7 @@
 (link/enable-link true)
 
 (defn set-bpm [bpm]
-  (set-buf bpm-buffer bpm 0)
+  (buffer-set! bpm-buffer 0 bpm)
   (link/set-bpm bpm))
 
 (defn get-bpm [& [as-buffer?]]

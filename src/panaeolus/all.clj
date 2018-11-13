@@ -1,5 +1,6 @@
 (ns panaeolus.all
   (:require panaeolus.metronome
+            panaeolus.control
             panaeolus.overtone.macros
             panaeolus.overtone.examples.synths
             panaeolus.overtone.examples.fof)
@@ -21,5 +22,7 @@
           (intern *ns* sym))))))
 
 (immigrate 'panaeolus.overtone.macros
+           'panaeolus.metronome
+           'panaeolus.control
            'panaeolus.overtone.examples.synths
            'panaeolus.overtone.examples.fof)

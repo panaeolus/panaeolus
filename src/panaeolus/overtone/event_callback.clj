@@ -28,10 +28,16 @@
 (defn overtone-event-callback [wait-chn inst args index a-index next-timestamp envelope-type fx]
   (let [args-processed (resolve-arg-indicies args index a-index next-timestamp)
         fx-ctl-cb      (fn [] (when-not (empty? fx)
-                                (run! #(apply sc-node/ctl (last %)
-                                              (resolve-arg-indicies
-                                               (second %) index a-index
-                                               next-timestamp))
+                                #_(run! #(apply sc-node/ctl (last %)
+                                                (resolve-arg-indicies
+                                                 (second %) index a-index
+                                                 next-timestamp))
+                                        (vals fx))
+                                (run! #(try (apply sc-node/ctl (last %)
+                                                   (resolve-arg-indicies
+                                                    (second %) index a-index
+                                                    next-timestamp))
+                                            (catch Exception e nil))
                                       (vals fx))))]
     (if (some sequential? args-processed)
       (let [multiargs-processed
@@ -55,7 +61,6 @@
   (when (or (not (empty? rem-fx)) (not (empty? next-fx)))
     (fn []
       (when-not (empty? rem-fx)
-        ;; (prn "NOT EMPTY!")
         ;; (prn "FOUND FROM OLD: " (keys old-fx-at-event))
         (run! #(let [fx-node (last %)
                      stereo? (vector? fx-node)]
@@ -67,7 +72,7 @@
         (swap! control/pattern-registry update-in [k-name :old-fx] #(apply dissoc % (vec rem-fx))))
       (when-not (empty? next-fx)
         (swap! control/pattern-registry assoc k-name
-               (assoc (get @control/pattern-registry k-name) 3
+               (assoc (get @control/pattern-registry k-name) :current-fx
                       (reduce (fn [old next]
                                 (let [new-v   (get new-fx next)
                                       fx-node (studio-inst/inst-fx! instrument-instance (first new-v))
@@ -76,4 +81,4 @@
                                                0 0 (link/get-beat))]
                                   (apply ctl fx-node indx0)
                                   (assoc old next (conj new-v fx-node))))
-                              (nth (get @control/pattern-registry k-name) 3) next-fx)))))))
+                              (get-in @control/pattern-registry [k-name :current-fx]) next-fx)))))))

@@ -4,7 +4,7 @@
   (:use overtone.live panaeolus.overtone.macros))
 
 (definst+ prophet :perc
-  [dur 1 nn 60 amp -12 lpf 12000 rq 0.3]
+  [nn 60 dur 1 amp -12 lpf 12000 rq 0.3]
   (let [amp  (dbamp amp)
         freq (midicps nn)
         snd  (pan2 (mix [(pulse freq (* 0.1 (/ (+ 1.2 (sin-osc:kr 1)) )))

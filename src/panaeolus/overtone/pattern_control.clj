@@ -4,7 +4,7 @@
             [panaeolus.sequence-parser :refer [sequence-parser]]
             [clojure.string :as string]))
 
-(defn- fill-missing-keys-for-ctl
+(defn fill-missing-keys-for-ctl
   "Function that makes sure that calling inst
    and calling ctl is possible with exact same
    parameters produceing same result."
@@ -33,7 +33,12 @@
 (defn squeeze-in-parsed-pattern [args orig-arglists]
   (let [{:keys [time nn]} (sequence-parser (second args))
         args              (vec args)]
-    (concat (list (first args) (vec time) (vec nn)) (subvec args 2))))
+    (doall
+     (concat (list (first args) (vec time) (vec nn))
+             (if (some #(= :dur %) orig-arglists)
+               [:dur (vec time)]
+               '())
+             (subvec args 2)))))
 
 (defn pattern-control [i-name envelope-type orig-arglists instrument-instance]
   (fn [& args]
@@ -53,21 +58,21 @@
                  args)]
       ;; (prn "ORIG: " orig-arglists)
       (case pat-ctl
-        :loop  (do 
-                 (control/unsolo)
-                 (event-loop (str i-name "-" pat-num)
-                             instrument-instance
-                             args
-                             :envelope-type envelope-type
-                             :audio-backend :overtone))
-        :stop  (control/overtone-pattern-kill (str i-name "-" pat-num))
-        :solo! (do (control/solo! (str i-name "-" 0))
-                   (event-loop (str i-name "-" pat-num)
-                               instrument-instance
-                               args
-                               :envelope-type envelope-type
-                               :audio-backend :overtone))
-        :solo  (control/solo (str i-name "-" 0) (if (empty? pat-num) 0 (read-string pat-num)))
-        :kill  (control/overtone-pattern-kill (str i-name "-" pat-num))
+        :loop (do 
+                (control/unsolo)
+                (event-loop (str i-name "-" pat-num)
+                            instrument-instance
+                            args
+                            :envelope-type envelope-type
+                            :audio-backend :overtone))
+        :stop (control/overtone-pattern-kill (str i-name "-" pat-num))
+        :solo (do (control/solo! (str i-name "-" 0))
+                  (event-loop (str i-name "-" pat-num)
+                              instrument-instance
+                              args
+                              :envelope-type envelope-type
+                              :audio-backend :overtone))
+        ;; :solo (control/solo (str i-name "-" 0) (if (empty? pat-num) 0 (read-string pat-num)))
+        :kill (control/overtone-pattern-kill (str i-name "-" pat-num))
         (apply instrument-instance (rest (rest args))))
       pat-ctl)))

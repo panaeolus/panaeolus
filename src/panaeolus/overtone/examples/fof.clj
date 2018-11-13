@@ -54,7 +54,7 @@
   (voice-type-to-buffer contratenor-formants))
 
 (definst+ tenor :perc
-  [nn 40 amp -12 dur 1 vowel1 0 vowel2 1 trans 0.4]
+  [nn 40 dur 1 amp -12 vowel1 0 vowel2 1 trans 0.4]
   (let [base-freq        (midicps nn)
         amp              (dbamp amp)
         vowel1           (index:kr contratenor-buffer vowel1)

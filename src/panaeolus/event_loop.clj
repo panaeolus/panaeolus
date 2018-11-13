@@ -63,10 +63,11 @@
       (if-let [next-timestamp (first queue)] 
         (let [wait-chn (chan)]
           (link/at next-timestamp (case audio-backend
-                                    :overtone (overtone-event-callback
-                                               wait-chn instrument-instance
-                                               args index a-index next-timestamp
-                                               envelope-type fx)))
+                                    :overtone (let [{:keys [current-fx]} (get-current-state)]
+                                                (overtone-event-callback
+                                                 wait-chn instrument-instance
+                                                 args index a-index next-timestamp
+                                                 envelope-type current-fx))))
           (<! wait-chn)
           (recur [(rest queue) mod-div]
                  instrument-instance
@@ -125,12 +126,12 @@
         ;; extra-atom               (atom {})
         fx-handle-atom           (if pat-exists?
                                    (get old-state :fx-handle-atom)
-                                   (atom nil)) 
+                                   (atom nil))
         new-fx                   (reduce (fn [i v] (assoc i (first v) (vec (rest v)))) {} fx-vector)
         old-fx                   (get old-state :current-fx)
-        new-fx-merged            (if pat-exists? (--replace-args-in-fx (get old-state :old-fx) new-fx) {})
-        [rem-fx next-fx curr-fx] (diff (set (keys new-fx-merged)) (set (keys new-fx)))
-        ;; _                        (prn "rem-fx" rem-fx "next-fx" next-fx "curr-fx" curr-fx "old-fx" old-fx)
+        [rem-fx next-fx curr-fx] (diff (set (keys old-fx)) (set (keys new-fx)))
+        ;; _                        (prn "rem-fx" rem-fx "next-fx" next-fx "curr-fx" curr-fx old-fx next-fx)
+        new-fx-merged            (if pat-exists? (--replace-args-in-fx (select-keys old-fx curr-fx) (select-keys new-fx curr-fx)) {})
         fx-handle-callback       (case audio-backend
                                    :overtone (overtone-fx-callback k-name instrument-instance rem-fx next-fx curr-fx old-fx new-fx))
         get-cur-state-fn         (fn []
@@ -138,7 +139,7 @@
                                      (when cur-state
                                        (when-let [fx-handle-cb @(get cur-state :fx-handle-atom)]
                                          (fx-handle-cb)
-                                         (reset! (nth cur-state 4) nil))))
+                                         (reset! (get cur-state :fx-handle-atom) nil))))
                                    (get @control/pattern-registry k-name))
         live-code-arguments      (rest (rest args))]
     (reset! fx-handle-atom fx-handle-callback)
