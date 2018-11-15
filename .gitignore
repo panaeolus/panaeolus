@@ -17,3 +17,6 @@
 .cpcache
 .dir-locals.el*
 *.log
+henda.txt
+*.bak
+*-BAK

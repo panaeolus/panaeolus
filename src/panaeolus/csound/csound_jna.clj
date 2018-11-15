@@ -4,6 +4,7 @@
             [clj-native.callbacks :refer [callback]]
             panaeolus.utils.jna-path
             [panaeolus.jack2.jack-lib :as jack]
+            [panaeolus.config :refer [config]]
             [clojure.string :as string])
   (:import [com.kunstmusik.csoundjna Csound MessageCallback]
            [org.jaudiolibs.audioservers AudioClient]
@@ -51,145 +52,120 @@
 (defn stop [^Csound instance]
   (.stop instance))
 
+(require '[panaeolus.sequence-parser :refer [sequence-parser]]
+         '[panaeolus.event-loop :refer [event-loop]])
 
-(defn jack-processor [csnd nchnls ksmps shutdown?]
-  (fn [^AudioClient this ^List inputs ^List outputs ^Long nframes]
-    (when (zero? (perform-ksmps csnd))
-      (loop [csnd-phase 0
-             jack-phase 0]
-        (when  (< jack-phase nframes)
-          (if (< csnd-phase ksmps)
-            (do
-              (doseq [chanl (range (.size inputs))]
-                (.put ^FloatBuffer (.get inputs chanl) jack-phase
-                      (.get ^DoubleBuffer (.getSpin ^Csound csnd)
-                            (+ csnd-phase chanl))))
-              (doseq [chanl (range (.size outputs))]
-                (.put ^FloatBuffer (.get outputs chanl) jack-phase
-                      (.get ^DoubleBuffer (.getSpout ^Csound csnd)
-                            (+ csnd-phase chanl))))
-              (recur (+ nchnls csnd-phase)
-                     (inc jack-phase)))
-            (when (zero? (perform-ksmps csnd))
-              (recur 0 jack-phase)))))
-      (if @shutdown?
-        (.shutdown this)
-        true))))
+#_(defn squeeze-in-minilang-pattern [args orig-arglists]
+    (let [{:keys [time nn]} (sequence-parser (second args))
+          args              (vec args)]
+      (doall
+       (concat (list (first args) (vec time) (vec nn))
+               (if (some #(= :dur %) orig-arglists)
+                 [:dur (vec time)]
+                 '())
+               (subvec args 2)))))
+
+(def params [{:amp {:default -12}}
+             {:nn {:default 60}}])
+
+(defn pattern-control [i-name envelope-type original-parameters csound-instance]
+  (fn [& args]
+    (let [orig-params-keys
+          ;; args (if (string? (second args))
+          ;;        (squeeze-in-minilang-pattern args original-parameters)
+          ;;        args)
+          ;; [pat-ctl pat-num]
+          ;; (if-not (keyword? (first args))
+          ;;   [nil nil]
+          ;;   (let [ctl     (name (first args))
+          ;;         pat-num (or (re-find #"[0-9]+" ctl) 0)
+          ;;         ctl-k   (keyword (first (string/split ctl #"-")))]
+          ;;     [ctl-k pat-num]))
+          ]
+      #_(case pat-ctl
+          :loop (do
+                  ;; (control/unsolo)
+                  (event-loop (str i-name "-" pat-num)
+                              instrument-instance
+                              args
+                              :envelope-type envelope-type
+                              :audio-backend :csound))
+          ;; :stop (control/overtone-pattern-kill (str i-name "-" pat-num))
+          ;; :solo (do (control/solo! (str i-name "-" 0))
+          ;;           (event-loop (str i-name "-" pat-num)
+          ;;                       instrument-instance
+          ;;                       args
+          ;;                       :envelope-type envelope-type
+          ;;                       :audio-backend :overtone))
+          ;; :kill (control/overtone-pattern-kill (str i-name "-: pat-num))
+          ;; (apply instrument-instance (rest (rest args)))
+          )
+      ;; pat-ctl
+      )))
+
 
 (defn spawn-csound-client [client-name inputs outputs ksmps]
-  (let [csnd (csound-create)]
+  (let [csnd   (csound-create)
+        status (atom :init)
+        thread (agent csnd)]
     (run! #(set-option csnd %)
-          ["-iadc:null"
-           "-odac:null"
+          ["-iadc:null" "-odac:null"
+           "--messagelevel=35"
+           "-B 4096"
+           "-b 512"
            (str "--nchnls=" inputs)
            (str "--nchnls_i=" outputs)
            "--0dbfs=1"
            "-+rtaudio=jack"
            "--sample-rate=48000"
            (str "--ksmps=" ksmps)
-           (str "-+jack_client=" client-name)]
-          (start csnd)
-          csnd)))
+           (str "-+jack_client=" client-name)])
+    (start csnd)
+    (set-message-callback
+     csnd (fn [attr msg] (println msg)))
+    {:instance csnd
+     :start    #(send-off thread
+                          (fn [instance]
+                            (reset! status :running)
+                            (while (and (= :running @status) (zero? (perform-ksmps instance))))
+                            (doto instance stop)
+                            (doto instance cleanup)))
+     :stop     #(when-not (= :stop @status)
+                  (reset! status :stop))}))
 
-(comment 
+(comment
+  (def tezt (spawn-csound-client "csound-2" 2 2 1))
 
-  (def csnd (csound-create))
+  ;; ((:init test))
 
-  (set-message-callback csnd (fn [attr msg] (println msg)))
-  (set-option csnd "-odac")
-  (set-option csnd "--0dbfs=1")
-  (set-option csnd "--ksmps=1")
-  (set-option csnd "--sample-rate=48000")
-  (set-option csnd "--nchnls=2")
-  (set-option csnd "-+rtaudio=null")
-  ;; (set-option csnd "-b 2048")
-  ;; (set-option csnd "-B 4096")
-  (start csnd)
-  (cleanup csnd)
-  (compile-orc csnd "print 4")
+  @(:status tezt)
 
-  (def nchnls (.getNchnls csnd))
-  (def shutdown? (volatile! false))
-  (def ksmps (.getKsmps csnd))
-  (def zerodbfs (.get0dBFS csnd))
-  
-  
-  
-  (vreset! shutdown? true)
-  
-  (compile-orc csnd "instr 1\n asig1 poscil 0.4, 1201 \n asig2 poscil 0.4, 1200 \n outs asig1, asig2 \nendin\n")
-  (compile-orc-async csnd "schedule(1, 0, 3)" )
+  ((:start tezt))
 
-  (.get (.getSpout csnd) 0)
-  (.get (.getSpin csnd) 0)
-  
-  (def jack-client (jack/new-jack-client "prufa2" 0 2 processor))
+  ((:stop tezt))
 
-  (compile-orc csnd "print 4")
-  
-  (prn "aa")
-  (.stop jack-client)
+  ((:kill tezt))
 
-  
-  (defn processor [^long time ^List inputs ^List outputs nframes]
-    (prn "ONCE?")
-    (do (prn time inputs outputs nframes)
-        (perform-ksmps csnd)
-        (rand-nth [true true true true false])))
-  
-  (def jack-client (jack/new-jack-client "prufa1" 0 2 processor))
-  
+  (jack/connect "csound-2:output1" "system:playback_1")
+  (jack/connect "csound-2:output2" "system:playback_2")
 
-  
-  (def test-client (jack/client-create "prufa"))
-  (def input1 (jack/client-register-port test-client "input1" :audio :input))
-  (def input2 (jack/client-register-port test-client "input2" :audio :input))
-  (def output1 (jack/client-register-port test-client "output1" :audio :output))
-  (def output2 (jack/client-register-port test-client "output2" :audio :output))
-  (.jack_activate jack/jackLib test-client)
-  (.jack_client_close jack/jackLib test-client )
-  (.jack_get_client_name jack/jackLib test-client)
+  (jack/disconnect "csound-3:output1" "system:playback_1")
+  (jack/disconnect "csound-3:output2" "system:playback_2")
 
-  
-  (use 'clojure.reflect)
+  (compile-orc (:instance test) "print 2")
 
-  (defn all-methods [x]
-    (->> x reflect 
-         :members 
-         (filter :return-type)  
-         (map :name) 
-         sort 
-         (map #(str "." %) )
-         distinct
-         println)))
-#_(.toString csnd)
-#_(all-methods csnd)
+  (compile-orc (:instance tezt) "
+       instr 1
+       asig = poscil:a(0.01, 2389)
+       print 666
+       outc asig, asig
+       endin
+       schedule(1, 0, 30)
+")
 
+  (perform-ksmps (:instance tezt))
 
-#_(defclib Csound
-    (:libname "libcsound64")
-    (:callbacks (invoke [void* void* void*] void))
-    (:functions
-     (csound-create csoundCreate [] void*)
-     (csound-start csoundStart [void*] void)
-     (csound-stop csoundStop [void*] void)
-     (csound-get-version csoundGetVersion [void*] int)
-     (csound-set-option csoundSetOption [void* constchar*] int)
-     (csound-compile-orc csoundCompileOrc [void* constchar*] int)
-     (csound-compile-orc-async csoundCompileOrcAsync [void* constchar*] int)
-     (csound-compile-csd-text csoundCompileCsdText [void* constchar*] int)
-     (csound-perform-ksmps csoundPerformKsmps [void*] int)
-     (csound-cleanup csoundCleanup [void*] int)
-     (csound-reset csoundReset [void*] void)
-     (csound-set-message-callback csoundSetMessageCallback [void* invoke] void)))
+  (perform-ksmps test3)
 
-#_(loadlib Csound)
-
-(comment 
-  (def csnd (csound-create))
-  (set-option csnd "-odac")
-  (csound-set-message-callback csnd (callback invoke (fn [arg1 arg2 arg3]
-                                                       (prn (.getString arg3 0)))))
-  (csound-start csnd)
-  (csound-compile-orc csnd  "print 222"))
-
+  (compile-orc test2 "schedule(1, 0, 1)")
+  )

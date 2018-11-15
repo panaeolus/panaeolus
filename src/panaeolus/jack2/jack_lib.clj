@@ -1,17 +1,17 @@
 (ns panaeolus.jack2.jack-lib
   (:require panaeolus.utils.jna-path)
-  (:import [org.jaudiolibs.jnajack.lowlevel JackLibraryDirect]
-           [org.jaudiolibs.jnajack JackOptions JackStatus]
-           [org.jaudiolibs.jnajack JackPortType]
-           [org.jaudiolibs.jnajack JackPortFlags]
-           [org.jaudiolibs.audioservers.jack JackAudioServer]
-           [org.jaudiolibs.audioservers AudioConfiguration AudioClient]
-           [org.jaudiolibs.jnajack Jack]
-           [java.util List EnumSet]
-           [java.nio FloatBuffer]
-           [com.sun.jna.ptr IntByReference]
-           [com.sun.jna NativeLong]))
-
+  (:import
+   [org.jaudiolibs.jnajack.lowlevel JackLibraryDirect]
+   [org.jaudiolibs.jnajack JackOptions JackStatus]
+   [org.jaudiolibs.jnajack JackPortType]
+   [org.jaudiolibs.jnajack JackPortFlags]
+   [org.jaudiolibs.audioservers.jack JackAudioServer]
+   [org.jaudiolibs.audioservers AudioConfiguration AudioClient]
+   [org.jaudiolibs.jnajack Jack]
+   [java.util List EnumSet]
+   [java.nio FloatBuffer]
+   [com.sun.jna.ptr IntByReference]
+   [com.sun.jna NativeLong]))
 
 (def jack-server (Jack/getInstance))
 
@@ -25,7 +25,6 @@
 
 (defn disconnect [from-out to-in]
   (.disconnect jack-server from-out to-in))
-
 
 (defn config-create [inputs outputs]
   (let [sample-rate        44100 ;; ignored: taken from jack
@@ -53,7 +52,7 @@
 
 
 ;; NOT USING THIS BELOW
-(comment 
+(comment
   (def jackLib (new JackLibraryDirect))
 
 

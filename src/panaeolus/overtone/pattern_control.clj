@@ -7,7 +7,7 @@
 (defn fill-missing-keys-for-ctl
   "Function that makes sure that calling inst
    and calling ctl is possible with exact same
-   parameters produceing same result."
+   parameters producing same result."
   [args orig-arglists]
   (letfn [(advance-to-arg [arg orig]
             (let [idx (.indexOf orig arg)]
@@ -30,7 +30,7 @@
                  (vec (rest orig))
                  (conj out-args (first orig) (first args))))))))
 
-(defn squeeze-in-parsed-pattern [args orig-arglists]
+(defn squeeze-in-minilang-pattern [args orig-arglists]
   (let [{:keys [time nn]} (sequence-parser (second args))
         args              (vec args)]
     (doall
@@ -41,9 +41,11 @@
              (subvec args 2)))))
 
 (defn pattern-control [i-name envelope-type orig-arglists instrument-instance]
+  ;; (prn i-name envelope-type orig-arglists instrument-instance)
   (fn [& args]
+    (prn "ARGS" args)
     (let [args (if (string? (second args))
-                 (squeeze-in-parsed-pattern args orig-arglists)
+                 (squeeze-in-minilang-pattern args orig-arglists)
                  args)
           [pat-ctl pat-num]
           (if-not (keyword? (first args))
@@ -58,7 +60,7 @@
                  args)]
       ;; (prn "ORIG: " orig-arglists)
       (case pat-ctl
-        :loop (do 
+        :loop (do
                 (control/unsolo)
                 (event-loop (str i-name "-" pat-num)
                             instrument-instance

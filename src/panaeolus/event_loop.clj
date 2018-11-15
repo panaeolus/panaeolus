@@ -15,7 +15,7 @@
   [durations]
   (let [meter       0
         bar-length  meter
-        summed-durs (apply + (map fractional-abs durations))] 
+        summed-durs (apply + (map fractional-abs durations))]
     (if (pos? meter)
       (* bar-length
          (inc (quot (dec summed-durs) bar-length)))
@@ -60,7 +60,7 @@
               fx current-fx
               index 0
               a-index 0]
-      (if-let [next-timestamp (first queue)] 
+      (if-let [next-timestamp (first queue)]
         (let [wait-chn (chan)]
           (link/at next-timestamp (case audio-backend
                                     :overtone (let [{:keys [current-fx]} (get-current-state)]
@@ -112,54 +112,55 @@
           (keys old-fx)))
 
 (defn event-loop [k-name instrument-instance args & {:keys [envelope-type audio-backend]}]
-  (let [pat-exists?              (contains? @control/pattern-registry k-name)
-        old-state                (get @control/pattern-registry k-name)
-        beats                    (second args)
-        beats                    (if (number? beats)
-                                   [beats]
-                                   (if (sequential? beats)
-                                     beats
-                                     (if (fn? beats)
-                                       beats                        
-                                       (throw (AssertionError. beats " must be vector, list or number.")))))
-        [args fx-vector]         (--filter-fx args)
-        ;; extra-atom               (atom {})
-        fx-handle-atom           (if pat-exists?
-                                   (get old-state :fx-handle-atom)
-                                   (atom nil))
-        new-fx                   (reduce (fn [i v] (assoc i (first v) (vec (rest v)))) {} fx-vector)
-        old-fx                   (get old-state :current-fx)
-        [rem-fx next-fx curr-fx] (diff (set (keys old-fx)) (set (keys new-fx)))
-        ;; _                        (prn "rem-fx" rem-fx "next-fx" next-fx "curr-fx" curr-fx old-fx next-fx)
-        new-fx-merged            (if pat-exists? (--replace-args-in-fx (select-keys old-fx curr-fx) (select-keys new-fx curr-fx)) {})
-        fx-handle-callback       (case audio-backend
-                                   :overtone (overtone-fx-callback k-name instrument-instance rem-fx next-fx curr-fx old-fx new-fx))
-        get-cur-state-fn         (fn []
-                                   (let [cur-state (get @control/pattern-registry k-name)]
-                                     (when cur-state
-                                       (when-let [fx-handle-cb @(get cur-state :fx-handle-atom)]
-                                         (fx-handle-cb)
-                                         (reset! (get cur-state :fx-handle-atom) nil))))
-                                   (get @control/pattern-registry k-name))
-        live-code-arguments      (rest (rest args))]
-    (reset! fx-handle-atom fx-handle-callback)
-    (swap! control/pattern-registry assoc k-name
-           {:event-queue-fn      (fn [& [last-beat]]
-                                   (beats-to-queue (or last-beat (link/get-beat)) beats))
-            :instrument-instance (case audio-backend
-                                   :overtone
-                                   (if (and (= :inf envelope-type) (not pat-exists?))
-                                     (apply instrument-instance
-                                            (resolve-arg-indicies live-code-arguments 0 0 (link/get-beat)))
-                                     (if (and pat-exists? (synth-node? (get old-state :instrument-instance)))
-                                       (get old-state :instrument-instance)
-                                       instrument-instance)))
-            :live-code-arguments live-code-arguments
-            :current-fx          new-fx-merged
-            :fx-handle-atom      fx-handle-atom
-            :undoze-callback     (fn [] (event-loop get-cur-state-fn))
-            :audio-backend       audio-backend
-            :envelope-type       envelope-type})
-    (when-not pat-exists?
-      ;; (clear-fx inst)
-      (event-loop-thread get-cur-state-fn))))
+  (prn "GOTT!")
+  #_(let [pat-exists?              (contains? @control/pattern-registry k-name)
+          old-state                (get @control/pattern-registry k-name)
+          beats                    (second args)
+          beats                    (if (number? beats)
+                                     [beats]
+                                     (if (sequential? beats)
+                                       beats
+                                       (if (fn? beats)
+                                         beats
+                                         (throw (AssertionError. beats " must be vector, list or number.")))))
+          [args fx-vector]         (--filter-fx args)
+          ;; extra-atom               (atom {})
+          fx-handle-atom           (if pat-exists?
+                                     (get old-state :fx-handle-atom)
+                                     (atom nil))
+          new-fx                   (reduce (fn [i v] (assoc i (first v) (vec (rest v)))) {} fx-vector)
+          old-fx                   (get old-state :current-fx)
+          [rem-fx next-fx curr-fx] (diff (set (keys old-fx)) (set (keys new-fx)))
+          ;; _                        (prn "rem-fx" rem-fx "next-fx" next-fx "curr-fx" curr-fx old-fx next-fx)
+          new-fx-merged            (if pat-exists? (--replace-args-in-fx (select-keys old-fx curr-fx) (select-keys new-fx curr-fx)) {})
+          fx-handle-callback       (case audio-backend
+                                     :overtone (overtone-fx-callback k-name instrument-instance rem-fx next-fx curr-fx old-fx new-fx))
+          get-cur-state-fn         (fn []
+                                     (let [cur-state (get @control/pattern-registry k-name)]
+                                       (when cur-state
+                                         (when-let [fx-handle-cb @(get cur-state :fx-handle-atom)]
+                                           (fx-handle-cb)
+                                           (reset! (get cur-state :fx-handle-atom) nil))))
+                                     (get @control/pattern-registry k-name))
+          live-code-arguments      (rest (rest args))]
+      (reset! fx-handle-atom fx-handle-callback)
+      (swap! control/pattern-registry assoc k-name
+             {:event-queue-fn      (fn [& [last-beat]]
+                                     (beats-to-queue (or last-beat (link/get-beat)) beats))
+              :instrument-instance (case audio-backend
+                                     :overtone
+                                     (if (and (= :inf envelope-type) (not pat-exists?))
+                                       (apply instrument-instance
+                                              (resolve-arg-indicies live-code-arguments 0 0 (link/get-beat)))
+                                       (if (and pat-exists? (synth-node? (get old-state :instrument-instance)))
+                                         (get old-state :instrument-instance)
+                                         instrument-instance)))
+              :live-code-arguments live-code-arguments
+              :current-fx          new-fx-merged
+              :fx-handle-atom      fx-handle-atom
+              :undoze-callback     (fn [] (event-loop get-cur-state-fn))
+              :audio-backend       audio-backend
+              :envelope-type       envelope-type})
+      (when-not pat-exists?
+        ;; (clear-fx inst)
+        (event-loop-thread get-cur-state-fn))))
