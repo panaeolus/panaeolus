@@ -41,7 +41,7 @@
                                                                     second first
                                                                     (map #(symbol (name %)))
                                                                     (cons 'beats)
-                                                                    (cons 'pat-ctl) 
+                                                                    (cons 'pat-ctl)
                                                                     (into []))
                                                                'fx)
                                                          arglists-w-defaults)))

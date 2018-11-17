@@ -3,6 +3,7 @@
             [panaeolus.config :as config]
             [panaeolus.csound.utils :as csound-utils]
             [panaeolus.csound.csound-jna :as csound-jna]
+            [panaeolus.overtone.pattern-control :as pat-ctl]
             [panaeolus.jack2.jack-lib :as jack]))
 
 (meta #'reduce)
@@ -19,8 +20,8 @@
   (reduce #(-> %1 (assoc (:name %2) (:default %2))) {} synth-form))
 
 (defmacro definst [i-name orc-string synth-form csound-instrument-number num-outputs]
-  (let [param-vector (generate-param-vector-form synth-form)
-        default-args (generate-default-arg-form synth-form)]
+  (let [param-vector `(generate-param-vector-form ~synth-form)
+        default-args `(generate-default-arg-form ~synth-form)]
     `(do (def ~i-name
            (let [i-name-str# ~(str i-name)
                  instance#   (if-let [inst# (get @csound-jna/csound-instances i-name-str#)]
@@ -58,24 +59,64 @@
                        :type          ::instrument})
          ~i-name)))
 
+(defmacro definst+
+  "Defines an instrument like definst does, but returns it
+   with Panaeolus pattern controls."
+  [i-name orc-string synth-form csound-instrument-number num-outputs envelope-type]
+  `(do (def ~i-name
+         (let [instance-name# ~(str "-" (name i-name))
+               inst#          (definst ~(symbol (str "-" (name i-name)))
+                                ~orc-string ~synth-form ~csound-instrument-number ~num-outputs)
+               instance#      (get @csound-jna/csound-instances instance-name#)]
+           (pat-ctl/pattern-control ~(name i-name)
+                                    ~envelope-type (mapv :name ~synth-form) instance#)))
+       (alter-meta!
+        (var ~i-name) merge
+        (meta (var ~(symbol (str "-" (name i-name)))))
+        (meta (var ~i-name))
+        {:arglists (list (into
+                          ["beats" "pat-ctl"]
+                          (rest
+                           (conj (first (:arglists (meta  (var ~(symbol (str "-" (name i-name)))))))
+                                 "fx")))
+                         (vec
+                          (rest
+                           (second (:arglists (meta (var ~(symbol (str "-" (name i-name))))))))))})
+       ~i-name))
 
 (comment
 
   (def params [{:name :dur :default 1}
-               {:name :amp :default -12}
-               {:name :nn :default 60}])
+               {:name :nn :default 60}
+               {:name :amp :default -12}])
 
-  (def beep22 (with-meta beep22 {:audio-enginge :csound}))
+  (clojure.pprint/pprint
+   (macroexpand-1
+    '(definst+ beep31
+       "instr 1
+   asig = poscil:a(ampdb(p4), cpsmidinn(p5))
+   outc asig, asig
+   endin"
+       params
+       1 2 :perc)))
 
-  (definst beep30
+  (definst+ beep37
     "instr 1
    asig = poscil:a(ampdb(p4), cpsmidinn(p5))
    outc asig, asig
    endin"
-    [{:name :dur :default 1}
-     {:name :amp :default -12}
-     {:name :nn :default 60}]
-    1 2)
+    params
+    1 2 :perc)
+
+  (beep37   )
+
+  (definst beep31
+    "instr 1
+   asig = poscil:a(ampdb(p4), cpsmidinn(p5))
+   outc asig, asig
+   endin"
+    params
+    1 2 )
 
   (meta #'beep26)
 
