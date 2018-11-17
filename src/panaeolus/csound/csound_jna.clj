@@ -12,6 +12,8 @@
            [java.nio FloatBuffer]
            [java.nio DoubleBuffer]))
 
+(def csound-instances (atom {}))
+
 (defn csound-create []
   (new Csound))
 
@@ -28,6 +30,21 @@
 
 (defn compile-orc-async [^Csound instance ^String orc]
   (.compileOrcAsync instance orc))
+
+(defn eval-code [^Csound instance ^String orc]
+  (.evalCode instance orc))
+
+(defn input-message [^Csound instance ^String sco]
+  (.inputMessage instance sco))
+
+(defn input-message-async [^Csound instance ^String sco]
+  (.inputMessageAsync instance sco))
+
+(defn read-score [^Csound instance ^String sco]
+  (.readScore instance sco))
+
+(defn read-score-async [^Csound instance ^String sco]
+  (.readScoreAsync instance sco))
 
 (defn perform-ksmps [^Csound instance]
   (.performKsmps instance))
@@ -52,8 +69,8 @@
 (defn stop [^Csound instance]
   (.stop instance))
 
-(require '[panaeolus.sequence-parser :refer [sequence-parser]]
-         '[panaeolus.event-loop :refer [event-loop]])
+#_(require '[panaeolus.sequence-parser :refer [sequence-parser]]
+           '[panaeolus.event-loop :refer [event-loop]])
 
 #_(defn squeeze-in-minilang-pattern [args orig-arglists]
     (let [{:keys [time nn]} (sequence-parser (second args))
@@ -65,43 +82,9 @@
                  '())
                (subvec args 2)))))
 
-(def params [{:amp {:default -12}}
-             {:nn {:default 60}}])
+;; (instrument-instance )
 
-(defn pattern-control [i-name envelope-type original-parameters csound-instance]
-  (fn [& args]
-    (let [orig-params-keys
-          ;; args (if (string? (second args))
-          ;;        (squeeze-in-minilang-pattern args original-parameters)
-          ;;        args)
-          ;; [pat-ctl pat-num]
-          ;; (if-not (keyword? (first args))
-          ;;   [nil nil]
-          ;;   (let [ctl     (name (first args))
-          ;;         pat-num (or (re-find #"[0-9]+" ctl) 0)
-          ;;         ctl-k   (keyword (first (string/split ctl #"-")))]
-          ;;     [ctl-k pat-num]))
-          ]
-      #_(case pat-ctl
-          :loop (do
-                  ;; (control/unsolo)
-                  (event-loop (str i-name "-" pat-num)
-                              instrument-instance
-                              args
-                              :envelope-type envelope-type
-                              :audio-backend :csound))
-          ;; :stop (control/overtone-pattern-kill (str i-name "-" pat-num))
-          ;; :solo (do (control/solo! (str i-name "-" 0))
-          ;;           (event-loop (str i-name "-" pat-num)
-          ;;                       instrument-instance
-          ;;                       args
-          ;;                       :envelope-type envelope-type
-          ;;                       :audio-backend :overtone))
-          ;; :kill (control/overtone-pattern-kill (str i-name "-: pat-num))
-          ;; (apply instrument-instance (rest (rest args)))
-          )
-      ;; pat-ctl
-      )))
+;; (event-loop "prufa" tezt '(:nn [36 38 40] :amp -20) :envelope-type :perc :audio-backend :csound)
 
 
 (defn spawn-csound-client [client-name inputs outputs ksmps]
@@ -113,8 +96,8 @@
            "--messagelevel=35"
            "-B 4096"
            "-b 512"
-           (str "--nchnls=" inputs)
-           (str "--nchnls_i=" outputs)
+           (str "--nchnls=" outputs)
+           (str "--nchnls_i=" inputs)
            "--0dbfs=1"
            "-+rtaudio=jack"
            "--sample-rate=48000"
@@ -122,7 +105,7 @@
            (str "-+jack_client=" client-name)])
     (start csnd)
     (set-message-callback
-     csnd (fn [attr msg] (println msg)))
+     csnd (fn [attr msg] (print msg)))
     {:instance csnd
      :start    #(send-off thread
                           (fn [instance]
@@ -133,34 +116,35 @@
      :stop     #(when-not (= :stop @status)
                   (reset! status :stop))}))
 
+
+
 (comment
-  (def tezt (spawn-csound-client "csound-2" 2 2 1))
+  (def tezt2 (spawn-csound-client "csound-101" 2 2 1))
 
   ;; ((:init test))
-
+  (print "a")
   @(:status tezt)
 
-  ((:start tezt))
+  ((:start tezt2))
 
   ((:stop tezt))
 
   ((:kill tezt))
 
-  (jack/connect "csound-2:output1" "system:playback_1")
-  (jack/connect "csound-2:output2" "system:playback_2")
+  (jack/connect "csound-1:output1" "system:playback_1")
+  (jack/connect "csound-1:output2" "system:playback_2")
 
   (jack/disconnect "csound-3:output1" "system:playback_1")
   (jack/disconnect "csound-3:output2" "system:playback_2")
 
-  (compile-orc (:instance test) "print 2")
+  (compile-orc (:instance tezt2) "print 2")
 
-  (compile-orc (:instance tezt) "
+  (compile-orc (:instance tezt2) "
        instr 1
-       asig = poscil:a(0.01, 2389)
-       print 666
+       asig = poscil:a(ampdb(p4), cpsmidinn(p5))
        outc asig, asig
-       endin
-       schedule(1, 0, 30)
+       endinn
+       ;; schedule(1, 0, 30)
 ")
 
   (perform-ksmps (:instance tezt))

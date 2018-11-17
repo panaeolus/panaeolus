@@ -1,6 +1,7 @@
 (ns panaeolus.live-code-arguments)
 
 (defn resolve-arg-indicies [args index a-index next-timestamp]
+  (prn "resolve arg indicies" args index)
   (reduce (fn [init val]
             (if (fn? val)
               (conj init (val {:index     index          :a-index a-index

@@ -14,6 +14,7 @@
   {:nchnls               2
    :jack-system-out      "system:playback_"
    :sample-rate          48000
+   :ksmps                64
    :samples-directory    (str home-directory "/samples")
    :overtone-instruments []
    :csound-instruments   []})
@@ -24,4 +25,3 @@
     {}))
 
 (def config (atom (merge default-config user-config)))
-

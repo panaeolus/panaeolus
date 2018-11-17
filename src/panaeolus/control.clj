@@ -15,7 +15,6 @@
 (defn synth-node? [v]
   (= overtone.sc.node.SynthNode (type v)))
 
-
 (defonce pattern-watcher
   (go-loop []
     (let [active-insts

@@ -27,6 +27,7 @@
 
 (defn overtone-event-callback [wait-chn inst args index a-index next-timestamp envelope-type fx]
   (let [args-processed (resolve-arg-indicies args index a-index next-timestamp)
+        _              (prn "ARGS PROCESSED" args-processed)
         fx-ctl-cb      (fn [] (when-not (empty? fx)
                                 #_(run! #(apply sc-node/ctl (last %)
                                                 (resolve-arg-indicies
