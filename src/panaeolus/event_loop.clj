@@ -1,10 +1,9 @@
 (ns panaeolus.event-loop
-  (:use overtone.live) ;; henda
   (:require [panaeolus.overtone.event-callback
              :refer [overtone-event-callback overtone-fx-callback synth-node?]]
             [panaeolus.jack2.jack-lib :as jack]
             [panaeolus.live-code-arguments
-             :refer [resolve-arg-indicies]]
+             :refer [resolve-arg-indicies expand-nested-vectors-to-multiarg]]
             [panaeolus.control :as control]
             [panaeolus.csound.csound-jna :as csound]
             [clojure.data :refer [diff]]
@@ -59,17 +58,14 @@
                 live-code-arguments current-fx
                 envelope-type audio-backend]
          :as   env} (get-current-state)]
-    (prn "PRE"  env)
     (go-loop [[queue mod-div] (event-queue-fn)
               instrument-instance instrument-instance
               args live-code-arguments
               fx current-fx
               index 0
               a-index 0]
-      (prn "POST1" queue)
       (if-let [next-timestamp (first queue)]
-        (let [_        (prn "NEXT TIMEST" next-timestamp)
-              wait-chn (chan)]
+        (let [wait-chn (chan)]
           (link/at next-timestamp (case audio-backend
                                     :overtone (let [{:keys [current-fx]} (get-current-state)]
                                                 (overtone-event-callback
@@ -77,10 +73,16 @@
                                                  args index a-index next-timestamp
                                                  envelope-type current-fx))
                                     :csound   (fn []
-                                                (prn "CALL!")
-                                                (csound/input-message-async
-                                                 (:instance instrument-instance)
-                                                 "i 1 0 1 -12 60")
+                                                (let [args-processed (resolve-arg-indicies args index a-index next-timestamp)]
+                                                  (if (some sequential? args-processed)
+                                                    (run! #(apply instrument-instance %)
+                                                          (expand-nested-vectors-to-multiarg args-processed)))
+                                                  (apply
+                                                   instrument-instance
+                                                   (resolve-arg-indicies args index a-index next-timestamp)))
+                                                #_(csound/input-message-async
+                                                   (:instance instrument-instance)
+                                                   "i 1 0 1 -12 60")
                                                 (put! wait-chn true))))
           (<! wait-chn)
           (recur [(rest queue) mod-div]

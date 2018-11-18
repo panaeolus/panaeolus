@@ -1,7 +1,6 @@
 (ns panaeolus.utils.jna-path
   (:require [clojure.string :as string]))
 
-
 (defn- os-name
   "Returns a string representing the current operating system. Useful
    for debugging, etc. Prefer get-os for os-specific logic."
@@ -34,3 +33,20 @@
     :linux   (System/setProperty "jna.library.path" linux-jna-library-path)
     :mac     (System/setProperty "jna.library.path" mac-jna-library-path)
     :windows (System/setProperty "jna.library.path" current-jna-path)))
+
+;; JNI Path for CsoundJNI
+
+(def ^:private current-jni-path
+  (System/getProperty "java.library.path"))
+
+(defonce ^:private __SET_JNI_PATH__
+  (case (get-os)
+    :linux   (System/setProperty
+              "java.library.path"
+              (str current-jni-path ":" linux-jna-library-path))
+    :mac     (System/setProperty
+              "java.library.path"
+              (str current-jni-path ":" mac-jna-library-path))
+    :windows (System/setProperty
+              "java.library.path"
+              (str current-jni-path ":" current-jna-path))))

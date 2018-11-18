@@ -1,7 +1,8 @@
 (ns panaeolus.overtone.event-callback
   (:require panaeolus.utils.jna-path
             [panaeolus.control :as control]
-            [panaeolus.live-code-arguments :refer [resolve-arg-indicies]]
+            [panaeolus.live-code-arguments :refer
+             [resolve-arg-indicies expand-nested-vectors-to-multiarg]]
             [overtone.sc.node :as sc-node]
             [overtone.studio.inst :as studio-inst]
             [clojure.core.async :refer [<! >! timeout go go-loop chan put! poll!] :as async]
@@ -12,22 +13,9 @@
 (defn synth-node? [v]
   (= overtone.sc.node.SynthNode (type v)))
 
-(defn overtone-expand-nested-vectors-to-multiarg [args]
-  (let [longest-vec (->> args
-                         (filter sequential?)
-                         (map count)
-                         (apply max))]
-    (for [n (range longest-vec)]
-      (reduce (fn [i v]
-                (if (sequential? v)
-                  (if (<= (count v) n)
-                    (conj i (last v))
-                    (conj i (nth v n)))
-                  (conj i v))) [] args))))
 
 (defn overtone-event-callback [wait-chn inst args index a-index next-timestamp envelope-type fx]
   (let [args-processed (resolve-arg-indicies args index a-index next-timestamp)
-        _              (prn "ARGS PROCESSED" args-processed)
         fx-ctl-cb      (fn [] (when-not (empty? fx)
                                 #_(run! #(apply sc-node/ctl (last %)
                                                 (resolve-arg-indicies
@@ -42,7 +30,7 @@
                                       (vals fx))))]
     (if (some sequential? args-processed)
       (let [multiargs-processed
-            (overtone-expand-nested-vectors-to-multiarg args-processed)]
+            (expand-nested-vectors-to-multiarg args-processed)]
         (fn []
           (go (fx-ctl-cb))
           (when (overtone-studio/instrument? inst)

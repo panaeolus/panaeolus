@@ -2,7 +2,8 @@
   (:require
    [overtone.sc.synth :refer [synth-form]]
    [overtone.studio.inst :as sudio-inst]
-   [panaeolus.overtone.pattern-control :refer [pattern-control fill-missing-keys-for-ctl]]
+   [panaeolus.overtone.pattern-control
+    :refer [overtone-pattern-control fill-missing-keys-for-ctl]]
    [panaeolus.overtone.event-callback]))
 
 (defmacro adapt-fx
@@ -48,4 +49,6 @@
         i-name              (with-meta i-name (merge i-name-new-meta {:type ::instrument}))
         inst                `(sudio-inst/inst ~i-name ~params ~ugen-form)]
     `(def ~(vary-meta i-name assoc :inst inst)
-       (pattern-control ~i-name-str ~envelope-type (mapv keyword (first ~orig-arglists)) ~inst))))
+       (overtone-pattern-control
+        ~i-name-str ~envelope-type
+        (mapv keyword (first ~orig-arglists)) ~inst))))

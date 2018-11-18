@@ -1,10 +1,14 @@
 (ns panaeolus.all
-  (:require panaeolus.metronome
-            panaeolus.control
-            panaeolus.overtone.macros
-            panaeolus.overtone.examples.synths
-            panaeolus.overtone.examples.fof)
-  (:use overtone.live))
+  (:require panaeolus.csound.csound-jna))
+
+(require 'panaeolus.metronome
+         'panaeolus.control
+         'panaeolus.overtone.macros
+         'panaeolus.overtone.examples.synths
+         'panaeolus.overtone.examples.fof
+         'panaeolus.csound.examples.synths)
+
+(use 'overtone.live)
 
 (defn immigrate
   "Create a public var in this namespace for each public var in the
@@ -25,4 +29,5 @@
            'panaeolus.metronome
            'panaeolus.control
            'panaeolus.overtone.examples.synths
-           'panaeolus.overtone.examples.fof)
+           'panaeolus.overtone.examples.fof
+           'panaeolus.csound.examples.synths)

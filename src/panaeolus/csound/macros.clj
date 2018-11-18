@@ -3,10 +3,8 @@
             [panaeolus.config :as config]
             [panaeolus.csound.utils :as csound-utils]
             [panaeolus.csound.csound-jna :as csound-jna]
-            [panaeolus.overtone.pattern-control :as pat-ctl]
+            [panaeolus.csound.pattern-control :as pat-ctl]
             [panaeolus.jack2.jack-lib :as jack]))
-
-(meta #'reduce)
 
 (defn generate-param-vector-form
   "Prepare data to be passed to `process-arguments`"
@@ -18,6 +16,22 @@
    would overwrite the default args."
   [synth-form]
   (reduce #(-> %1 (assoc (:name %2) (:default %2))) {} synth-form))
+
+
+(defn input-message-closure [instance param-vector synth-form
+                             csound-instrument-number]
+  (fn [& args]
+    (let [processed-args (csound-utils/process-arguments param-vector args)]
+      (csound-jna/input-message-async
+       instance
+       (clojure.string/join
+        " " (into ["i" csound-instrument-number "0"]
+                  (reduce (fn [i v]
+                            (conj i
+                                  (get processed-args (:name v)
+                                       (:default v))))
+                          []
+                          synth-form)))))))
 
 (defmacro definst [i-name orc-string synth-form csound-instrument-number num-outputs]
   (let [param-vector `(generate-param-vector-form ~synth-form)
@@ -33,23 +47,11 @@
                                  (doseq [chn# (range ~num-outputs)]
                                    (jack/connect (str i-name-str# ":output" (inc chn#))
                                                  (str (:jack-system-out @config/config) (inc chn#))))
-                                 (csound-jna/compile-orc
-                                  (:instance new-inst#)
-                                  ~orc-string)
                                  new-inst#))]
+             (csound-jna/compile-orc (:instance instance#) ~orc-string)
              (swap! csound-jna/csound-instances assoc i-name-str# instance#)
-             (fn [& args#]
-               (let [processed-args# (csound-utils/process-arguments ~param-vector args#)]
-                 (csound-jna/input-message-async
-                  (:instance instance#)
-                  (clojure.string/join
-                   " " (into ["i" ~csound-instrument-number "0"]
-                             (reduce (fn [i# v#]
-                                       (conj i#
-                                             (get processed-args# (:name v#)
-                                                  (:default v#))))
-                                     []
-                                     ~synth-form))))))))
+             (input-message-closure (:instance instance#) ~param-vector ~synth-form
+                                    ~csound-instrument-number)))
          (alter-meta! (var ~i-name) merge (meta (var ~i-name))
                       {:arglists      (list (mapv (comp name :name) ~synth-form)
                                             (mapv #(str (name (:name %)) "(" (:default %) ")")
@@ -62,20 +64,21 @@
 (defmacro definst+
   "Defines an instrument like definst does, but returns it
    with Panaeolus pattern controls."
-  [i-name orc-string synth-form csound-instrument-number num-outputs envelope-type]
+  [i-name orc-string synth-form csound-instrument-number num-outputs]
   `(do (def ~i-name
          (let [instance-name# ~(str "-" (name i-name))
                inst#          (definst ~(symbol (str "-" (name i-name)))
                                 ~orc-string ~synth-form ~csound-instrument-number ~num-outputs)
-               instance#      (get @csound-jna/csound-instances instance-name#)]
-           (pat-ctl/pattern-control ~(name i-name)
-                                    ~envelope-type (mapv :name ~synth-form) instance#)))
+               ;;instance#      (get @csound-jna/csound-instances instance-name#)
+               ]
+           (pat-ctl/csound-pattern-control
+            ~(name i-name) :perc (mapv :name ~synth-form) inst#)))
        (alter-meta!
         (var ~i-name) merge
         (meta (var ~(symbol (str "-" (name i-name)))))
         (meta (var ~i-name))
         {:arglists (list (into
-                          ["beats" "pat-ctl"]
+                          ["pat-ctl" "beats"]
                           (rest
                            (conj (first (:arglists (meta  (var ~(symbol (str "-" (name i-name)))))))
                                  "fx")))
@@ -83,6 +86,8 @@
                           (rest
                            (second (:arglists (meta (var ~(symbol (str "-" (name i-name))))))))))})
        ~i-name))
+
+;; (beep1 :stop "^42 6/4 0x2e0ef r*1" :amp -22)
 
 (comment
 
@@ -100,15 +105,15 @@
        params
        1 2 :perc)))
 
-  (definst+ beep37
+  (definst+ beep1
     "instr 1
-   asig = poscil:a(ampdb(p4), cpsmidinn(p5))
+   asig = poscil:a(ampdb(p5), cpsmidinn(p4))
+   aenv linseg 0, 0.02, 1, p3 - 0.05, 1, 0.02, 0, 0.01, 0
+   asig *= aenv
    outc asig, asig
    endin"
     params
-    1 2 :perc)
-
-  (beep37   )
+    1 2)
 
   (definst beep31
     "instr 1

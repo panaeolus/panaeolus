@@ -12,6 +12,9 @@
            [java.nio FloatBuffer]
            [java.nio DoubleBuffer]))
 
+;; JNA hack
+(doto (new Csound) (.cleanup))
+
 (def csound-instances (atom {}))
 
 (defn csound-create []

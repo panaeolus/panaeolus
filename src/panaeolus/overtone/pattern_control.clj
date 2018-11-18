@@ -40,8 +40,7 @@
                '())
              (subvec args 2)))))
 
-(defn pattern-control [i-name envelope-type orig-arglists instrument-instance]
-  ;; (prn i-name envelope-type orig-arglists instrument-instance)
+(defn overtone-pattern-control [i-name envelope-type orig-arglists instrument-instance]
   (fn [& args]
     (let [args (if (string? (second args))
                  (squeeze-in-minilang-pattern args orig-arglists)
