@@ -73,13 +73,17 @@
                                                  args index a-index next-timestamp
                                                  envelope-type current-fx))
                                     :csound   (fn []
-                                                (let [args-processed (resolve-arg-indicies args index a-index next-timestamp)]
+                                                (let [{:keys [current-fx]} (get-current-state)
+                                                      args-processed       (resolve-arg-indicies args index a-index next-timestamp)]
+                                                  (when current-fx
+                                                    )
+                                                  (prn "current-fx" current-fx)
                                                   (if (some sequential? args-processed)
                                                     (run! #(apply instrument-instance %)
-                                                          (expand-nested-vectors-to-multiarg args-processed)))
-                                                  (apply
-                                                   instrument-instance
-                                                   (resolve-arg-indicies args index a-index next-timestamp)))
+                                                          (expand-nested-vectors-to-multiarg args-processed))
+                                                    (apply
+                                                     instrument-instance
+                                                     (resolve-arg-indicies args index a-index next-timestamp))))
                                                 #_(csound/input-message-async
                                                    (:instance instrument-instance)
                                                    "i 1 0 1 -12 60")
@@ -138,21 +142,28 @@
                                      (if (fn? beats)
                                        beats
                                        (throw (AssertionError. beats " must be vector, list or number.")))))
+        _                        (prn "instpect-pre" args)
         [args fx-vector]         (--filter-fx args)
+        _                        (prn "instpect-post" args fx-vector)
         ;; extra-atom               (atom {})
         fx-handle-atom           (if pat-exists?
                                    (get old-state :fx-handle-atom)
                                    (atom nil))
         new-fx                   (reduce (fn [i v] (assoc i (first v) (vec (rest v)))) {} fx-vector)
+        _                        (prn "NEW FX" new-fx)
         old-fx                   (get old-state :current-fx)
         [rem-fx next-fx curr-fx] (diff (set (keys old-fx)) (set (keys new-fx)))
-        ;; _                        (prn "rem-fx" rem-fx "next-fx" next-fx "curr-fx" curr-fx old-fx next-fx)
+        _                        (prn "rem-fx" rem-fx "next-fx" next-fx "curr-fx" curr-fx old-fx next-fx)
         new-fx-merged            (if pat-exists? (--replace-args-in-fx (select-keys old-fx curr-fx)
                                                                        (select-keys new-fx curr-fx)) {})
         fx-handle-callback       (case audio-backend
                                    :overtone (overtone-fx-callback k-name instrument-instance
                                                                    rem-fx next-fx curr-fx old-fx new-fx)
-                                   :csound   (fn [] (prn "FIX ME!!!")))
+                                   :csound   (when (or (not (empty? rem-fx)) (not (empty? next-fx)))
+                                               (prn "FX CHANGE" "rem-fx" rem-fx "next-fx" next-fx "curr-fx" curr-fx old-fx next-fx)
+                                               (fn []
+                                                 (when-not (empty? rem-fx)
+                                                   ))))
         get-cur-state-fn         (fn []
                                    (let [cur-state (get @control/pattern-registry k-name)]
                                      (when cur-state

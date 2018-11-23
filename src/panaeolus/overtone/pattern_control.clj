@@ -40,39 +40,46 @@
                '())
              (subvec args 2)))))
 
-(defn overtone-pattern-control [i-name envelope-type orig-arglists instrument-instance]
-  (fn [& args]
-    (let [args (if (string? (second args))
-                 (squeeze-in-minilang-pattern args orig-arglists)
-                 args)
-          [pat-ctl pat-num]
-          (if-not (keyword? (first args))
-            [nil nil]
-            (let [ctl     (name (first args))
-                  pat-num (or (re-find #"[0-9]+" ctl) 0)
-                  ctl-k   (keyword (first (string/split ctl #"-")))]
-              [ctl-k pat-num]))
-          args (case envelope-type
-                 :inf   (fill-missing-keys-for-ctl args orig-arglists)
-                 :gated (fill-missing-keys-for-ctl args orig-arglists)
-                 args)]
-      ;; (prn "ORIG: " orig-arglists)
-      (case pat-ctl
-        :loop (do
-                (control/unsolo)
-                (event-loop (str i-name "-" pat-num)
-                            instrument-instance
-                            args
-                            :envelope-type envelope-type
-                            :audio-backend :overtone))
-        :stop (control/overtone-pattern-kill (str i-name "-" pat-num))
-        :solo (do (control/solo! (str i-name "-" 0))
-                  (event-loop (str i-name "-" pat-num)
-                              instrument-instance
-                              args
-                              :envelope-type envelope-type
-                              :audio-backend :overtone))
-        ;; :solo (control/solo (str i-name "-" 0) (if (empty? pat-num) 0 (read-string pat-num)))
-        :kill (control/overtone-pattern-kill (str i-name "-" pat-num))
-        (apply instrument-instance (rest (rest args))))
-      pat-ctl)))
+(defn overtone-pattern-control [i-name envelope-type orig-arglists
+                                instrument-instance instrument-instance-fn]
+  (let [instr-atom (atom instrument-instance)]
+    (fn [& args]
+      (if (some #(= :sos %) args)
+        (do (overtone.sc.node/node-free @instr-atom)
+            (prn "ÐÐÐÐ")
+            (reset! instr-atom (instrument-instance-fn)))
+        (let [instrument-instance @instr-atom
+              args                (if (string? (second args))
+                                    (squeeze-in-minilang-pattern args orig-arglists)
+                                    args)
+              [pat-ctl pat-num]
+              (if-not (keyword? (first args))
+                [nil nil]
+                (let [ctl     (name (first args))
+                      pat-num (or (re-find #"[0-9]+" ctl) 0)
+                      ctl-k   (keyword (first (string/split ctl #"-")))]
+                  [ctl-k pat-num]))
+              args                (case envelope-type
+                                    :inf   (fill-missing-keys-for-ctl args orig-arglists)
+                                    :gated (fill-missing-keys-for-ctl args orig-arglists)
+                                    args)]
+          ;; (prn "ORIG: " orig-arglists)
+          (case pat-ctl
+            :loop (do
+                    (control/unsolo)
+                    (event-loop (str i-name "-" pat-num)
+                                instrument-instance
+                                args
+                                :envelope-type envelope-type
+                                :audio-backend :overtone))
+            :stop (control/overtone-pattern-kill (str i-name "-" pat-num))
+            :solo (do (control/solo! (str i-name "-" 0))
+                      (event-loop (str i-name "-" pat-num)
+                                  instrument-instance
+                                  args
+                                  :envelope-type envelope-type
+                                  :audio-backend :overtone))
+            ;; :solo (control/solo (str i-name "-" 0) (if (empty? pat-num) 0 (read-string pat-num)))
+            :kill (control/overtone-pattern-kill (str i-name "-" pat-num))
+            (apply instrument-instance (rest (rest args))))
+          pat-ctl)))))

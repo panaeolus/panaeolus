@@ -47,8 +47,9 @@
                                                                'fx)
                                                          arglists-w-defaults)))
         i-name              (with-meta i-name (merge i-name-new-meta {:type ::instrument}))
+        create-inst         `(fn [] (sudio-inst/inst ~i-name ~params ~ugen-form))
         inst                `(sudio-inst/inst ~i-name ~params ~ugen-form)]
     `(def ~(vary-meta i-name assoc :inst inst)
        (overtone-pattern-control
         ~i-name-str ~envelope-type
-        (mapv keyword (first ~orig-arglists)) ~inst))))
+        (mapv keyword (first ~orig-arglists)) ~inst ~create-inst))))

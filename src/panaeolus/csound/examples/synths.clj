@@ -8,6 +8,6 @@
    {:name :amp :default -12}
    {:name :dt :default 1}
    {:name :mode :default 0}]
-  1 2)
+  1 2 {})
 
 ;; (additive :stop [0.25 0.25 0.25] :nn [[40 42 47] [80 81]] :dur 2 :mode 2 )

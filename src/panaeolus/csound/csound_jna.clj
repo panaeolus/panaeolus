@@ -107,8 +107,8 @@
            (str "--ksmps=" ksmps)
            (str "-+jack_client=" client-name)])
     (start csnd)
-    (set-message-callback
-     csnd (fn [attr msg] (print msg)))
+    #_(set-message-callback
+       csnd (fn [attr msg] (print msg)))
     {:instance csnd
      :start    #(send-off thread
                           (fn [instance]

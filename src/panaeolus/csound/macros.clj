@@ -4,7 +4,8 @@
             [panaeolus.csound.utils :as csound-utils]
             [panaeolus.csound.csound-jna :as csound-jna]
             [panaeolus.csound.pattern-control :as pat-ctl]
-            [panaeolus.jack2.jack-lib :as jack]))
+            [panaeolus.jack2.jack-lib :as jack]
+            [clojure.core.async :refer [<! >! timeout go go-loop chan put! poll!] :as async]))
 
 (defn generate-param-vector-form
   "Prepare data to be passed to `process-arguments`"
@@ -33,23 +34,30 @@
                           []
                           synth-form)))))))
 
-(defmacro definst [i-name orc-string synth-form csound-instrument-number num-outputs]
+(defmacro definst [i-name orc-string synth-form csound-instrument-number num-outputs fx? config]
   (let [param-vector `(generate-param-vector-form ~synth-form)
         default-args `(generate-default-arg-form ~synth-form)]
     `(do (def ~i-name
-           (let [i-name-str# ~(str i-name)
+           (let [i-name-str# ~(name i-name)
                  instance#   (if-let [inst# (get @csound-jna/csound-instances i-name-str#)]
-                               inst#
-                               (let [new-inst# (csound-jna/spawn-csound-client
-                                                i-name-str# 0 ~num-outputs
-                                                (:ksmps @config/config))]
+                               (:instance inst#)
+                               (let [new-inst#
+                                     (csound-jna/spawn-csound-client
+                                      i-name-str# (if ~fx? ~num-outputs 0) ~num-outputs
+                                      (or ~(:ksmps config) (:ksmps @config/config)))]
                                  ((:start new-inst#))
-                                 (doseq [chn# (range ~num-outputs)]
-                                   (jack/connect (str i-name-str# ":output" (inc chn#))
-                                                 (str (:jack-system-out @config/config) (inc chn#))))
+                                 (when-not ~fx?
+                                   (doseq [chn# (range ~num-outputs)]
+                                     (do (prn "JACK?" (str i-name-str# ":output" (inc chn#)))
+                                         (try
+                                           (jack/connect (str i-name-str# ":output" (inc chn#))
+                                                         (str (:jack-system-out @config/config) (inc chn#)))
+                                           (catch Exception e# nil)))))
                                  new-inst#))]
              (csound-jna/compile-orc (:instance instance#) ~orc-string)
-             (swap! csound-jna/csound-instances assoc i-name-str# instance#)
+             (swap! csound-jna/csound-instances assoc
+                    i-name-str# {:instance     instance#
+                                 :fx-instances []})
              (input-message-closure (:instance instance#) ~param-vector ~synth-form
                                     ~csound-instrument-number)))
          (alter-meta! (var ~i-name) merge (meta (var ~i-name))
@@ -57,18 +65,57 @@
                                             (mapv #(str (name (:name %)) "(" (:default %) ")")
                                                   ~synth-form))
                        :audio-enginge :csound
-                       :inst          ~(str i-name)
+                       :inst          (str ~i-name)
                        :type          ::instrument})
+         (prn ~i-name)
          ~i-name)))
+
+(defn definst* [i-name orc-string synth-form csound-instrument-number num-outputs fx? config]
+  (definst `~i-name orc-string synth-form csound-instrument-number num-outputs fx? config))
+
+;;(str "-" pat-name# "-" ~(name fx-name))
+
+(defmacro define-fx
+  "Defines an effect, by spawning instruments that
+   expects equal amount of outputs as inputs."
+  [fx-name orc-string fx-form fx-controller-instr-number num-outputs config]
+  `(do (def ~fx-name
+         (fn [& args#]
+           (fn [pat-name# fx-handle-atom#]
+             (let [fx-name#  (str "-" pat-name# "-" ~(name fx-name))
+                   instance# (or (get (deref fx-handle-atom#) fx-name#)
+                                 ;; i-name orc-string synth-form csound-instrument-number num-outputs fx? config
+                                 (definst* (symbol fx-name#)
+                                   ~orc-string ~fx-form ~fx-controller-instr-number
+                                   ~num-outputs true ~config))]
+               {:fx-name  fx-name#
+                :instance instance#
+                :args     args#
+                :kill-fx  (fn [] (go (<! (timeout 5))
+                                     (csound-jna/stop instance#)
+                                     (<! (timeout 5))
+                                     (csound-jna/cleanup instance#)
+                                     (swap! csound-jna/csound-instances dissoc fx-name#)))
+                :fx-form  ~fx-form}))))
+       (alter-meta!
+        (var ~fx-name) merge
+        (meta (var ~fx-name))
+        {:arglists      (list (mapv (comp name :name) (rest ~fx-form))
+                              (mapv #(str (name (:name %)) "(" (:default %) ")")
+                                    (rest ~fx-form)))
+         :audio-enginge :csound
+         :type          ::fx})
+       ~fx-name))
 
 (defmacro definst+
   "Defines an instrument like definst does, but returns it
    with Panaeolus pattern controls."
-  [i-name orc-string synth-form csound-instrument-number num-outputs]
+  [i-name orc-string synth-form csound-instrument-number num-outputs config]
   `(do (def ~i-name
-         (let [instance-name# ~(str "-" (name i-name))
+         (let [instance-name# (str "-" ~(name i-name))
                inst#          (definst ~(symbol (str "-" (name i-name)))
-                                ~orc-string ~synth-form ~csound-instrument-number ~num-outputs)
+                                ~orc-string ~synth-form ~csound-instrument-number ~num-outputs false
+                                ~config)
                ;;instance#      (get @csound-jna/csound-instances instance-name#)
                ]
            (pat-ctl/csound-pattern-control
@@ -87,7 +134,7 @@
                            (second (:arglists (meta (var ~(symbol (str "-" (name i-name))))))))))})
        ~i-name))
 
-;; (beep1 :stop "^42 6/4 0x2e0ef r*1" :amp -22)
+;; (beep2 :stop "^42 6/4 0x2e0ef r*1" :amp -22)
 
 (comment
 
