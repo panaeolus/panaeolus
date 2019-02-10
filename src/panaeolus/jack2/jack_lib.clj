@@ -5,8 +5,8 @@
    [org.jaudiolibs.jnajack JackOptions JackStatus]
    [org.jaudiolibs.jnajack JackPortType]
    [org.jaudiolibs.jnajack JackPortFlags]
-   [org.jaudiolibs.audioservers.jack JackAudioServer]
-   [org.jaudiolibs.audioservers AudioConfiguration AudioClient]
+   ;; [org.jaudiolibs.audioservers.jack JackAudioServer]
+   ;; [org.jaudiolibs.audioservers AudioConfiguration AudioClient]
    [org.jaudiolibs.jnajack Jack]
    [java.util List EnumSet]
    [java.nio FloatBuffer]
@@ -21,34 +21,36 @@
                nil))
 
 (defn connect [from-out to-in]
+  (prn "CONNECT FROM OUT" from-out "TO IN" to-in)
   (.connect jack-server from-out to-in))
 
 (defn disconnect [from-out to-in]
+  (prn "DISCONNECT FROM" from-out "TO IN" to-in)
   (.disconnect jack-server from-out to-in))
 
-(defn config-create [inputs outputs]
-  (let [sample-rate        44100 ;; ignored: taken from jack
-        buffer-size        1024  ;; ignored: taken from jack
-        fixed-buffer-size? true  ;; always true
-        ]
-    (new AudioConfiguration sample-rate inputs outputs buffer-size fixed-buffer-size? nil)))
+#_(defn config-create [inputs outputs]
+    (let [sample-rate        44100 ;; ignored: taken from jack
+          buffer-size        1024  ;; ignored: taken from jack
+          fixed-buffer-size? true  ;; always true
+          ]
+      (new AudioConfiguration sample-rate inputs outputs buffer-size fixed-buffer-size? nil)))
 
 ;; (def JackConfig (config-create 2 2 true))
 ;; (def JackClient )
 
-(defn new-jack-client [name inputs outputs processor]
-  (let [audio-config (config-create inputs outputs)
-        audio-client (reify AudioClient
-                       (process [this time inputs outputs nframes]
-                         (processor this inputs outputs nframes))
-                       (configure [this context]
-                         audio-config)
-                       (shutdown [this]))
-        instance     (JackAudioServer/create name audio-config false audio-client)
-        thread       (Thread. (fn [] (.run instance)))
-        ]
-    (.start thread)
-    thread))
+#_(defn new-jack-client [name inputs outputs processor]
+    (let [audio-config (config-create inputs outputs)
+          audio-client (reify AudioClient
+                         (process [this time inputs outputs nframes]
+                           (processor this inputs outputs nframes))
+                         (configure [this context]
+                           audio-config)
+                         (shutdown [this]))
+          instance     (JackAudioServer/create name audio-config false audio-client)
+          thread       (Thread. (fn [] (.run instance)))
+          ]
+      (.start thread)
+      thread))
 
 
 ;; NOT USING THIS BELOW

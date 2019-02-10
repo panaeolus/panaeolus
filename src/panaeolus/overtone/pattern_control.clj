@@ -46,7 +46,6 @@
     (fn [& args]
       (if (some #(= :sos %) args)
         (do (overtone.sc.node/node-free @instr-atom)
-            (prn "ÐÐÐÐ")
             (reset! instr-atom (instrument-instance-fn)))
         (let [instrument-instance @instr-atom
               args                (if (string? (second args))

@@ -87,14 +87,16 @@
                             instrument-instance
                             args
                             :envelope-type :perc
-                            :audio-backend :csound))
+                            :audio-backend :csound
+                            :csound-instance-name i-name))
         :stop (csound-pattern-stop (str i-name "-" pat-num))
-        :solo (do (control/solo! (str i-name "-" 0))
-                  (event-loop (str i-name "-" pat-num)
-                              instrument-instance
-                              args
-                              :envelope-type :perc
-                              :audio-backend :csound))
+        :solo nil #_(do (control/solo! (str i-name "-" 0))
+                        (event-loop (str i-name "-" pat-num)
+                                    instrument-instance
+                                    args
+                                    :envelope-type :perc
+                                    :audio-backend :csound
+                                    :csound-instance-name i-name))
         ;; :solo (control/solo (str i-name "-" 0) (if (empty? pat-num) 0 (read-string pat-num)))
         :kill (csound-pattern-stop (str i-name "-" pat-num))
         (apply instrument-instance (rest (rest args))))

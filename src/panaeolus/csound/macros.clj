@@ -20,13 +20,13 @@
 
 
 (defn input-message-closure [instance param-vector synth-form
-                             csound-instrument-number]
+                             csound-instrument-number fx?]
   (fn [& args]
     (let [processed-args (csound-utils/process-arguments param-vector args)]
       (csound-jna/input-message-async
        instance
        (clojure.string/join
-        " " (into ["i" csound-instrument-number "0"]
+        " " (into ["i" csound-instrument-number "0" (if fx? "0.1" "")]
                   (reduce (fn [i v]
                             (conj i
                                   (get processed-args (:name v)
@@ -38,7 +38,7 @@
   (let [param-vector `(generate-param-vector-form ~synth-form)
         default-args `(generate-default-arg-form ~synth-form)]
     `(do (def ~i-name
-           (let [i-name-str# ~(name i-name)
+           (let [i-name-str# (if ~fx? (str ~i-name) ~(name i-name))
                  instance#   (if-let [inst# (get @csound-jna/csound-instances i-name-str#)]
                                (:instance inst#)
                                (let [new-inst#
@@ -48,18 +48,17 @@
                                  ((:start new-inst#))
                                  (when-not ~fx?
                                    (doseq [chn# (range ~num-outputs)]
-                                     (do (prn "JACK?" (str i-name-str# ":output" (inc chn#)))
-                                         (try
-                                           (jack/connect (str i-name-str# ":output" (inc chn#))
-                                                         (str (:jack-system-out @config/config) (inc chn#)))
-                                           (catch Exception e# nil)))))
+                                     (try
+                                       (jack/connect (str i-name-str# ":output" (inc chn#))
+                                                     (str (:jack-system-out @config/config) (inc chn#)))
+                                       (catch Exception e# nil))))
                                  new-inst#))]
              (csound-jna/compile-orc (:instance instance#) ~orc-string)
              (swap! csound-jna/csound-instances assoc
                     i-name-str# {:instance     instance#
                                  :fx-instances []})
              (input-message-closure (:instance instance#) ~param-vector ~synth-form
-                                    ~csound-instrument-number)))
+                                    ~csound-instrument-number ~fx?)))
          (alter-meta! (var ~i-name) merge (meta (var ~i-name))
                       {:arglists      (list (mapv (comp name :name) ~synth-form)
                                             (mapv #(str (name (:name %)) "(" (:default %) ")")
@@ -67,11 +66,10 @@
                        :audio-enginge :csound
                        :inst          (str ~i-name)
                        :type          ::instrument})
-         (prn ~i-name)
          ~i-name)))
 
 (defn definst* [i-name orc-string synth-form csound-instrument-number num-outputs fx? config]
-  (definst `~i-name orc-string synth-form csound-instrument-number num-outputs fx? config))
+  (definst i-name orc-string synth-form csound-instrument-number num-outputs fx? config))
 
 ;;(str "-" pat-name# "-" ~(name fx-name))
 
@@ -100,9 +98,9 @@
        (alter-meta!
         (var ~fx-name) merge
         (meta (var ~fx-name))
-        {:arglists      (list (mapv (comp name :name) (rest ~fx-form))
+        {:arglists      (list (mapv (comp name :name) ~fx-form)
                               (mapv #(str (name (:name %)) "(" (:default %) ")")
-                                    (rest ~fx-form)))
+                                    ~fx-form))
          :audio-enginge :csound
          :type          ::fx})
        ~fx-name))

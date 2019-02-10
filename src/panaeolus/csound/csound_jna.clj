@@ -7,7 +7,6 @@
             [panaeolus.config :refer [config]]
             [clojure.string :as string])
   (:import [com.kunstmusik.csoundjna Csound MessageCallback]
-           [org.jaudiolibs.audioservers AudioClient]
            [java.util List]
            [java.nio FloatBuffer]
            [java.nio DoubleBuffer]))
@@ -107,8 +106,8 @@
            (str "--ksmps=" ksmps)
            (str "-+jack_client=" client-name)])
     (start csnd)
-    #_(set-message-callback
-       csnd (fn [attr msg] (print msg)))
+    (set-message-callback
+     csnd (fn [attr msg] (print msg)))
     {:instance csnd
      :start    #(send-off thread
                           (fn [instance]

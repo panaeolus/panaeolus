@@ -6,7 +6,8 @@
          'panaeolus.overtone.macros
          'panaeolus.overtone.examples.synths
          'panaeolus.overtone.examples.fof
-         'panaeolus.csound.examples.synths)
+         'panaeolus.csound.examples.synths
+         'panaeolus.csound.examples.fx)
 
 (use 'overtone.live)
 
@@ -30,4 +31,5 @@
            'panaeolus.control
            'panaeolus.overtone.examples.synths
            'panaeolus.overtone.examples.fof
-           'panaeolus.csound.examples.synths)
+           'panaeolus.csound.examples.synths
+           'panaeolus.csound.examples.fx)
