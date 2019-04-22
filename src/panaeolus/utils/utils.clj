@@ -11,3 +11,29 @@
                              (/ (- v min-val) max-val))
                           low))))
             [] arr)))
+
+(defn seperate-fx-args
+  "Seperate fx from rest of the arguments"
+  [args]
+  (loop [args            args
+         args-without-fx []
+         fx              []]
+    (if (empty? args)
+      [args-without-fx (if (sequential? fx) fx [fx])]
+      (if (and (= :fx (first args)) (< 1 (count args)))
+        (recur (rest (rest args))
+               args-without-fx
+               (second args))
+        (recur (rest args)
+               (conj args-without-fx (first args))
+               fx)))))
+
+(defn extract-beats [args]
+  (let [beats (second args)]
+    (if (number? beats)
+      [beats]
+      (if (sequential? beats)
+        beats
+        (if (fn? beats)
+          beats
+          (throw (AssertionError. beats " must be vector, list or number.")))))))

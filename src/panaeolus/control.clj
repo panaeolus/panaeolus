@@ -1,6 +1,8 @@
 (ns panaeolus.control
   (:require [overtone.ableton-link :as link]
             [overtone.sc.node :as sc-node]
+            [overtone.sc.synth :as sc-synth]
+            [overtone.sc.protocols :as protocol]
             [clojure.core.async :refer [<! >! timeout go go-loop chan put! poll!] :as async])
   (:use overtone.live))
 
@@ -17,12 +19,12 @@
 
 (defonce pattern-watcher
   (go-loop []
-    (let [active-insts
-          (map #(or (get-in % [:instrument-instance :name])
-                    (str (:envelope-type %)))
-               (map val @pattern-registry))]
+    (let [active-insts (map #(or (get-in % [:instrument-instance :name])
+                                 (get-in % [:instrument-instance :i-name])
+                                 (str (:envelope-type %)))
+                            (map val @pattern-registry))]
       (when-not (empty? active-insts)
-        (println (str "Acive patterns: " (vec active-insts))))
+        (println (str "Active patterns: " (vec active-insts))))
       (<! (timeout 30000))
       (recur))))
 
@@ -30,8 +32,8 @@
   (letfn [(safe-node-kill [node]
             (future
               (try
-                (node-free* node)
-                (kill node)
+                (sc-node/node-free* node)
+                ;; (kill node)
                 (catch Exception e nil))))]
     (if (= :all k-name)
       (do (when-let [keyz (keys @pattern-registry)]
@@ -58,16 +60,22 @@
 
 (defn overtone-pattern-kill [k-name]
   (letfn [(safe-node-kill [node]
-            (go
-              (<! (timeout 4999))
-              (try
-                (sc-node/node-free* node)
-                (sc-node/kill node)
-                (catch Exception e nil))))]
+            ;; (<! (timeout 4999))
+            (try
+              (if (sc-synth/synth? node)
+                (protocol/kill* node))
+              ;; (sc-node/node-pause* node)
+              (if (synth-node? node)
+                (sc-node/node-free* node))
+              ;; (sc-node/kill node)
+              (catch Exception e nil #_(println "Panaeolus error: " e))))]
     (do (let [v (get @pattern-registry k-name)]
           (when (= :inf (:envelope-type v))
             (safe-node-kill (:instrument-instance v)))
-          (run! safe-node-kill (or (flatten (vals (:current-fx v))) [])))
+          ;; (prn (type (first (flatten (vals (:current-fx v))))))
+          (when-not (empty? (:current-fx v))
+            (run! safe-node-kill (flatten (vals (:current-fx v)))))
+          )
         (swap! pattern-registry dissoc k-name))))
 
 (defn unsolo []

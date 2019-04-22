@@ -10,6 +10,7 @@
    [org.jaudiolibs.jnajack Jack]
    [java.util List EnumSet]
    [java.nio FloatBuffer]
+   [java.util Arrays]
    [com.sun.jna.ptr IntByReference]
    [com.sun.jna NativeLong]))
 
@@ -20,13 +21,16 @@
                (EnumSet/of JackOptions/JackNoStartServer)
                nil))
 
+(def jack-client (open-client "__jnajack__"))
+
 (defn connect [from-out to-in]
-  (prn "CONNECT FROM OUT" from-out "TO IN" to-in)
   (.connect jack-server from-out to-in))
 
 (defn disconnect [from-out to-in]
-  (prn "DISCONNECT FROM" from-out "TO IN" to-in)
   (.disconnect jack-server from-out to-in))
+
+(defn get-connections [port-name]
+  (first (Arrays/asList (.getAllConnections jack-server jack-client port-name))))
 
 #_(defn config-create [inputs outputs]
     (let [sample-rate        44100 ;; ignored: taken from jack

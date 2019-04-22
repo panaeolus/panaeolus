@@ -53,7 +53,6 @@
                                (if (empty? at)
                                  last-tick (last at)))))))))))
 
-
 (defn event-loop-thread [get-current-state]
   (let [{:keys [event-queue-fn instrument-instance
                 live-code-arguments current-fx
@@ -109,21 +108,6 @@
                    a-index
                    )))))))
 
-(defn --filter-fx [args]
-  (loop [args         args
-         fx-free-args []
-         fx           []]
-    (if (empty? args)
-      [fx-free-args (if (sequential? fx) fx [fx])]
-      ;; QUICK FIX, REPAIR!
-      (if (and (= :fx (first args)) (< 1 (count args)))
-        (recur (rest (rest args))
-               fx-free-args
-               (second args))
-        (recur (rest args)
-               (conj fx-free-args (first args))
-               fx)))))
-
 (defn --replace-args-in-fx [old-fx new-fx]
   (reduce (fn [init old-k]
             (if (contains? new-fx old-k)
@@ -132,89 +116,24 @@
           old-fx
           (keys old-fx)))
 
-(defn event-loop [k-name instrument-instance args
-                  & {:keys [envelope-type audio-backend csound-instance-name]}]
+(defn event-loop-overtone [k-name instrument-instance args
+                           & {:keys [envelope-type audio-backend csound-instance-name]}]
   (let [pat-exists?              (contains? @control/pattern-registry k-name)
         old-state                (get @control/pattern-registry k-name)
-        beats                    (second args)
-        beats                    (if (number? beats)
-                                   [beats]
-                                   (if (sequential? beats)
-                                     beats
-                                     (if (fn? beats)
-                                       beats
-                                       (throw (AssertionError. beats " must be vector, list or number.")))))
-        [args fx-vector]         (--filter-fx args)
-        ;; extra-atom               (atom {})
+        beats                    (utils/extract-beats args)
+        [args fx-vector]         (utils/seperate-fx-args args)
         fx-handle-atom           (if pat-exists?
                                    (get old-state :fx-handle-atom)
                                    (atom nil))
-        new-fx                   (case audio-backend
-                                   :overtone (reduce (fn [i v] (assoc i (first v) (vec (rest v)))) {} fx-vector)
-                                   :csound
-                                   (->> (mapv (fn [fx-closure]
-                                                (fx-closure csound-instance-name fx-handle-atom))
-                                              fx-vector)
-                                        (reduce (fn [i v]
-                                                  (assoc i (:fx-name v)
-                                                         [(:instance v)
-                                                          (or (:args v) [])])) {})))
+        new-fx                   (reduce (fn [i v] (assoc i (first v) (vec (rest v)))) {} fx-vector)
         ;; _                        (prn "NEW FX" new-fx)
         old-fx                   (get old-state :current-fx)
         [rem-fx next-fx curr-fx] (diff (set (keys old-fx)) (set (keys new-fx)))
         ;; _                        (prn "rem-fx" rem-fx "next-fx" next-fx "curr-fx" curr-fx old-fx next-fx)
-        new-fx-merged            (if (= :csound audio-backend)
-                                   new-fx
-                                   (if pat-exists? (--replace-args-in-fx (select-keys old-fx curr-fx)
-                                                                         (select-keys new-fx curr-fx)) {}))
-        fx-handle-callback       (case audio-backend
-                                   :overtone (overtone-fx-callback k-name instrument-instance
-                                                                   rem-fx next-fx curr-fx old-fx new-fx)
-                                   :csound   (when (or (not (empty? rem-fx)) (not (empty? next-fx))
-                                                       (not (empty? (:current-fx @fx-handle-atom))))
-                                               (prn "FX CHANGE" "rem-fx" rem-fx "next-fx" next-fx "curr-fx" curr-fx old-fx next-fx)
-                                               (fn []
-                                                 ;; disconnect everything
-                                                 (doseq [chn (range 2)]
-                                                   (try
-                                                     (let [old-fx (into [:self] (vec (keys old-fx)))]
-                                                       (if old-fx
-                                                         (run!
-                                                          #(let [port      (nth old-fx %)
-                                                                 from-port (if (= :self port)
-                                                                             (str "-" csound-instance-name ":output" (inc chn))
-                                                                             (str  port ":output" (inc chn)))
-                                                                 to-port   (if (= % (dec (count old-fx)))
-                                                                             (str (:jack-system-out @config/config) (inc chn))
-                                                                             (str (nth old-fx (dec %)) ":input" (inc chn)))]
-                                                             (jack/disconnect from-port to-port))
-                                                          (reverse (range (count old-fx))))
-                                                         (jack/disconnect (str "-" csound-instance-name ":output" (inc chn))
-                                                                          (str (:jack-system-out @config/config) (inc chn)))))
-                                                     (catch Exception e nil)))
-                                                 ;; connect everything
-                                                 (doseq [chn (range 2)]
-                                                   (try (if-not (empty? next-fx)
-                                                          ;;(vec (distinct (into (or next-fx []) curr-fx)))
-                                                          (let [next-fx (vec (reverse (into [:self] next-fx)))]
-                                                            (prn "NEXXT FX" next-fx (range (count next-fx)))
-                                                            (run! #(let [port      (nth next-fx %)
-                                                                         ;; _         (prn "PORT" port)
-                                                                         from-port (if (= :self port)
-                                                                                     (str "-" csound-instance-name ":output" (inc chn))
-                                                                                     (str  port ":output" (inc chn))) ;; "-" csound-instance-name "-"
-                                                                         ;; _         (prn "FROM PORT" from-port next-fx (dec %))
-                                                                         to-port   (if (zero? %)
-                                                                                     (str (:jack-system-out @config/config) (inc chn))
-                                                                                     (str (nth next-fx (dec %)) ":input" (inc chn)))
-                                                                         ;; _         (prn "TO PORT" to-port)
-                                                                         ]
-                                                                     ;; (prn "NOW" port)
-                                                                     (jack/connect from-port to-port))
-                                                                  (range (count next-fx))))
-                                                          (jack/connect (str "-" csound-instance-name ":output" (inc chn))
-                                                                        (str (:jack-system-out @config/config) (inc chn))))
-                                                        (catch Exception e nil))))))
+        new-fx-merged            (if pat-exists? (--replace-args-in-fx (select-keys old-fx curr-fx)
+                                                                       (select-keys new-fx curr-fx)) {})
+        fx-handle-callback       (overtone-fx-callback k-name instrument-instance
+                                                       rem-fx next-fx curr-fx old-fx new-fx)
         get-cur-state-fn         (fn []
                                    (let [cur-state (get @control/pattern-registry k-name)]
                                      (when cur-state
@@ -227,24 +146,103 @@
     (swap! control/pattern-registry assoc k-name
            {:event-queue-fn      (fn [& [last-beat]]
                                    (beats-to-queue (or last-beat (link/get-beat)) beats))
-            :instrument-instance (case audio-backend
-                                   :overtone
-                                   (if (and (= :inf envelope-type) (not pat-exists?))
-                                     (apply instrument-instance
-                                            (resolve-arg-indicies live-code-arguments 0 0 (link/get-beat)))
-                                     (if (and pat-exists? (synth-node? (get old-state :instrument-instance)))
-                                       (get old-state :instrument-instance)
-                                       instrument-instance))
-                                   :csound instrument-instance)
+            :instrument-instance (if (and (= :inf envelope-type) (not pat-exists?))
+                                   (apply instrument-instance
+                                          (resolve-arg-indicies live-code-arguments 0 0 (link/get-beat)))
+                                   (if (and pat-exists? (synth-node? (get old-state :instrument-instance)))
+                                     (get old-state :instrument-instance)
+                                     instrument-instance))
+            :csound instrument-instance
             :live-code-arguments live-code-arguments
             :current-fx          new-fx-merged
             :fx-handle-atom      fx-handle-atom
-            :undoze-callback     (fn [] (event-loop get-cur-state-fn))
+            :undoze-callback     (fn [] (event-loop-overtone get-cur-state-fn))
             :audio-backend       audio-backend
             :envelope-type       envelope-type})
     (when-not pat-exists?
-      ;; (clear-fx inst)
       (event-loop-thread get-cur-state-fn))))
+
+
+(defn csound-event-loop-thread [get-current-state]
+  (let [{:keys [i-name
+                event-queue-fn
+                instrument-instance
+                args
+                fx-instances
+                isFx?]} (get-current-state)]
+    (go-loop [[queue mod-div] (event-queue-fn)
+              instrument-instance instrument-instance
+              args args
+              fx-instances fx-instances
+              needs-reroute? false
+              index 0
+              a-index 0]
+      (prn "A")
+      (if-let [next-timestamp (first queue)]
+        (let [wait-chn (chan)]
+          (prn "B" next-timestamp (link/get-beat))
+          (link/at next-timestamp (fn []
+                                    (prn "HALELUIA!")
+                                    (let [args-processed (resolve-arg-indicies args index a-index next-timestamp)]
+                                      (prn "BUG??" args-processed)
+                                      #_(when-not (empty? current-fx)
+                                          (run! (fn [[inst args]]
+                                                  (prn "apply" inst (resolve-arg-indicies args index a-index next-timestamp))
+                                                  (apply inst (resolve-arg-indicies args index a-index next-timestamp)))
+                                                (vals current-fx)))
+                                      (prn "SEND" (:send instrument-instance))
+                                      (prn (if (some sequential? args-processed)
+                                             (run! #(apply (:send instrument-instance) %)
+                                                   (expand-nested-vectors-to-multiarg args-processed))
+                                             (apply (:send instrument-instance)
+                                                    (resolve-arg-indicies args index a-index next-timestamp))))
+                                      (put! wait-chn true))))
+          (prn "C")
+          (<! wait-chn)
+          (prn "D")
+          (recur [(rest queue) mod-div]
+                 instrument-instance
+                 args
+                 fx-instances
+                 needs-reroute?
+                 (inc index)
+                 (inc a-index)))
+        (when-let [event-form (get-current-state)]
+          (prn "E")
+          (when needs-reroute? (prn "REROUTE"))
+          (let [{:keys [event-queue-fn instrument-instance
+                        args fx-instances needs-reroute?]} event-form
+                [queue new-mod-div] (event-queue-fn mod-div)]
+            (recur [queue new-mod-div]
+                   instrument-instance
+                   args
+                   fx-instances
+                   needs-reroute?
+                   0
+                   a-index
+                   )))))))
+
+#_(defn event-loop-csound
+    [pat-name instrument-instance args & {:keys [envelope-type audio-backend csound-instance-name]}]
+    (let [
+
+          beats                    (extract-beats args)
+
+          ;; extra-atom               (atom {})
+          fx-handle-atom           (if pat-exists?
+                                     (get old-state :fx-handle-atom)
+                                     (atom nil))
+          get-cur-state-fn         (fn []
+                                     (let [cur-state (get @control/pattern-registry pat-name)]
+                                       (when cur-state
+                                         (when-let [fx-handle-cb @(get cur-state :fx-handle-atom)]
+                                           (fx-handle-cb)
+                                           (reset! (get cur-state :fx-handle-atom) nil))))
+                                     (get @control/pattern-registry pat-name))
+          live-code-arguments      (rest (rest args))]
+      (reset! fx-handle-atom (fn []))
+
+      ))
 
 (comment
 
@@ -274,7 +272,7 @@
   (jack/disconnect "csound-3:output1" "system:playback_1")
   (jack/disconnect "csound-3:output2" "system:playback_2")
 
-  (compile-orc (:instance test) "print 2")
+  (csound/compile-orc (:instance tezt) "print 2")
 
   (csound/compile-orc (:instance tezt) "
        instr 1

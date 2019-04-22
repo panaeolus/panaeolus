@@ -1,19 +1,29 @@
-{:paths ["src" "resources" "native" "dev"]
- :deps  {org.clojure/clojure          {:mvn/version "1.9.0"}
+{
+ ;; :mvn/repos {"central" {:url "https://repo1.maven.org/maven2/"}
+ ;;             "clojars" {:url "https://repo.clojars.org/"}}
+
+ :paths ["src" "resources" "native" "dev"]
+
+ :deps  {org.clojure/clojure          {:mvn/version "1.10.0"}
+         ;; org.clojure/tools.deps.alpha {:mvn/version "0.6.488"}
          org.clojure/core.async       {:mvn/version "0.4.474"}
          overtone/ableton-link        {:mvn/version "1.0.0-alpha4"}
-         org.clojure/tools.deps.alpha {:mvn/version "0.6.480"}
+         com.google.inject/guice      {:mvn/version "4.2.2"}
+
          com.kunstmusik/CsoundJNA     {:local/root "lib/CsoundJNA-1.0-SNAPSHOT.jar"}
-         ;; org.jaudiolibs/audioservers  {:local/root "lib/audioservers-jack-1.2.0-SNAPSHOT.jar"}
-         org.jaudiolibs/jnajack       {:mvn/version "1.3.0"}
+         org.jaudiolibs/audioservers  {:local/root "lib/audioservers-jack-1.2.0-SNAPSHOT.jar"}
+         org.jaudiolibs/jnajack       {:mvn/version "1.3.0" :exclusions [net.java.dev.jna/jna]}
          overtone/overtone            {:mvn/version "0.11.0"}
          overtone/scsynth             {:mvn/version "3.9.3-1"}
          overtone/scsynth-extras      {:mvn/version "3.9.3-1"}
          clj-native                   {:mvn/version "0.9.5"}
          instaparse                   {:mvn/version "1.4.9"}
-         net.java.dev.jna/jna         {:mvn/version "5.1.0"}
+         net.java.dev.jna/jna         {:mvn/version "5.2.0"}
+         ;; net.java.dev.jna/jna         {:local/root "lib/jna.jar"}
          }
- :aliases {:live {:jvm-opts ["-Xms2G" "-Xmx5G"
-                             "-Djava.library.path=native"
-                             ;; "-Djna.debug_load=true"
-                             ]}}}
+
+ ;; :aliases {:live {:jvm-opts ["-Xms2G" "-Xmx5G"
+ ;;                             ;; "-Djava.library.path=native"
+ ;;                             ;; "-Djna.debug_load=true"
+ ;;                             ]}}
+ }

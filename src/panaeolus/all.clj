@@ -1,15 +1,26 @@
 (ns panaeolus.all
-  (:require panaeolus.csound.csound-jna))
+  (:gen-class)
+  (:use overtone.live)
+  (:require panaeolus.csound.csound-jna
+            panaeolus.metronome
+            panaeolus.control
+            panaeolus.overtone.macros
+            panaeolus.overtone.examples.synths
+            panaeolus.overtone.examples.fof
+            panaeolus.csound.csound-jna
+            panaeolus.csound.examples.synths
+            panaeolus.csound.examples.fx))
 
-(require 'panaeolus.metronome
-         'panaeolus.control
-         'panaeolus.overtone.macros
-         'panaeolus.overtone.examples.synths
-         'panaeolus.overtone.examples.fof
-         'panaeolus.csound.examples.synths
-         'panaeolus.csound.examples.fx)
+#_(require 'panaeolus.metronome
+           'panaeolus.control
+           'panaeolus.overtone.macros
+           'panaeolus.overtone.examples.synths
+           'panaeolus.overtone.examples.fof
+           'panaeolus.csound.csound-jna
+           'panaeolus.csound.examples.synths
+           'panaeolus.csound.examples.fx)
 
-(use 'overtone.live)
+;; (use 'overtone.live)
 
 (defn immigrate
   "Create a public var in this namespace for each public var in the

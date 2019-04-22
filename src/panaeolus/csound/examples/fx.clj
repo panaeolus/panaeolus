@@ -1,7 +1,7 @@
 (ns panaeolus.csound.examples.fx
   (:use [panaeolus.csound.macros :as c]))
 
-(c/define-fx binauralize
+(c/define-csound-fx binauralize11
   "opcode binauralize, aa, akk
   ; collect inputs
   ain,kcent,kdiff	xin
@@ -42,4 +42,4 @@
   "
   [{:name :cent :default 0.6}
    {:name :diff :default 0.8}]
-  2 2 {})
+  2 2 30 {})
