@@ -4,9 +4,10 @@
   (:require panaeolus.csound.csound-jna
             panaeolus.metronome
             panaeolus.control
-            panaeolus.overtone.macros
-            panaeolus.overtone.examples.synths
-            panaeolus.overtone.examples.fof
+            ;; panaeolus.overtone.macros
+            ;; panaeolus.overtone.examples.synths
+            ;; panaeolus.overtone.examples.fof
+            panaeolus.csound.macros
             panaeolus.csound.csound-jna
             panaeolus.csound.examples.synths
             panaeolus.csound.examples.fx))

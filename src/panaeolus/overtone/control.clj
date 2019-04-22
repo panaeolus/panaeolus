@@ -1,12 +1,11 @@
-(ns panaeolus.control
-  (:require [overtone.ableton-link :as link]
+(ns panaeolus.overtone.control
+  (:require [panaeolus.globals]
+            [overtone.ableton-link :as link]
             [overtone.sc.node :as sc-node]
             [overtone.sc.synth :as sc-synth]
             [overtone.sc.protocols :as protocol]
             [clojure.core.async :refer [<! >! timeout go go-loop chan put! poll!] :as async])
   (:use overtone.live))
-
-(def pattern-registry (atom {}))
 
 (def --dozed-patterns
   "When 1 pattern is solo,
@@ -19,9 +18,11 @@
 
 (defonce pattern-watcher
   (go-loop []
-    (let [active-insts (map #(or (get-in % [:instrument-instance :name])
-                                 (get-in % [:instrument-instance :i-name])
-                                 (str (:envelope-type %)))
+    (let [active-insts (map #(let [cand (get-in % [:instrument-instance :name])]
+                               (if (empty? cand)
+                                 (get-in % [:connected-to-instance])
+                                 cand)
+                               #_(str (:envelope-type %)))
                             (map val @pattern-registry))]
       (when-not (empty? active-insts)
         (println (str "Active patterns: " (vec active-insts))))

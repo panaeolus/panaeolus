@@ -1,17 +1,17 @@
 (ns panaeolus.csound.examples.fx
   (:use [panaeolus.csound.macros :as c]))
 
-(c/define-csound-fx binauralize11
-  "opcode binauralize, aa, akk
-  ; collect inputs
-  ain,kcent,kdiff	xin
+(c/define-csound-fx binauralize21
+  "
+  opcode binauralize, aa, akk
+
+  ain,kcent,kdiff xin
   ifftsz = 1024
   ; determine pitches
   kp1 = kcent + (kdiff/2)
   kp2 = kcent - (kdiff/2)
   krat1 = kp1 / kcent
   krat2	= kp2 / kcent
-
   ; take it apart
   fsig pvsanal	ain, ifftsz, ifftsz/4, ifftsz, 1
   ; create derived streams
@@ -21,7 +21,6 @@
   abinL	pvsynth	fbinL
   abinR	pvsynth	fbinR
   ; send it out
-
   xout abinL, abinR
   endop
 
@@ -40,6 +39,7 @@
     gkdiff = p5
   endin
   "
-  [{:name :cent :default 0.6}
+  [{:name :dur  :default 0.1}
+   {:name :cent :default 0.6}
    {:name :diff :default 0.8}]
   2 2 30 {})

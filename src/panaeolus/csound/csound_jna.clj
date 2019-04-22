@@ -4,6 +4,7 @@
             [clj-native.callbacks :refer [callback]]
             [clojure.core.async :refer [go go-loop chan alts! <! >! close! timeout] :as async]
             panaeolus.utils.jna-path
+            [panaeolus.globals :as globals]
             [panaeolus.csound.utils :as csound-utils]
             [panaeolus.jack2.jack-lib :as jack]
             [panaeolus.config :refer [config]]
@@ -16,35 +17,29 @@
 
 (defn debounce
   "https://gist.github.com/scttnlsn/9744501"
-  [in ms]
+  [in ms pattern-name]
   (let [out (chan)]
     (go-loop [last-val nil]
       (let [val   (if (nil? last-val) (<! in) last-val)
             timer (timeout ms)
             [new-val ch] (alts! [in timer])]
         (condp = ch
-          timer (do (when-not
-                        (>! out val)
-                      (close! in))
-                    (recur nil))
-          in (if new-val (recur new-val)))))
+          timer (if (contains? @globals/pattern-registry pattern-name)
+                  (recur ms)
+                  (do (when-not (>! out val)
+                        (close! in))
+                      (recur nil)))
+          in (if new-val
+               (recur new-val)
+               (if (contains? @globals/pattern-registry pattern-name)
+                 (recur ms))))))
     out))
-
-(go (let [in  (chan)
-          out (debounce in 9000)]
-      (prn "pre1")
-      (<! (timeout 2000))
-      (prn "pre2")
-      (>! in 1000)
-      ;; (>! in 300)
-      (prn "VAL!" (<! out))
-      (println "HÆ")))
 
 ;; JNA hack
 ;; (doto (new Csound) (.cleanup))
 
 (def csound-instances (atom {}))
-
+;; (clojure.pprint/pprint @csound-instances)
 (defn csound-create []
   (new Csound))
 
@@ -101,50 +96,31 @@
   (.stop instance))
 
 (defn input-message-closure
-  [csound-thread synth-form csound-instrument-number debounce-channel release-time isFx?]
+  [synth-form csound-instrument-number release-time isFx?]
   (let [param-vector (reduce into [] (map #(vector (:name %) (:default %)) synth-form))]
-    (fn [& args]
-      (let [processed-args (csound-utils/process-arguments param-vector args)
-            p-list (reduce (fn [i v]
-                             (conj i
-                                   (get processed-args (:name v)
-                                        (:default v))))
-                           []
-                           synth-form)]
-        (input-message
-         csound-thread
-         (clojure.string/join
-          " " (into ["i" csound-instrument-number "0" (if isFx? "0.1" "")] p-list)))
-        (when debounce-channel (async/>!! debounce-channel (+ (first p-list) release-time)))))))
-
-
-#_(require '[panaeolus.sequence-parser :refer [sequence-parser]]
-           '[panaeolus.event-loop :refer [event-loop]])
-
-#_(defn squeeze-in-minilang-pattern [args orig-arglists]
-    (let [{:keys [time nn]} (sequence-parser (second args))
-          args              (vec args)]
-      (doall
-       (concat (list (first args) (vec time) (vec nn))
-               (if (some #(= :dur %) orig-arglists)
-                 [:dur (vec time)]
-                 '())
-               (subvec args 2)))))
-
-;; (instrument-instance )
-
-;; (event-loop "prufa" tezt '(:nn [36 38 40] :amp -20) :envelope-type :perc :audio-backend :csound)
+    (fn [csnd debounce-channel]
+      (fn [& args]
+        (let [processed-args (csound-utils/process-arguments param-vector args)
+              p-list (reduce (fn [i v]
+                               (conj i
+                                     (get processed-args (:name v)
+                                          (:default v))))
+                             []
+                             synth-form)]
+          (input-message @csnd
+                         (clojure.string/join
+                          " " (into ["i" csound-instrument-number "0" (if isFx? "0.1" "")] p-list)))
+          (when debounce-channel (async/>!! debounce-channel (+ (first p-list) release-time))))))))
 
 (defn spawn-csound-client
   [client-name inputs outputs ksmps
-   synth-form csound-instrument-number
-   release-time isFx?]
-  (let [csnd   (csound-create)
+   release-time isFx? input-msg-cb]
+  (let [csnd   (atom (csound-create))
         status (atom :init)
-        thread (agent csnd)
+        thread (agent nil)
         debounce-channel (when-not isFx? (chan (async/sliding-buffer 1)))
-        release-channel (when-not isFx? (debounce debounce-channel release-time))]
-    (run! #(set-option csnd %)
+        release-channel (when-not isFx? (debounce debounce-channel release-time client-name))]
+    (run! #(set-option @csnd %)
           ["-iadc:null" "-odac:null"
            "--messagelevel=35"
            "-B 4096"
@@ -156,23 +132,20 @@
            "--sample-rate=48000"
            (str "--ksmps=" ksmps)
            (str "-+jack_client=" client-name)])
-    (start csnd)
-    (set-message-callback
-     csnd (fn [attr msg] (print msg)))
+    (start @csnd)
+    (set-message-callback @csnd (fn [attr msg] (print msg)))
     {:instance csnd
      :client-name client-name
      :start    #(send-off thread
-                          (fn [instance]
+                          (fn [& r]
                             (reset! status :running)
-                            (while (and (= :running @status) (zero? (perform-ksmps instance))))
-                            (doto instance stop)
-                            (doto instance cleanup)))
+                            (while (and (= :running @status) (zero? (perform-ksmps @csnd))))
+                            (doto @csnd stop)
+                            (doto @csnd cleanup)))
      :stop     #(when-not (= :stop @status)
                   (reset! status :stop))
-     :send (input-message-closure
-            csnd synth-form
-            csound-instrument-number debounce-channel release-time isFx?)
-     :compile (fn [orc] (compile-orc csnd orc))
+     :send (fn [& args] (apply (input-msg-cb csnd debounce-channel) args))
+     :compile (fn [orc] (compile-orc @csnd orc))
      :inputs (mapv #(hash-map :port-name (str client-name ":input" (inc %))
                               :connected-from-instance nil
                               :connected-from-port nil
@@ -188,27 +161,56 @@
      :release-time release-time}))
 
 (comment
-  (def tezt2 (spawn-csound-client "csound-101" 2 2 1))
+  (def tezt3 (spawn-csound-client "csound-102" 2 2 1 60 false (fn [& rest])))
 
   ;; ((:init test))
   (print "a")
   @(:status tezt2)
 
-  ((:start tezt2))
+  ((:start tezt3))
 
-  ((:stop tezt))
+  ((:stop tezt2))
 
-  ((:kill tezt))
+  ((:kill tezt2))
 
-  (jack/connect "csound-101:output1" "system:playback_1")
+  (jack/connect "csound-102:output1" "system:playback_1")
   (jack/connect "csound-1:output2" "system:playback_2")
 
   (jack/disconnect "csound-3:output1" "system:playback_1")
   (jack/disconnect "csound-3:output2" "system:playback_2")
 
-  (compile-orc (:instance tezt2) "print 0dbfs")
+  (compile-orc @(:instance tezt2) "print 0dbfs")
+  ((:compile tezt2) "print 0dbfs")
 
-  (compile-orc (:instance tezt2) "
+  ((:compile tezt3) "instr 1
+       asig = poscil:a(ampdb(p4), cpsmidinn(p5))
+       outc asig*1000, asig*1000
+       endin
+        print 1
+       schedule(1, 0, 3, -2, 60)
+")
+
+  ((:compile tezt2) "
+  opcode binauralize, aa, akk
+
+  ain,kcent,kdiff xin
+  ifftsz = 1024
+  ; determine pitches
+  kp1 = kcent + (kdiff/2)
+  kp2 = kcent - (kdiff/2)
+  krat1 = kp1 / kcent
+  krat2	= kp2 / kcent
+  ; take it apart
+  fsig pvsanal	ain, ifftsz, ifftsz/4, ifftsz, 1
+  ; create derived streams
+  fbinL	pvscale	fsig, krat1, 1
+  fbinR	pvscale	fsig, krat2, 1
+  ; put it back together
+  abinL	pvsynth	fbinL
+  abinR	pvsynth	fbinR
+  ; send it out
+  xout abinL, abinR
+  endop
        instr 1
        asig = poscil:a(ampdb(p4), cpsmidinn(p5))
        outc asig, asig

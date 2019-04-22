@@ -22,6 +22,11 @@
          ;; net.java.dev.jna/jna         {:local/root "lib/jna.jar"}
          }
 
+ :aliases {:nrepl {:extra-deps {;;nrepl/nrepl {:mvn/version "0.7.0-SNAPSHOT"}
+                                cider/cider-nrepl {:mvn/version "0.22.0-SNAPSHOT"}}
+                   :main-opts ["-m nrepl.cmdline --middleware [cider.nrepl/cider-middleware]"
+                               ;; "-m nrepl.cmdline"
+                               "-Xms2G" "-Xmx5G"]}}
  ;; :aliases {:live {:jvm-opts ["-Xms2G" "-Xmx5G"
  ;;                             ;; "-Djava.library.path=native"
  ;;                             ;; "-Djna.debug_load=true"

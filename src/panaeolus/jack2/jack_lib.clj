@@ -30,7 +30,14 @@
   (.disconnect jack-server from-out to-in))
 
 (defn get-connections [port-name]
-  (first (Arrays/asList (.getAllConnections jack-server jack-client port-name))))
+  (try
+    (first (Arrays/asList (.getAllConnections jack-server jack-client port-name)))
+    (catch Exception e nil)))
+
+(defn query-connection
+  "the string can be partial and will serve as regex in native env"
+  [string]
+  (vec (Arrays/asList (.getPorts jack-server string  nil nil ))))
 
 #_(defn config-create [inputs outputs]
     (let [sample-rate        44100 ;; ignored: taken from jack
