@@ -42,4 +42,4 @@
   [{:name :dur  :default 0.1}
    {:name :cent :default 0.6}
    {:name :diff :default 0.8}]
-  2 2 30 {})
+  2 2 10 {})

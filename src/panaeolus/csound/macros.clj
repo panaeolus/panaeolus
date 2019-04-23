@@ -27,8 +27,8 @@
   `(do
      (def ~fx-name
        (fn [& args#]
-         (fn [host-pattern-name#]
-           (let [fx-name# (str host-pattern-name# "$" ~(name fx-name))
+         (fn [host-pattern-name# chain-index#]
+           (let [fx-name# (str host-pattern-name# "#" ~(name fx-name) "#" chain-index#)
                  loops-self?# (= :loop (first args#))]
              (when loops-self?#
                (apply (pat-ctl/csound-pattern-control

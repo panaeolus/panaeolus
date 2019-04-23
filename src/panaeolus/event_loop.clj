@@ -6,6 +6,7 @@
    [panaeolus.utils.utils :as utils]
    [panaeolus.csound.csound-jna :as csound]
    [panaeolus.config :as config]
+   [panaeolus.globals :as globals]
    [clojure.data :refer [diff]]
    [clojure.core.async :refer [<! >! timeout go go-loop chan put! poll!] :as async]
    [overtone.ableton-link :as link]
@@ -76,7 +77,14 @@
               index 0
               a-index 0]
       (if-let [next-timestamp (first queue)]
-        (let [wait-chn (chan)]
+        (let [wait-chn (chan)
+              ;; STEP 2, run the callback from step1 just before new cycle
+              needs-reroute? (if (and (fn? needs-reroute?) (= 0 index))
+                               (do (swap! globals/pattern-registry assoc-in [i-name :needs-reroute?] false)
+                                   (prn "DANGER ZONE!!!" (fn? needs-reroute?) (= 0 index) needs-reroute?)
+                                   (needs-reroute?)
+                                   false)
+                               needs-reroute?)]
           (link/at next-timestamp
                    (fn []
                      (let [args-processed (resolve-arg-indicies args index a-index next-timestamp)]
@@ -100,18 +108,24 @@
                  (inc index)
                  (inc a-index)))
         (when-let [event-form (get-current-state)]
-          (when needs-reroute? (prn "REROUTE"))
-          (let [{:keys [event-queue-fn instrument-instance
-                        args fx-instances needs-reroute?]} event-form
-                [queue new-mod-div] (event-queue-fn mod-div)]
-            (recur [queue new-mod-div]
-                   instrument-instance
-                   args
-                   fx-instances
-                   needs-reroute?
-                   0
-                   a-index
-                   )))))))
+          ;; STEP 1, provide old and new fx-instances to a closure
+          (let [needs-reroute?
+                (if (:needs-reroute? event-form)
+                  (let [stage2 ((:needs-reroute? event-form) (:instrument-instance event-form)
+                                fx-instances (:fx-instances event-form))]
+                    stage2)
+                  needs-reroute?)]
+            (let [{:keys [event-queue-fn instrument-instance
+                          args fx-instances]} event-form
+                  [queue new-mod-div] (event-queue-fn mod-div)]
+              (recur [queue new-mod-div]
+                     instrument-instance
+                     args
+                     fx-instances
+                     needs-reroute?
+                     0
+                     a-index
+                     ))))))))
 
 
 

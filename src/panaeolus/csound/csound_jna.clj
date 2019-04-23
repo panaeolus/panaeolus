@@ -122,7 +122,7 @@
         release-channel (when-not isFx? (debounce debounce-channel release-time client-name))]
     (run! #(set-option @csnd %)
           ["-iadc:null" "-odac:null"
-           "--messagelevel=35"
+           "--messagelevel=0" ;; 35
            "-B 4096"
            "-b 512"
            (str "--nchnls=" outputs)
@@ -147,21 +147,22 @@
      :send (fn [& args] (apply (input-msg-cb csnd debounce-channel) args))
      :compile (fn [orc] (compile-orc @csnd orc))
      :inputs (mapv #(hash-map :port-name (str client-name ":input" (inc %))
-                              :connected-from-instance nil
-                              :connected-from-port nil
+                              :connected-from-instances []
+                              :connected-from-ports []
                               :channel-index %)
                    (range inputs))
      :outputs (mapv #(hash-map :port-name (str client-name ":output" (inc %))
-                               :connected-to-instance nil
-                               :connected-to-port nil
+                               :connected-to-instances []
+                               :connected-to-ports []
                                :channel-index %)
                     (range outputs))
      :debounce-channel debounce-channel
      :release-channel release-channel
-     :release-time release-time}))
+     :release-time release-time
+     :scheduled-to-kill? false}))
 
 (comment
-  (def tezt3 (spawn-csound-client "csound-102" 2 2 1 60 false (fn [& rest])))
+  (def tezt3 (spawn-csound-client "csound#fx#1" 2 2 1 60 false (fn [& rest])))
 
   ;; ((:init test))
   (print "a")
