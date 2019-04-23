@@ -221,7 +221,6 @@
         ;; (diff [:src :fx1 :fx2 :fx3 :fx4 :fx5] [:src :fx1 :fx2 :fx6 :fx4 :fx5])
         ;; where :fx5 needs to re-routing but at the same time survive
         (let [killable-node-survives? (some #(= % killable-node) survivor-chain)]
-          ;; (prn "STAGE 2 KILL CHAIN" killable-node killable-node-survives?)
           (when killable-node-survives?
             (doseq [output-port (:outputs killable-node)]
               (apply jack/disconnect (:port-name output-port) (:connected-to-ports output-port)))
@@ -260,18 +259,16 @@
                               (when (and (contains? previous-inputs (:port-name input-port))
                                          (not (contains? current-inputs (:port-name input-port))))
                                 (run! #(jack/disconnect % input-port) (or (jack/get-connections (:port-name input-port)) [])))))))))))
-      (if (or (empty? linear-new-fx)
-              (not= (first old-fx-instances-names)
-                    (first new-fx-instances-names)))
+      (when (or (empty? linear-new-fx)
+                (not= (first old-fx-instances-names)
+                      (first new-fx-instances-names)))
         ;; this means root needs re-routing
         (if (empty? new-fx-instances) ;; connect to system?
           (let [current-outputs (:outputs instrument-instance)]
-            (prn "SKOÐA ÞETTA ER OUTPUTS UR INSTR" (:outputs instrument-instance))
             (doseq [output current-outputs]
               (let [connected-to-port (first (:connected-to-ports output))
                     system-out-base (:jack-system-out @config/config)
                     system-port-name (str system-out-base (inc (:channel-index output)))]
-                (prn "CONNECTED TO PORT " (:connected-to-ports output) "DISCONNECTING" (:port-name output) "FROM" connected-to-port)
                 (when connected-to-port
                   (jack/disconnect (:port-name output) connected-to-port))
                 (when (< (:channel-index output) (:nchnls @config/config))
@@ -291,7 +288,6 @@
             (doseq [output current-outputs]
               (let [connected-to-port (first (:connected-to-ports output))
                     next-port-name (:port-name (nth (:inputs next-node) (:channel-index output)))]
-                (prn "FIRST NODE DISCONNECT" (:connected-to-ports output))
                 (when connected-to-port
                   (jack/disconnect (:port-name output) connected-to-port))
                 (when next-port-name
@@ -305,66 +301,66 @@
                        [(:client-name instrument-instance) :outputs (:channel-index output)]
                        assoc
                        :connected-to-ports (if next-port-name [next-port-name] [])
-                       :connected-to-instances (if next-port-name [(:client-name next-node)] []))))))
-        (loop [graph-node-names linear-new-fx]
-          (if (empty? graph-node-names)
-            nil
-            (let [graph-node (get @csound-jna/csound-instances (first graph-node-names))
-                  next-node (and (second graph-node-names) (get @csound-jna/csound-instances (second graph-node-names)))]
-              (swap! csound-jna/csound-instances assoc-in [(first graph-node-names) :scheduled-to-kill?] false)
-              (when-let [outputs (:outputs graph-node)]
-                (run! (fn [{:keys [port-name channel-index
-                                   connected-to-ports
-                                   connected-to-instances] :as env}]
-                        (let [current-connected-to-ports (jack/get-connections port-name)]
-                          ;; Debugging
-                          (when-not (= current-connected-to-ports (vec (sort connected-to-ports)))
-                            (println
-                             (str "WARNING: " "Possible state mismatch between JACK graph and Panaeolus\n"
-                                  current-connected-to-ports " != " (or connected-to-instances "nil"))))
-                          (if next-node
-                            (when (< channel-index (count (:inputs next-node)))
-                              (let [next-node-inputs (:inputs next-node)
-                                    next-port-name (:port-name (nth next-node-inputs channel-index))]
-                                (async/go-loop [retry 0]
-                                  (let [query-result (jack/query-connection (:client-name graph-node))]
-                                    (if (and (some #(= port-name %) query-result)
-                                             (some #(= next-port-name %) query-result))
-                                      (jack/connect port-name next-port-name)
-                                      (do (async/<! (async/timeout 25))
-                                          (if (>= retry 10)
-                                            (throw (Exception. (str "Error in starting csound instrument, "
-                                                                    (:client-name graph-node) " did not start.")))
-                                            (recur (inc retry)))))))
-                                (swap! csound-jna/csound-instances update-in
-                                       [(:client-name graph-node) :outputs channel-index]
-                                       #(-> %
-                                            (update :connected-to-ports conj next-port-name)
-                                            (update :connected-to-instances conj (:client-name next-node))))
-                                (swap! csound-jna/csound-instances update-in
-                                       [(:client-name next-node) :inputs channel-index]
-                                       #(-> %
-                                            (update :connected-from-ports conj next-port-name)
-                                            (update :connected-from-instances conj (:client-name graph-node))))))
-                            (when (< channel-index (:nchnls @config/config))
-                              (let [system-out-base (:jack-system-out @config/config)
-                                    system-port-name (str system-out-base (inc channel-index))]
-                                (async/go-loop [retry 0]
-                                  (let [query-result (jack/query-connection (:client-name graph-node))]
-                                    (if (some #(= port-name %) query-result)
-                                      (jack/connect port-name system-port-name)
-                                      (if (>= retry 10)
-                                        (throw (Exception. (str "Error in starting csound instrument, "
-                                                                (:client-name graph-node) " did not start.")))
-                                        (and (async/<! (async/timeout 25))
-                                             (recur (inc retry)))))))
-                                (swap! csound-jna/csound-instances update-in
-                                       [(:client-name graph-node) :outputs channel-index]
-                                       #(-> %
-                                            (update :connected-to-ports conj system-port-name)
-                                            (update :connected-to-instances conj "system"))))))))
-                      outputs))
-              (recur (rest graph-node-names)))))))))
+                       :connected-to-instances (if next-port-name [(:client-name next-node)] [])))))))
+      (loop [graph-node-names linear-new-fx]
+        (if (empty? graph-node-names)
+          nil
+          (let [graph-node (get @csound-jna/csound-instances (first graph-node-names))
+                next-node (and (second graph-node-names) (get @csound-jna/csound-instances (second graph-node-names)))]
+            (swap! csound-jna/csound-instances assoc-in [(first graph-node-names) :scheduled-to-kill?] false)
+            (when-let [outputs (:outputs graph-node)]
+              (run! (fn [{:keys [port-name channel-index
+                                 connected-to-ports
+                                 connected-to-instances] :as env}]
+                      (let [current-connected-to-ports (jack/get-connections port-name)]
+                        ;; Debugging
+                        (when-not (= current-connected-to-ports (vec (sort connected-to-ports)))
+                          (println
+                           (str "WARNING: " "Possible state mismatch between JACK graph and Panaeolus\n"
+                                current-connected-to-ports " != " (or connected-to-instances "nil"))))
+                        (if next-node
+                          (when (< channel-index (count (:inputs next-node)))
+                            (let [next-node-inputs (:inputs next-node)
+                                  next-port-name (:port-name (nth next-node-inputs channel-index))]
+                              (async/go-loop [retry 0]
+                                (let [query-result (jack/query-connection (:client-name graph-node))]
+                                  (if (and (some #(= port-name %) query-result)
+                                           (some #(= next-port-name %) query-result))
+                                    (jack/connect port-name next-port-name)
+                                    (do (async/<! (async/timeout 25))
+                                        (if (>= retry 10)
+                                          (throw (Exception. (str "Error in starting csound instrument, "
+                                                                  (:client-name graph-node) " did not start.")))
+                                          (recur (inc retry)))))))
+                              (swap! csound-jna/csound-instances update-in
+                                     [(:client-name graph-node) :outputs channel-index]
+                                     #(-> %
+                                          (update :connected-to-ports conj next-port-name)
+                                          (update :connected-to-instances conj (:client-name next-node))))
+                              (swap! csound-jna/csound-instances update-in
+                                     [(:client-name next-node) :inputs channel-index]
+                                     #(-> %
+                                          (update :connected-from-ports conj next-port-name)
+                                          (update :connected-from-instances conj (:client-name graph-node))))))
+                          (when (< channel-index (:nchnls @config/config))
+                            (let [system-out-base (:jack-system-out @config/config)
+                                  system-port-name (str system-out-base (inc channel-index))]
+                              (async/go-loop [retry 0]
+                                (let [query-result (jack/query-connection (:client-name graph-node))]
+                                  (if (some #(= port-name %) query-result)
+                                    (jack/connect port-name system-port-name)
+                                    (if (>= retry 10)
+                                      (throw (Exception. (str "Error in starting csound instrument, "
+                                                              (:client-name graph-node) " did not start.")))
+                                      (and (async/<! (async/timeout 25))
+                                           (recur (inc retry)))))))
+                              (swap! csound-jna/csound-instances update-in
+                                     [(:client-name graph-node) :outputs channel-index]
+                                     #(-> %
+                                          (update :connected-to-ports conj system-port-name)
+                                          (update :connected-to-instances conj "system"))))))))
+                    outputs))
+            (recur (rest graph-node-names))))))))
 
 ;; (update-in {:a {:b [nil {:c [] :d []}]}} [:a :b 1] #( -> % (update :c conj 1) (update :d conj 2)))
 

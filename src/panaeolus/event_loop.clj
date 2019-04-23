@@ -81,7 +81,6 @@
               ;; STEP 2, run the callback from step1 just before new cycle
               needs-reroute? (if (and (fn? needs-reroute?) (= 0 index))
                                (do (swap! globals/pattern-registry assoc-in [i-name :needs-reroute?] false)
-                                   (prn "DANGER ZONE!!!" (fn? needs-reroute?) (= 0 index) needs-reroute?)
                                    (needs-reroute?)
                                    false)
                                needs-reroute?)]
