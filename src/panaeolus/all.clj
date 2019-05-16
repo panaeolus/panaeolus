@@ -1,26 +1,24 @@
 (ns panaeolus.all
   (:gen-class)
   ;; (:use overtone.live)
-  (:require panaeolus.csound.csound-jna
-            panaeolus.metronome
-            ;; panaeolus.control
-            ;; panaeolus.overtone.macros
-            ;; panaeolus.overtone.examples.synths
-            ;; panaeolus.overtone.examples.fof
-            panaeolus.chords
-            panaeolus.csound.macros
-            panaeolus.csound.csound-jna
-            panaeolus.csound.examples.synths
-            panaeolus.csound.examples.fx))
+  (:require
+   ;; core imports
+   panaeolus.csound.csound-jna
+   panaeolus.metronome
+   panaeolus.chords
+   panaeolus.csound.macros
+   panaeolus.csound.csound-jna
+   ;; built-in fx
+   panaeolus.csound.fx.binauralize
+   panaeolus.csound.fx.flanger
+   panaeolus.csound.fx.reverbsc
+   panaeolus.csound.fx.shred
+   ;; built-in instruments
+   panaeolus.csound.instruments.atmo
+   panaeolus.csound.instruments.wobble
 
-#_(require 'panaeolus.metronome
-           'panaeolus.control
-           'panaeolus.overtone.macros
-           'panaeolus.overtone.examples.synths
-           'panaeolus.overtone.examples.fof
-           'panaeolus.csound.csound-jna
-           'panaeolus.csound.examples.synths
-           'panaeolus.csound.examples.fx)
+   ))
+
 
 ;; (use 'overtone.live)
 

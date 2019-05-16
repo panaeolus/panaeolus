@@ -1,4 +1,4 @@
-(ns panaeolus.csound.examples.fx
+(ns panaeolus.csound.fx.binauralize
   (:require [panaeolus.csound.macros :as c]))
 
 (c/define-fx binauralize
@@ -33,7 +33,15 @@
   instr 1
     ain1, ain2 ins
     a1, a2 binauralize (ain1+ain2)/1.3, gkcent, gkdiff
-    outs a1, a2
+    afader init 0
+    if (p3 < 0) then
+      printk 1, 1
+      afader expseg 0.001, 0.1, 1, 99999999, 1
+    else
+       printk -1, 1
+      afader expseg 1, p3, 0.001
+    endif
+    outs a1*afader, a2*afader
   endin
   schedule(1, 0, -1)
 

@@ -1,8 +1,8 @@
-(ns panaeolus.csound.examples.synths
+(ns panaeolus.csound.instruments.atmo
   (:require [panaeolus.csound.macros :as c]))
 
-(c/definst additive
-  (slurp "src/panaeolus/csound/examples/additive.orc")
+(c/definst atmo
+  (slurp "src/panaeolus/csound/instruments/orchestra/additive/atmo.orc")
   [{:name :dur :default 1}
    {:name :nn :default 60}
    {:name :amp :default -12}

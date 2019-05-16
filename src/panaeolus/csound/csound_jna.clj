@@ -39,7 +39,7 @@
 ;; (doto (new Csound) (.cleanup))
 
 (def csound-instances (atom {}))
-;; (clojure.pprint/pprint @csound-instances)
+
 (defn csound-create []
   (new Csound))
 
@@ -135,7 +135,7 @@
            (str "--ksmps=" ksmps)
            (str "-+jack_client=" (do (prn "CLIENT NAME" client-name) client-name))])
     (start @csnd)
-    (.setMessageCallback csnd message-callback)
+    (.setMessageCallback @csnd message-callback)
     {:instance csnd
      :client-name client-name
      :start    #(send-off thread
