@@ -1,12 +1,13 @@
 (ns panaeolus.all
   (:gen-class)
-  (:use overtone.live)
+  ;; (:use overtone.live)
   (:require panaeolus.csound.csound-jna
             panaeolus.metronome
-            panaeolus.control
+            ;; panaeolus.control
             ;; panaeolus.overtone.macros
             ;; panaeolus.overtone.examples.synths
             ;; panaeolus.overtone.examples.fof
+            panaeolus.chords
             panaeolus.csound.macros
             panaeolus.csound.csound-jna
             panaeolus.csound.examples.synths
@@ -38,10 +39,12 @@
                              (var-get var)))
           (intern *ns* sym))))))
 
-(immigrate 'panaeolus.overtone.macros
-           'panaeolus.metronome
-           'panaeolus.control
-           'panaeolus.overtone.examples.synths
-           'panaeolus.overtone.examples.fof
-           'panaeolus.csound.examples.synths
-           'panaeolus.csound.examples.fx)
+(immigrate ;;'panaeolus.overtone.macros
+ 'panaeolus.metronome
+ 'panaeolus.chords
+ ;; 'panaeolus.control
+ ;; 'panaeolus.overtone.examples.synths
+ ;; 'panaeolus.overtone.examples.fof
+ 'panaeolus.csound.examples.synths
+ 'panaeolus.csound.examples.fx
+ )

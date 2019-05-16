@@ -16,7 +16,7 @@
    whitespace = #'\\s+'
    nname = (letter digit)+ | (letter digit)+ time | (letter digit)+ generator | (letter digit)+ time generator
    hertz = digit+ <hz> | digit+ <hz> time | digit+ <hz> generator | digit+ <hz> time generator
-   nnum  = digit+ | digit+ time | digit+ generator | digit+ time generator
+   nnum  = signed+ | signed+ time | signed+ generator | signed+ time generator
    shift = (<shif> signed)
    time = ( ext | div )*
    generator = trem
@@ -32,7 +32,7 @@
    <tremol> = ':'
    <hz> = <( 'hz' | 'Hz' )>
    <shif> = '^'
-   <octave> = ',' | '\\''    
+   <octave> = ',' | '\\''
    <letter> = #'[a-zA-Z]+'
    <digit> = #'[0-9]+\\.?[0-9]*'
    <signed> = #'-?[0-9]+\\.?[0-9]*'
@@ -64,7 +64,7 @@
     :shift       (fn [& [shift ha]]
                    ;; (prn shift ha)
                    [:shift shift])
-    
+
     :rest (fn [& [time]]
             (if-not time
               [[:rest]]
@@ -123,7 +123,7 @@
                         (case appl
                           :trem (-> data
                                     (assoc :nn (into (vec (butlast (:nn data)))
-                                                     #_(if (= :note last-head) 
+                                                     #_(if (= :note last-head)
                                                          (vec (butlast (:nn data)))
                                                          (vec (:nn data)))
                                                      (vec (repeat val (last (:nn data))))))
@@ -141,5 +141,3 @@
 ;; (sequence-parser "^2 2*0.25 0xffef9 4 2*2:2")
 ;; (map count (vals (sequence-parser "2*8:2")))
 ;; (prn (reduce conj (sequence-transformer "20hz*2 30hz f3:2 0x023 r*2")))
-
-

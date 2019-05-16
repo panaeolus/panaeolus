@@ -1,10 +1,11 @@
 (ns panaeolus.csound.examples.fx
-  (:use [panaeolus.csound.macros :as c]))
+  (:require [panaeolus.csound.macros :as c]))
 
-(c/define-csound-fx binauralize21
+(c/define-fx binauralize
   "
-  opcode binauralize, aa, akk
+  gkportTime init 1
 
+  opcode binauralize, aa, akk
   ain,kcent,kdiff xin
   ifftsz = 1024
   ; determine pitches
@@ -12,6 +13,8 @@
   kp2 = kcent - (kdiff/2)
   krat1 = kp1 / kcent
   krat2	= kp2 / kcent
+  krat1 portk krat1, gkportTime
+  krat2 portk krat2, gkportTime
   ; take it apart
   fsig pvsanal	ain, ifftsz, ifftsz/4, ifftsz, 1
   ; create derived streams
@@ -35,6 +38,8 @@
   schedule(1, 0, -1)
 
   instr 2
+    ;; prints \"dur %f cent %f diff %f\", p3, p4, p5
+    gkportTime = p3
     gkcent = p4
     gkdiff = p5
   endin
@@ -42,4 +47,4 @@
   [{:name :dur  :default 0.1}
    {:name :cent :default 0.6}
    {:name :diff :default 0.8}]
-  2 2 10 {})
+  2 2 5 {})

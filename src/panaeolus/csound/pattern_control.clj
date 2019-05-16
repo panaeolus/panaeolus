@@ -101,8 +101,9 @@
                                   next-port-name (:port-name (nth next-node-inputs channel-index))]
                               (async/go-loop [retry 0]
                                 (let [query-result (jack/query-connection (:i-name graph-node))]
-                                  (if (and (some #(= port-name %) query-result)
-                                           (some #(= next-port-name %) query-result))
+                                  (if (or (not (:scheduled-to-kill? graph-node))
+                                          (and (some #(= port-name %) query-result)
+                                               (some #(= next-port-name %) query-result)))
                                     (jack/connect port-name next-port-name)
                                     (do (async/<! (async/timeout 25))
                                         (if (>= retry 10)
@@ -329,8 +330,9 @@
                                     (jack/connect port-name next-port-name)
                                     (do (async/<! (async/timeout 25))
                                         (if (>= retry 10)
-                                          (throw (Exception. (str "Error in starting csound instrument, "
-                                                                  (:client-name graph-node) " did not start.")))
+                                          (jack/connect port-name next-port-name)
+                                          #_(throw (Exception. (str "Error in starting csound instrument, "
+                                                                    (:client-name graph-node) " did not start.")))
                                           (recur (inc retry)))))))
                               (swap! csound-jna/csound-instances update-in
                                      [(:client-name graph-node) :outputs channel-index]
@@ -411,6 +413,7 @@
             (and (fn? (:stop val)) ((:stop val)))
             (swap! globals/pattern-registry dissoc key)
             (swap! csound-jna/csound-instances dissoc key))) @csound-jna/csound-instances))
+
 
 (defn csound-pattern-control
   [i-name csound-instrument-number orc-string

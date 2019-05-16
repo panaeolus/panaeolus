@@ -78,13 +78,11 @@
 (defn reset [^Csound instance]
   (.reset instance))
 
-(defn set-message-callback [^Csound instance callback]
-  (let [msg-cb ^MessageCallback
-        (reify MessageCallback
-          (invoke [this inst
-                   attr msg]
-            (callback attr msg)))]
-    (.setMessageCallback instance msg-cb)))
+(def message-callback
+  (reify MessageCallback
+    (invoke [this inst
+             attr msg]
+      (print msg))))
 
 (defn set-option [^Csound instance ^String option]
   (.setOption instance option))
@@ -100,17 +98,21 @@
   (let [param-vector (reduce into [] (map #(vector (:name %) (:default %)) synth-form))]
     (fn [csnd debounce-channel]
       (fn [& args]
-        (let [processed-args (csound-utils/process-arguments param-vector args)
-              p-list (reduce (fn [i v]
-                               (conj i
-                                     (get processed-args (:name v)
-                                          (:default v))))
-                             []
-                             synth-form)]
-          (input-message @csnd
-                         (clojure.string/join
-                          " " (into ["i" csound-instrument-number "0" (if isFx? "0.1" "")] p-list)))
-          (when debounce-channel (async/>!! debounce-channel (+ (first p-list) release-time))))))))
+        (when csound-instrument-number
+          (let [processed-args (csound-utils/process-arguments param-vector args)
+                p-list (reduce (fn [i v]
+                                 (conj i
+                                       (get processed-args (:name v)
+                                            (:default v))))
+                               []
+                               synth-form)]
+            (input-message-async
+             @csnd
+             (clojure.string/join
+              " " (into ["i" csound-instrument-number "0"] p-list)))
+            (when debounce-channel
+              (async/go (async/>! debounce-channel (+ (or (first p-list) 0)
+                                                      release-time))))))))))
 
 (defn spawn-csound-client
   [client-name inputs outputs ksmps
@@ -122,7 +124,7 @@
         release-channel (when-not isFx? (debounce debounce-channel release-time client-name))]
     (run! #(set-option @csnd %)
           ["-iadc:null" "-odac:null"
-           "--messagelevel=0" ;; 35
+           "--messagelevel=35" ;; 35
            "-B 4096"
            "-b 512"
            (str "--nchnls=" outputs)
@@ -131,9 +133,9 @@
            "-+rtaudio=jack"
            "--sample-rate=48000"
            (str "--ksmps=" ksmps)
-           (str "-+jack_client=" client-name)])
+           (str "-+jack_client=" (do (prn "CLIENT NAME" client-name) client-name))])
     (start @csnd)
-    (set-message-callback @csnd (fn [attr msg] (print msg)))
+    (.setMessageCallback csnd message-callback)
     {:instance csnd
      :client-name client-name
      :start    #(send-off thread

@@ -17,7 +17,7 @@
   (reduce #(-> %1 (assoc (:name %2) (:default %2))) {} synth-form))
 
 
-(defmacro define-csound-fx
+(defmacro define-fx
   "Defines an effect, by spawning instruments that
    expects equal amount of outputs as inputs.
    To prevent clicking effect on reverbs etc, set release-time
@@ -49,27 +49,33 @@
      ~fx-name))
 
 
-(defmacro definst-csound
+(defmacro definst
   "Defines an instrument like definst does, but returns it
    with Panaeolus pattern controls."
-  [i-name orc-string synth-form csound-instrument-number num-outputs config]
+  [i-name orc-string synth-form csound-instrument-number num-outputs release-time-secs config]
   `(do (def ~i-name
          (pat-ctl/csound-pattern-control
-          ~(str *ns* "/" i-name) ~orc-string ~synth-form
-          ~csound-instrument-number ~num-outputs ~config false))
-       (alter-meta!
-        (var ~i-name) merge
-        (meta (var ~(symbol (str "-" (name i-name)))))
-        (meta (var ~i-name))
-        {:arglists (list (into
-                          ["pat-ctl" "beats"]
-                          (rest
-                           (conj (first (:arglists (meta  (var ~(symbol (str "-" (name i-name)))))))
-                                 "fx")))
-                         (vec
-                          (rest
-                           (second (:arglists (meta (var ~(symbol (str "-" (name i-name))))))))))})
+          ~(str *ns* "/" i-name) ~csound-instrument-number
+          ~orc-string ~synth-form
+          ~num-outputs ~release-time-secs ~config false))
+       (alter-meta! (var ~i-name) merge (meta (var ~i-name))
+                    {:arglists      (list (mapv (comp name :name) ~synth-form)
+                                          (mapv #(str (name (:name %)) "(" (:default %) ")")
+                                                ~synth-form))
+                     :audio-enginge :csound
+                     :inst          (str ~i-name)
+                     :type          ::instrument})
        ~i-name))
+
+(defmacro kill! [pname]
+  `(let [pname# (str '~`pname)]
+     (run! (fn [[key# val#]]
+             (when (clojure.string/includes?
+                    (str key#) pname#)
+               (and (fn? (:stop val#)) ((:stop val#)))
+               (swap! panaeolus.globals/pattern-registry dissoc key)
+               (swap! csound-jna/csound-instances dissoc key)))
+           @csound-jna/csound-instances)))
 
 (comment
 
