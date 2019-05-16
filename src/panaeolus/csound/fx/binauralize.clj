@@ -46,7 +46,6 @@
   schedule(1, 0, -1)
 
   instr 2
-    ;; prints \"dur %f cent %f diff %f\", p3, p4, p5
     gkportTime = p3
     gkcent = p4
     gkdiff = p5

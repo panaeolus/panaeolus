@@ -49,7 +49,15 @@ gkfback portk gkfback, gkportTime
 
 ain1, ain2 ins
 aFL, aFR Flanger_stereo ain1, ain2, gkrate, gkdepth, gkfback, gkshape
-outs aFL, aFR
+    afader init 0
+    if (p3 < 0) then
+      printk 1, 1
+      afader expseg 0.001, 0.1, 1, 99999999, 1
+    else
+       printk -1, 1
+      afader expseg 1, p3, 0.001
+    endif
+outs aFL*afader, aFR*afader
 endin
 
 instr 2

@@ -5,8 +5,6 @@
    [org.jaudiolibs.jnajack JackOptions JackStatus]
    [org.jaudiolibs.jnajack JackPortType]
    [org.jaudiolibs.jnajack JackPortFlags]
-   ;; [org.jaudiolibs.audioservers.jack JackAudioServer]
-   ;; [org.jaudiolibs.audioservers AudioConfiguration AudioClient]
    [org.jaudiolibs.jnajack Jack JackException]
    [java.util List EnumSet]
    [java.nio FloatBuffer]
@@ -24,12 +22,12 @@
 (def jack-client (open-client "__jnajack__"))
 
 (defn connect [from-out to-in]
-  (prn "CONNECT FROM OUT" from-out "TO IN" to-in)
+  ;; (prn "CONNECT FROM OUT" from-out "TO IN" to-in)
   (try (.connect jack-server from-out to-in)
        (catch JackException e nil)))
 
 (defn disconnect [from-out to-in]
-  (prn "DISCONNECT FROM OUT" from-out "TO IN" to-in)
+  ;; (prn "DISCONNECT FROM OUT" from-out "TO IN" to-in)
   (try (.disconnect jack-server from-out to-in)
        (catch JackException e nil)))
 

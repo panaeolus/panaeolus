@@ -18,9 +18,18 @@ instr 1
 
   aInL, aInR ins
 
-  aL, aR Exciter aInL, aInR, kfreq, gkport, kceil, kharmonics, kblend
+    afader init 0
+    if (p3 < 0) then
+      printk 1, 1
+      afader expseg 0.001, 0.1, 1, 99999999, 1
+    else
+       printk -1, 1
+      afader expseg 1, p3, 0.001
+    endif
 
-  outs aL, aR
+  aL, aR exciter aInL, aInR, kfreq, gkport, kceil, kharmonics, kblend
+
+  outs aL*afader, aR*afader
 endin
 
 instr 2
@@ -38,5 +47,5 @@ alwayson(1, 0, -1)
    {:name :ceil :default 1}
    {:name :harmonics :default 5}
    {:name :blend :default 1}]
-  2 2 5 {}
+  2 2 2 {}
   )

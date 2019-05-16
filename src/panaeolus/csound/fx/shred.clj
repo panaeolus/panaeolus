@@ -29,7 +29,15 @@ instr 1
 
   aL, aR shred aInL, aInR, iMaxDelay,kTransPose,kTransRand,kDepth,kRate,iFeedback,iWidth,iwet,iGain,kMode
 
-  outs aL, aR
+    afader init 0
+    if (p3 < 0) then
+      printk 1, 1
+      afader expseg 0.001, 0.1, 1, 99999999, 1
+    else
+       printk -1, 1
+      afader expseg 1, p3, 0.001
+    endif
+  outs aL*afader, aR*afader
 endin
 
 instr 2
