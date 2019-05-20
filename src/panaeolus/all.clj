@@ -38,5 +38,7 @@
  'panaeolus.csound.instruments.metallic-casio
  'panaeolus.csound.instruments.fmpluck
  'panaeolus.csound.instruments.pluck
+ 'panaeolus.csound.instruments.priest
+ 'panaeolus.csound.instruments.taffy
  'panaeolus.csound.instruments.wobble
  )
