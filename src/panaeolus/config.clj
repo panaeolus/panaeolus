@@ -16,8 +16,10 @@
    :jack-system-out      "system:playback_"
    :sample-rate          48000
    :ksmps                256
+   :iobufsamps           256
+   :hardwarebufsamps     4096
    :samples-directory    (str home-directory "/samples")
-   :overtone-instruments []
+   :csound-messagelevel  35
    :csound-instruments   []})
 
 (def ^:private user-config

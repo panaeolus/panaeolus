@@ -149,8 +149,7 @@
                         synth-form csound-instrument-number release-time-ms isFx?)
           new-instance (csound-jna/spawn-csound-client
                         i-name (if isFx? num-outputs 0) num-outputs
-                        (or (:ksmps config) (:ksmps @config/config))
-                        release-time-ms isFx? input-msg-cb)]
+                        config release-time-ms isFx? input-msg-cb)]
       ((:start new-instance))
       (async/go
         (async/<! (async/timeout 5))

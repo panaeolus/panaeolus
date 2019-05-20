@@ -35,7 +35,7 @@
  'panaeolus.csound.fx.reverbsc
  'panaeolus.csound.fx.shred
  ;; built-in instruments
- 'panaeolus.csound.instruments.atmo
+ 'panaeolus.csound.instruments.metallic-casio
  'panaeolus.csound.instruments.fmpluck
  'panaeolus.csound.instruments.pluck
  'panaeolus.csound.instruments.wobble

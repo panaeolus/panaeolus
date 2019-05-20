@@ -1,19 +1,12 @@
 (ns panaeolus.csound.csound-jna
-  (:require [clj-native.direct :refer [defclib loadlib]]
-            [clj-native.structs :refer [byref]]
-            [clj-native.callbacks :refer [callback]]
-            [clojure.core.async :refer [go go-loop chan alts! <! >! close! timeout] :as async]
+  (:require [clojure.core.async :refer [go go-loop chan alts! <! >! close! timeout] :as async]
             panaeolus.utils.jna-path
             [panaeolus.globals :as globals]
             [panaeolus.csound.utils :as csound-utils]
             [panaeolus.jack2.jack-lib :as jack]
-            [panaeolus.config :refer [config]]
+            [panaeolus.config :as config]
             [clojure.string :as string])
-  (:import [com.kunstmusik.csoundjna Csound MessageCallback]
-           ;; [java.util List]
-           ;; [java.nio FloatBuffer]
-           ;; [java.nio DoubleBuffer]
-           ))
+  (:import [com.kunstmusik.csoundjna Csound MessageCallback]))
 
 (defn debounce
   "https://gist.github.com/scttnlsn/9744501"
@@ -115,7 +108,7 @@
                                                       release-time))))))))))
 
 (defn spawn-csound-client
-  [client-name inputs outputs ksmps
+  [client-name inputs outputs config
    release-time isFx? input-msg-cb]
   (let [csnd   (atom (csound-create))
         status (atom :init)
@@ -124,16 +117,16 @@
         release-channel (when-not isFx? (debounce debounce-channel release-time client-name))]
     (run! #(set-option @csnd %)
           ["-iadc:null" "-odac:null"
-           "--messagelevel=35" ;; 35
-           "-B 4096"
-           "-b 512"
+           (str "--messagelevel=" (or (:csound-messagelevel config) (:csound-messagelevel @config/config)))
+           (str "-B " (or (:hardwarebufsamps config) (:hardwarebufsamps @config/config)))
+           (str "-b " (or (:iobufsamps config) (:iobufsamps @config/config)))
            (str "--nchnls=" outputs)
            (str "--nchnls_i=" inputs)
-           "--0dbfs=1"
+           (str "--0dbfs=" (or (:zerodbfs config) 1))
            "-+rtaudio=jack"
-           "--sample-rate=48000"
-           (str "--ksmps=" ksmps)
-           (str "-+jack_client=" (do (prn "CLIENT NAME" client-name) client-name))])
+           (str "--sample-rate=" (or (:sample-rate config) (:sample-rate @config/config)))
+           (str "--ksmps=" (or (:ksmps config) (:ksmps @config/config)))
+           (str "-+jack_client=" client-name)])
     (start @csnd)
     (.setMessageCallback @csnd message-callback)
     {:instance csnd
