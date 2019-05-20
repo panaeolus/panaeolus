@@ -170,7 +170,8 @@
         (drop offset (cycle scale-sequence))))
 
 (defn scale-from-midi
-  "return a scale in vector"
+  "return a scale in vector
+  (scale-from-midi :c3 :major)"
   [root mode & {:keys [span]
                 :or   {span 8}}]
   (let [root (if (keyword? root)

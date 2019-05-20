@@ -20,3 +20,5 @@
 henda.txt
 *.bak
 *-BAK
+lib
+src/editor

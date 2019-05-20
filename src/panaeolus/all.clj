@@ -27,6 +27,7 @@
  'panaeolus.csound.macros
  'panaeolus.metronome
  'panaeolus.chords
+ 'panaeolus.pitches
  ;; built-in fx
  'panaeolus.csound.fx.binauralize
  'panaeolus.csound.fx.exciter
@@ -36,5 +37,6 @@
  ;; built-in instruments
  'panaeolus.csound.instruments.atmo
  'panaeolus.csound.instruments.fmpluck
+ 'panaeolus.csound.instruments.pluck
  'panaeolus.csound.instruments.wobble
  )

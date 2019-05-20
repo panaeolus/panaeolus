@@ -11,7 +11,8 @@
   (str panaeolus-config-directory "/config.edn"))
 
 (def ^:private default-config
-  {:nchnls               2
+  {:bpm                  120
+   :nchnls               2
    :jack-system-out      "system:playback_"
    :sample-rate          48000
    :ksmps                256

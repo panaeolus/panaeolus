@@ -1,8 +1,11 @@
+giTriangle ftgen 0, 0, 131072, 7, 0,131072/2,1,131072/2,0
+giSine ftgen 0, 0, 65537, 10, 1
+
 instr 1
   iamp = ampdb(p3)
-  ifreq = p5
-  irough = p6
-  apluck pluck iamp, ifreq, ifreq/2, 0, 3, irough
+  ifreq = cpsmidinn(p4)
+  irough = p5
+  apluck pluck iamp, ifreq, ifreq/2, 0, 3 ;; , irough
   apluckFollow follow2 apluck, p3*0.1, p3*0.5
   atri poscil iamp, ifreq*1.0015, giTriangle
   asin poscil iamp, ifreq/2, giSine
