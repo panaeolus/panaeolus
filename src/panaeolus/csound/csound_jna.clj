@@ -8,6 +8,8 @@
             [clojure.string :as string])
   (:import [com.kunstmusik.csoundjna Csound MessageCallback]))
 
+(set! *warn-on-reflection* true)
+
 (defn debounce
   "https://gist.github.com/scttnlsn/9744501"
   [in ms pattern-name]
@@ -35,8 +37,6 @@
 
 (defn csound-create []
   (new Csound))
-
-(def get-version (memfn getVersion))
 
 (defn cleanup [^Csound instance]
   (.cleanup instance))
@@ -128,7 +128,7 @@
            (str "--ksmps=" (or (:ksmps config) (:ksmps @config/config)))
            (str "-+jack_client=" client-name)])
     (start @csnd)
-    (.setMessageCallback @csnd message-callback)
+    (.setMessageCallback ^Csound @csnd message-callback)
     {:instance csnd
      :client-name client-name
      :start    #(send-off thread

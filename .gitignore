@@ -22,3 +22,5 @@ henda.txt
 *-BAK
 lib
 src/editor
+.rebel_readline_history
+pom.xml

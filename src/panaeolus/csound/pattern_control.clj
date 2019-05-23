@@ -12,6 +12,7 @@
             [clojure.spec.alpha :as s]
             [clojure.core.async :as async]))
 
+(set! *warn-on-reflection* true)
 
 (defn fill-missing-keys
   "The keywords need to be squeezed in, along
@@ -21,7 +22,7 @@
   (let [orig-arglists (if (some #(= :dur %) args)
                         orig-arglists (rest orig-arglists))]
     (letfn [(advance-to-arg [arg orig]
-              (let [idx (.indexOf orig arg)]
+              (let [idx (.indexOf ^clojure.lang.PersistentVector$ChunkedSeq orig arg)]
                 (if (neg? idx)
                   orig
                   (vec (subvec (into [] orig) (inc idx))))))]
@@ -205,14 +206,14 @@
         kill-chain (if (empty? kill-chain)
                      []
                      (->> old-fx-instances
-                          (split-at (.indexOf old-fx-instances (first kill-chain)))
+                          (split-at (.indexOf ^clojure.lang.PersistentVector old-fx-instances (first kill-chain)))
                           second vec))
         survivor-chain (or survivor-chain [])
         linear-survivor-chain (vec (take-while #(not (nil? %)) survivor-chain))
         last-survivor (last linear-survivor-chain)
         linear-new-fx (if-not last-survivor
                         new-fx-instances-names
-                        (-> (split-at (.indexOf new-fx-instances-names last-survivor) new-fx-instances-names)
+                        (-> (split-at (.indexOf ^clojure.lang.PersistentVector new-fx-instances-names last-survivor) new-fx-instances-names)
                             second vec))]
     (fn []
       (doseq [killable-node kill-chain]

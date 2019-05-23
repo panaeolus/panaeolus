@@ -1,6 +1,7 @@
 (ns panaeolus.chords
   (:use [panaeolus.pitches]))
 
+(set! *warn-on-reflection* true)
 
 (def hljómasæti "7th's are Major unless indicated by flat (b) sign"
   {:i3 [0 3] :i4 [0 5]  :i5 [0 7] :im6 [0 8] :iM6 [0 9] :im7 [0 10] :iM7 [0 11] :i8 [0 12]
@@ -32,7 +33,7 @@
         str-del-comma     (for [x str-fn] (apply str (remove #{\. \'} x)))
         str-del-b-s       (map #(clojure.string/replace % #"^b|^#" "") str-del-comma)
         str-convert       (for [x str-del-b-s]
-                            (if (some #(Character/isUpperCase %) x)
+                            (if (some #(Character/isUpperCase ^java.lang.Character %) x)
                               (clojure.string/replace x #"^VII|^VI|^V|^IV|^III|^II" "I")
                               (clojure.string/replace x #"^vii|^vi|^v|^iv|^iii|^ii|^i" "i")))
         str-resolve       (mapv #(% hljómasæti) (map keyword str-convert))
@@ -68,7 +69,7 @@
         str-del-comma     (for [x str-fn] (apply str (remove #{\. \'} x)))
         str-del-b-s       (map #(clojure.string/replace % #"^b|^#" "") str-del-comma)
         str-convert       (for [x str-del-b-s]
-                            (if (some #(Character/isUpperCase %) x)
+                            (if (some #(Character/isUpperCase ^java.lang.Character %) x)
                               (clojure.string/replace x #"^VII|^VI|^V|^IV|^III|^II" "I")
                               (clojure.string/replace x #"^vii|^vi|^v|^iv|^iii|^ii|^i" "i")))
         str-resolve       (mapv #(% hljómasæti) (map keyword str-convert))
@@ -140,7 +141,7 @@
         str-del-comma     (for [x str-fn] (apply str (remove #{\. \'} x)))
         str-del-b-s       (map #(clojure.string/replace % #"^b|^#" "") str-del-comma)
         str-convert       (for [x str-del-b-s]
-                            (if (Character/isUpperCase (first x))
+                            (if (Character/isUpperCase ^java.lang.Character (first x))
                               (clojure.string/replace x #"^VII|^VI|^V|^IV|^III|^II" "I")
                               (clojure.string/replace x #"^vii|^vi|^v|^iv|^iii|^ii|^i" "i")))
         str-resolve       (mapv #(% hljómasæti) (map keyword str-convert))

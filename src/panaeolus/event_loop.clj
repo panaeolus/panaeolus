@@ -13,6 +13,8 @@
    panaeolus.metronome
    ))
 
+;; (set! *warn-on-reflection* true)
+
 (defn fractional-abs [num]
   (if (pos? num) num (* -1 num)))
 

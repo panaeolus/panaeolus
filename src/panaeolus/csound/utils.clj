@@ -1,5 +1,7 @@
 (ns panaeolus.csound.utils)
 
+(set! *warn-on-reflection* true)
+
 (defn process-arguments
   "Process the given arguments so that
    a function can be given (f 1 2 3 :somekey 4)

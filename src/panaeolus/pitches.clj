@@ -1,6 +1,8 @@
 (ns panaeolus.pitches
   (:require [clojure.string :as string]))
 
+(set! *warn-on-reflection* true)
+
 (defn midi->freq
   "Convert MIDI Note number to frequency in hertz
    from Steven Yi's score"

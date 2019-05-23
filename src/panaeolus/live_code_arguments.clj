@@ -1,5 +1,7 @@
 (ns panaeolus.live-code-arguments)
 
+(set! *warn-on-reflection* true)
+
 (defn resolve-arg-indicies [args index a-index next-timestamp]
   ;; (prn "resolve arg indicies" args index)
   (reduce (fn [init val]

@@ -5,6 +5,8 @@
             [panaeolus.csound.pattern-control :as pat-ctl]
             [clojure.core.async :refer [<! >! timeout go go-loop chan put! poll!] :as async]))
 
+(set! *warn-on-reflection* true)
+
 (defn generate-param-vector-form
   "Prepare data to be passed to `process-arguments`"
   [synth-form]

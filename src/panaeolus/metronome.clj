@@ -2,6 +2,8 @@
   (:require [overtone.ableton-link :as link]
             [panaeolus.config :refer [config]]))
 
+(set! *warn-on-reflection* true)
+
 (link/enable-link true)
 
 (defn set-bpm [bpm]

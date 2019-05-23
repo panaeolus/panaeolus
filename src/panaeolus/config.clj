@@ -1,6 +1,8 @@
 (ns panaeolus.config
   (:require [clojure.edn :as edn]))
 
+(set! *warn-on-reflection* true)
+
 (def ^:private home-directory
   (System/getProperty "user.home"))
 

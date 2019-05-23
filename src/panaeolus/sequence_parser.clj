@@ -3,6 +3,8 @@
             [clojure.string :as string]
             [panaeolus.pitches :refer [midi->freq note->midi freq->midi-noround]]))
 
+(set! *warn-on-reflection* true)
+
 (def ^:private process-nname
   (comp note->midi keyword))
 
@@ -61,7 +63,7 @@
                          hex   (str (Integer/parseInt hex 16))
                          nnums (mapv #(vector :note (read-string (str %))) (seq hex))]
                      nnums))
-    :shift       (fn [& [shift ha]]
+    :shift       (fn [& [^java.lang.Number shift ha]]
                    ;; (prn shift ha)
                    [:shift shift])
 
@@ -100,10 +102,10 @@
               [data propogated-time]
               (if (= :time (first head))
                 (let [appl (second head)
-                      time (case (first appl)
-                             :ext (read-string (second appl))
-                             :div (float (/ 1 (read-string (second appl))))
-                             propogated-time)
+                      time ^java.lang.Number (case (first appl)
+                                               :ext (Float/parseFloat (second appl))
+                                               :div (float (/ 1 (Float/parseFloat (second appl))))
+                                               propogated-time)
                       data (assoc data :time (conj (vec (or (butlast (:time data)) [])) time))]
                   [data time])
                 [data propogated-time])
@@ -134,7 +136,7 @@
                       (read-string (second head))
                       shift)]
           ;; (prn data)
-          (recur tail (first head) shift propogated-time data))))))
+          (recur tail (first head) shift ^java.lang.Number propogated-time data))))))
 
 
 ;; (sequence-parser "r*10 c5 c5/8 ^53 0x0fee0")
