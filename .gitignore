@@ -24,3 +24,10 @@ lib
 src/editor
 .rebel_readline_history
 pom.xml
+
+# Editor
+editor/yarn.lock
+editor/node_modules
+editor/resources/*.jar
+editor/resources/public/js/cljs-runtime
+editor/.shadow-cljs

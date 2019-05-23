@@ -1,8 +1,9 @@
 (ns panaeolus.csound.fx.shred
-  (:require [panaeolus.csound.macros :as c]))
+  (:require [clojure.java.io :as io]
+            [panaeolus.csound.macros :as c]))
 
 (c/define-fx shred
-  (str (slurp "src/panaeolus/csound/fx/udo/shred.udo")
+  (str (slurp (io/resource "src/panaeolus/csound/fx/udo/shred.udo"))
        "
 gkTransPose init 1
 gkTransRand init 0.1

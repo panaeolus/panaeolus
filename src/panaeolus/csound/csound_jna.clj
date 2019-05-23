@@ -75,7 +75,8 @@
   (reify MessageCallback
     (invoke [this inst
              attr msg]
-      (print msg))))
+      (print msg)
+      (flush))))
 
 (defn set-option [^Csound instance ^String option]
   (.setOption instance option))

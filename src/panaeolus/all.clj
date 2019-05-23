@@ -54,5 +54,13 @@
 (defn -main [& args]
   (if (or *compile-files* (System/getenv "COMPILING_PANAEOLUS"))
     (System/exit 0)
-    (do (nrepl.server/start-server :bind "127.0.0.1" :port 7888)
-        (apply rebel-readline.clojure.main/-main args))))
+    (if (and (not (empty? args)) (= "stdin" (first args)))
+      (loop []
+        (prn "loop1")
+        (flush)
+        (-> (read-line) read-string eval)
+        (prn "loop2")
+        (prn "loop3")
+        (recur))
+      (do (nrepl.server/start-server :bind "127.0.0.1" :port 7888)
+          (apply rebel-readline.clojure.main/-main args)))))

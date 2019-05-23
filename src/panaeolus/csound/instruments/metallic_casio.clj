@@ -1,8 +1,9 @@
 (ns panaeolus.csound.instruments.metallic-casio
-  (:require [panaeolus.csound.macros :as c]))
+  (:require [clojure.java.io :as io]
+            [panaeolus.csound.macros :as c]))
 
 (c/definst metallic-casio
-  (slurp "src/panaeolus/csound/instruments/orchestra/additive/metallic-casio.orc")
+  (slurp (io/resource "panaeolus/csound/instruments/orchestra/additive/metallic-casio.orc"))
   [{:name :dur :default 1}
    {:name :nn :default 60}
    {:name :amp :default -12}

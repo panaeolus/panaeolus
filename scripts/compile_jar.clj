@@ -105,9 +105,6 @@
   (jar/jar 'panaeolus {:mvn/version +version+}
            {:out-path (str "target/panaeolus-" +version+ ".jar")
             :main 'panaeolus.all
-            ;; :manifest {"Project-awesome-level" "super-great"
-            ;;            :my-section-1 [["MyKey1" "MyValue1"] ["MyKey2" "MyValue2"]]
-            ;;            :my-section-2 {"MyKey3" "MyValue3" "MyKey4" "MyValue4"}}
             :paths ["src" "target/classes" "native"]
             :deps '{org.clojure/clojure {:mvn/version "1.10.0"}}
             :mvn/repos '{"clojars" {:url "https://repo.clojars.org/"}
@@ -116,6 +113,7 @@
             ;; :inclusion-path (partial badigeon.jar/default-inclusion-path "clojure" "clojure")
             })
   (println "Bundle panaeolus..")
+
   #_(bundle/bundle
      (bundle/make-out-path 'panaeolus/panaeolus +version+)
      {:deps-map (deps-reader/slurp-deps "deps.edn")

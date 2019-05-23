@@ -1,8 +1,9 @@
 (ns panaeolus.csound.instruments.taffy
-  (:require [panaeolus.csound.macros :as c]))
+  (:require [clojure.java.io :as io]
+            [panaeolus.csound.macros :as c]))
 
 (c/definst taffy
-  (slurp "src/panaeolus/csound/instruments/orchestra/dubstep/taffy.orc")
+  (slurp (io/resource "panaeolus/csound/instruments/orchestra/dubstep/taffy.orc"))
   [{:name :dur :default 1}
    {:name :nn :default 48}
    {:name :amp :default -12}

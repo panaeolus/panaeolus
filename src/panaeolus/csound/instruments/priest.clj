@@ -1,9 +1,10 @@
 (ns panaeolus.csound.instruments.priest
-  (:require [panaeolus.csound.macros :as c]))
+  (:require [clojure.java.io :as io]
+            [panaeolus.csound.macros :as c]))
 
 ;; From the legendary piece "The Electric Priest" from Tobias Enhus
 (c/definst priest
-  (slurp "src/panaeolus/csound/instruments/orchestra/fof/priest.orc")
+  (slurp (io/resource "panaeolus/csound/instruments/orchestra/fof/priest.orc"))
   [{:name :dur :default 1}
    {:name :nn :default 32}
    {:name :amp :default -12}

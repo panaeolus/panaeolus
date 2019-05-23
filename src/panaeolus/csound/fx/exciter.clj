@@ -1,8 +1,9 @@
 (ns panaeolus.csound.fx.exciter
-  (:require [panaeolus.csound.macros :as c]))
+  (:require [clojure.java.io :as io]
+            [panaeolus.csound.macros :as c]))
 
 (c/define-fx exciter
-  (str (slurp "src/panaeolus/csound/fx/udo/exciter.udo")
+  (str (slurp (io/resource "src/panaeolus/csound/fx/udo/exciter.udo"))
        "
 gkport init 1
 gkfreq init 100
