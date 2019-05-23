@@ -1,63 +1,60 @@
 (ns app.renderer.core
   (:require [reagent.core :as reagent :refer [atom]]
-            ["react-ace" :default Ace]
-            ["brace/mode/clojure"]
-            ["brace/theme/github"]
+            ["react" :refer [createRef]]
+            ["ace-builds" :as ace-editor]
             ["/js/sexpAtPoint" :as sexp-at-point]
             [clojure.string :as string :refer [split-lines]]))
 
 (enable-console-print!)
 
-(defonce state (atom {:current-row 0 :current-column 0 :ace-ref nil}))
+(defonce state (atom {:current-row 0 :current-column 0 :ace-ref nil :current-text ""
+                      :flash-queue []}))
 
 (def electron (js/require "electron"))
 (def process (js/require "process"))
 
 (def cwd (.cwd process))
 
-;; function evaluateExpression()
-;; {
-;; var selectedText = editor.getSession().doc.getTextRange(editor.selection.getRange());
 
-;; var sexpIndx = sexpAtPoint(editor.getValue(),
-;;                                           editor.session.doc.positionToIndex(editor.getCursorPosition()));
-
-;; if (selectedText.length === 0) {
-;; if (sexpIndx) {
-;; var start = editor.session.doc.indexToPosition(sexpIndx[0]);
-;; var end = editor.session.doc.indexToPosition(sexpIndx[1]);
-
-;; // blink Expression
-;; var _range = new Range(start['row'], 0, end['row'], 1);
-;; _range.id = editor.session.addMarker(_range, "flashEval", "fullLine");
-;; setTimeout(function(){
-;;                    editor.session.removeMarker(_range.id);
-;;                    }, 90);
-
-;; // send expression to lumo
-;; var sexp = editor.getSession().doc.getTextRange(
-;;                                                 {start: start,
-;;                                                 end: end});
-;; ipcRenderer.send('cljs-command', sexp);
-;; // console.log(sexp, "SEXP");
-;; }
-;; } else {
-;; ipcRenderer.send('cljs-command', selectedText);
-;; }
-;; // console.log(sexp, selectedText);
-;; }
+(defn flash-region [ace-ref sexp-positions]
+  (when (and ace-ref (exists? (.-startIndex sexp-positions)))
+    (let [pointACoord (.indexToPosition (.-doc (.-session ace-ref)) (.-startIndex sexp-positions))
+          pointBCoord (.indexToPosition (.-doc (.-session ace-ref)) (.-endIndex sexp-positions))
+          range (new (.-Range js/ace)
+                     (.-row pointACoord)
+                     (.-column pointACoord)
+                     (.-row pointBCoord)
+                     (.-column pointBCoord))]
+      ;; (js/console.log (.-editor ^js ace-ref))
+      (set! (.-id range) (.addMarker (.-session ^js ace-ref) range "flashEval" "text")))))
 
 (defn evaluate-outer-sexp []
-  (prn (:ace-ref @state) #_(sexp-at-point)))
+  (when-let [ace-ref (:ace-ref @state)]
+    (let [current-text (.getValue ace-ref)
+          _ (prn "current text" current-text)
+          sexp-positions (sexp-at-point current-text  (.positionToIndex (.-doc (.-session ace-ref)) (.getCursorPosition ace-ref)))]
+      (when sexp-positions
+        (let [trimmed-bundle (clojure.string/trim (subs current-text
+                                                        (.-startIndex sexp-positions)
+                                                        (.-endIndex sexp-positions)))]
+          (js/console.log trimmed-bundle sexp-positions)
+          (flash-region ace-ref sexp-positions)
+          (when-not (empty? trimmed-bundle)
+            (.send  (.-ipcRenderer electron) "eval" trimmed-bundle)))))))
 
 (def ctrl-down? (atom false))
+
+(def eval-throttle? (atom false))
 
 (defn keydown-listener [evt]
   (let [key-code (.-keyCode evt)]
     (cond
       (= key-code 17) (reset! ctrl-down? true)
-      (and (= key-code 13) @ctrl-down?)
-      (evaluate-outer-sexp)
+      (and (= key-code 13) @ctrl-down? (not @eval-throttle?))
+      (do
+        (evaluate-outer-sexp)
+        (reset! eval-throttle? true)
+        (js/setTimeout #(reset! eval-throttle? false) 5))
       :else nil)))
 
 (defn keyup-listener [evt]
@@ -87,33 +84,56 @@
                  current-col (str (:current-column @state))
                  empty-str-row (apply str (repeat (max 0(- 4 (count current-row))) " "))
                  empty-str-col (apply str (repeat (max 0(- 3 (count current-col))) " "))]
-             (str "" empty-str-row current-row ":" empty-str-col current-col)
-             #_"    1 :  0")]]
+             (str "" empty-str-row current-row ":" empty-str-col current-col))]]
     [:div {:className "endsection"}]
     [:div [:a {:href "#"} "Top"]]]])
 
 (defn root-component []
-  {reagent/create-class
-   {:componentDidMount
-    (fn [] (set! (.-onkeydown js/window) keydown-listener)
-      (set! (.-onkeyup js/window) keyup-listener))
-    :render
+  (reagent/create-class
+   {:componentWillUnmount
+    (fn []
+      (.removeEventListener js/document "keydown" keydown-listener)
+      (.removeEventListener js/document "keyup" keyup-listener))
+    :componentDidMount
+    (fn [this]
+      (let [ace-ref (.edit ace-editor "ace")
+            editor-session (.getSession ace-ref)]
+        (.set (.-config js/ace) "basePath" "./")
+        (.setTheme ace-ref "ace/theme/cyberpunk")
+        (.setMode editor-session "ace/mode/clojure")
+        (.setFontSize ace-ref 23)
+        (.addEventListener js/document "keydown" keydown-listener)
+        (.addEventListener js/document "keyup" keyup-listener)
+        (swap! state assoc :ace-ref ace-ref)
+        (.focus ace-ref)))
+    :reagent-render
     (fn []
       [:div
-       [:> Ace {:mode "clojure"
-                :ref (fn [ref] (swap! state assoc :ace-ref ref))
-                :theme "cyberpunk"
-                :style {:font-family "Space Mono" :font-size "22px"}
-                :maxLines js/Infinity
-                :indentedSoftWrap true
-                :cursorStyle "wide"
-                :showPrintMargin false
-                :blockScrolling js/Infinity
-                :onCursorChange (fn [evt]
-                                  (swap! state assoc :current-row (.-row (.-selectionLead evt)))
-                                  (swap! state assoc :current-column (.-column (.-selectionLead evt))))
-                :onChange (fn [evt])}]
-       [powerline]])}})
+       [:div {:id "ace"}]
+       #_[:> Ace {:mode "clojure"
+                  :ref ace-ref
+                  ;; (fn [ref] (when-not (:ace-ref @state) (prn "NOOOO") (swap! state assoc :ace-ref ref)))
+                  :theme "cyberpunk"
+                  :style {:font-family "Space Mono" :font-size "22px"}
+                  :maxLines js/Infinity
+                  :indentedSoftWrap true
+                  :cursorStyle "wide"
+                  :showPrintMargin false
+                  ;; :markers flash-queue
+                  :markers (:flash-queue @state)
+                  ;; :markers (if (empty? (:flash-queue @state)) #js [] (clj->js (:flash-queue @state)))
+                  ;; :editorProps {:$blockScrolling js/Infinity}
+                  :onCursorChange (fn [evt]
+                                    (let [current-row (.-row (.-selectionLead evt))
+                                          current-row (if (and (string? current-row) (not (empty? current-row)))
+                                                        (js/parseInt current-row) current-row)
+                                          current-column (.-column (.-selectionLead evt))
+                                          current-column (if (and (string? current-column) (not (empty? current-column)))
+                                                           (js/parseInt current-column) current-column)]
+                                      (swap! state assoc :current-row current-row)
+                                      (swap! state assoc :current-column current-column)))
+                  :onChange (fn [evt] (swap! state assoc :current-text evt))}]
+       [powerline]])}))
 
 
 (defn start! []

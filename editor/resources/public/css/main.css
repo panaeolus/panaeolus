@@ -8,6 +8,10 @@
     src: url(../fonts/SpaceMono-Regular.ttf) format("truetype");
 }
 
+.flashEval {
+    position: absolute;
+    background-color: red!important;
+}
 
 html, body {
     margin: 0;
@@ -24,7 +28,7 @@ html, body {
     left: 0;
 }
 
-#brace-editor {
+#ace {
     min-height: 98.5vh;
     width: 100%!important;
 }

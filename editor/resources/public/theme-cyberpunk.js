@@ -9,13 +9,12 @@ ace.define("ace/theme/cyberpunk",["require","exports","module","ace/lib/dom"], f
     // 0 0 90px #d3d3d3,\
     // 0 0 100px #d3d3d3,\
     // 0 0 150px #d3d3d3;\
-    // }\
-    //
+
     exports.isDark = true;
     exports.cssClass = "ace-cyberpunk";
     exports.cssText = "\
 .ace-cyberpunk .ace_gutter {\
-color: #333333\
+color: #333333;\
 }\
 .ace-cyberpunk  {\
 background: #000;\

@@ -1,7 +1,7 @@
 {
   "name": "shadow-electorn-starter",
   "version": "1.0.0",
-  "description": "shadow-clijs electron starter",
+  "description": "panaeolus simple electron-ui",
   "main": "resources/main.js",
   "scripts": {
     "dev": "./node_modules/.bin/shadow-cljs watch main renderer",
@@ -13,13 +13,14 @@
     "reagent",
     "electron"
   ],
-  "author": "Ahonn Jiang <ahonn95@outlook.com>",
-  "license": "ISC",
+  "author": "Hlöðver Sigurðsson <hlolli@gmail.com>",
+  "license": "GPL-3.0",
   "devDependencies": {
     "electron": "^5.0.1",
     "shadow-cljs": "^2.8.37"
   },
   "dependencies": {
+    "ace-builds": "^1.4.4",
     "brace": "^0.11.1",
     "create-react-class": "^15.6.3",
     "node-jre": "^0.2.3",

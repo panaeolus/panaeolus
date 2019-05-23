@@ -32,6 +32,18 @@ function isParanthesis(char) {
 }
 
 
+// function indexToPosition(index, currentText) {
+//     var lines = currentText.split("\n");
+//     var newlineLength = currentText.split(/\r\n|\r|\n/).length;
+//     for (var i = 0, l = lines.length; i < l; i++) {
+//         index -= lines[i].length + newlineLength;
+//         if (index < 0)
+//             return {row: i, column: index + lines[i].length + newlineLength};
+//     }
+//     return {row: l-1, column: index + lines[l-1].length + newlineLength};
+// };
+//
+
 function sexpAtPoint(inputStr, cursorPos) {
     // var inputStr =
 
@@ -39,7 +51,7 @@ function sexpAtPoint(inputStr, cursorPos) {
     var stack = [];
     var returnValue = true;
 
-    // var cursorPos =
+    var cursorPos = cursorPos;
     var sexpBegin = 0;
     var sexpEnd = 0;
 
@@ -47,7 +59,12 @@ function sexpAtPoint(inputStr, cursorPos) {
         if ((cursorPos >= sexpBegin) &&
 	    (cursorPos <= sexpEnd) &&
 	    (sexpEnd != 0)) {
-            return [sexpBegin, sexpEnd];
+            return {
+                startIndex: sexpBegin,
+                endIndex: sexpEnd,
+                // pointACoord: indexToPosition(sexpBegin, inputStr),
+                // pointBCoord: indexToPosition(sexpEnd, inputStr),
+            } [sexpBegin, sexpEnd];
         } else {
             if (isParanthesis(expression[i])) {
 	        if (isOpenParenthesis(expression[i])) {
@@ -63,11 +80,11 @@ function sexpAtPoint(inputStr, cursorPos) {
 	            if (stack.length === 1) {
                         sexpEnd = i + 1;
                     }
-                    var top = stack.pop(); // pop off the top element from stack
-                    if (!matches(top, expression[i])) {
+                    if (!matches(stack[stack.length - 1], expression[i])) {
 	                console.log("Warning: unbalanced parenthesis!\n")
                         // return false;
                     }
+                    stack.pop();
 	        }
             }
         }
@@ -80,7 +97,12 @@ function sexpAtPoint(inputStr, cursorPos) {
     if ((cursorPos >= sexpBegin) &&
         (cursorPos <= sexpEnd) &&
         (sexpEnd != 0)) {
-        return [sexpBegin, sexpEnd];
+        return {
+            startIndex: sexpBegin,
+            endIndex: sexpEnd,
+            // pointACoord: indexToPosition(sexpBegin, inputStr),
+            // pointBCoord: indexToPosition(sexpEnd, inputStr),
+        }
     } else {
         return false;
     }
