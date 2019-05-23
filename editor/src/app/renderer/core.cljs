@@ -25,19 +25,17 @@
                      (.-column pointACoord)
                      (.-row pointBCoord)
                      (.-column pointBCoord))]
-      ;; (js/console.log (.-editor ^js ace-ref))
-      (set! (.-id range) (.addMarker (.-session ^js ace-ref) range "flashEval" "text")))))
+      (set! (.-id range) (.addMarker (.-session ^js ace-ref) range "flashEval" "text"))
+      (js/setTimeout #(.removeMarker (.-session ace-ref) (.-id range)) 300))))
 
 (defn evaluate-outer-sexp []
   (when-let [ace-ref (:ace-ref @state)]
     (let [current-text (.getValue ace-ref)
-          _ (prn "current text" current-text)
           sexp-positions (sexp-at-point current-text  (.positionToIndex (.-doc (.-session ace-ref)) (.getCursorPosition ace-ref)))]
       (when sexp-positions
         (let [trimmed-bundle (clojure.string/trim (subs current-text
                                                         (.-startIndex sexp-positions)
                                                         (.-endIndex sexp-positions)))]
-          (js/console.log trimmed-bundle sexp-positions)
           (flash-region ace-ref sexp-positions)
           (when-not (empty? trimmed-bundle)
             (.send  (.-ipcRenderer electron) "eval" trimmed-bundle)))))))

@@ -9,8 +9,32 @@
 }
 
 .flashEval {
+    z-index: 9999999;
     position: absolute;
-    background-color: red!important;
+    text-shadow:
+        0 0 5px #d3d3d3,
+        0 0 10px #d3d3d3,
+        0 0 20px #d3d3d3,
+        0 0 40px #d3d3d3,
+        0 0 80px #d3d3d3,
+        0 0 90px #d3d3d3,
+        0 0 100px #d3d3d3,
+        0 0 150px #d3d3d3;
+    -webkit-animation-name: flash-animation;
+    -webkit-animation-duration: 0.3s;
+
+    animation-name: flash-animation;
+    animation-duration: 0.3s;
+}
+
+@-webkit-keyframes flash-animation {
+    from { background: #d3d3d3; }
+    to   { background: default; }
+}
+
+@keyframes flash-animation {
+    from { background: #d3d3d3; }
+    to   { background: default; }
 }
 
 html, body {
