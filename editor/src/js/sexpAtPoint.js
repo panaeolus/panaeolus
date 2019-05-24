@@ -51,7 +51,6 @@ function sexpAtPoint(inputStr, cursorPos) {
     var stack = [];
     var returnValue = true;
 
-    var cursorPos = cursorPos;
     var sexpBegin = 0;
     var sexpEnd = 0;
 
@@ -62,9 +61,7 @@ function sexpAtPoint(inputStr, cursorPos) {
             return {
                 startIndex: sexpBegin,
                 endIndex: sexpEnd,
-                // pointACoord: indexToPosition(sexpBegin, inputStr),
-                // pointBCoord: indexToPosition(sexpEnd, inputStr),
-            } [sexpBegin, sexpEnd];
+            }
         } else {
             if (isParanthesis(expression[i])) {
 	        if (isOpenParenthesis(expression[i])) {

@@ -56,11 +56,12 @@
     (System/exit 0)
     (if (and (not (empty? args)) (= "stdin" (first args)))
       (loop []
-        (prn "loop1")
         (flush)
-        (-> (read-line) read-string eval)
-        (prn "loop2")
-        (prn "loop3")
+        (print (-> (read-line) read-string eval))
         (recur))
-      (do (nrepl.server/start-server :bind "127.0.0.1" :port 7888)
-          (apply rebel-readline.clojure.main/-main args)))))
+      (if (and (not (empty? args)) (= "nrepl" (first args)))
+        (let [nrepl-server (nrepl.server/start-server :bind "127.0.0.1" :port (Integer/parseInt (second args)))]
+          (println "[nrepl] server starting on port: " (second args))
+          (.addShutdownHook (Runtime/getRuntime) (Thread. #(nrepl.server/stop-server nrepl-server))))
+        (do
+          (apply rebel-readline.clojure.main/-main args))))))

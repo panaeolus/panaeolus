@@ -3,17 +3,79 @@
             ["react" :refer [createRef]]
             ["ace-builds" :as ace-editor]
             ["/js/sexpAtPoint" :as sexp-at-point]
+            ["/js/nrepl-client" :as nrepl-client]
+            ["bencode" :as bencode]
+            ["net" :as net]
+            [clojure.core.async :as async]
             [clojure.string :as string :refer [split-lines]]))
+
+;; (def nrepl-port 8912)
 
 (enable-console-print!)
 
 (defonce state (atom {:current-row 0 :current-column 0 :ace-ref nil :current-text ""
                       :flash-queue []}))
 
+(def async-channels (atom {}))
+
 (def electron (js/require "electron"))
 (def process (js/require "process"))
 
 (def cwd (.cwd process))
+
+(def nrepl-connection (atom nil))
+
+(defn nrepl-connect! [nrepl-port]
+  (.connect @nrepl-connection nrepl-port "127.0.0.1" (fn [])))
+
+(defn nrepl-handler [msg callback]
+  (js/console.log   @nrepl-connection)
+  (when @nrepl-connection
+    (.write @nrepl-connection
+            (bencode/encode #{:op "eval"
+                              :id "100"
+                              :code (str (clojure.string/escape msg {"\\" "\\\\"}) "\n")})
+            #_(fn [res err]
+                (prn "RESPONSE" res "error" err)
+                (callback {:stdout res :stderr err})))
+    ))
+
+#_(defn nrepl-handler [msg callback]
+    (.eval @nrepl-connection
+           (str (clojure.string/escape msg {"\\" "\\\\"}) "\n")
+           (fn [res err]
+             (prn "RESPONSE" res "error" err)
+             (callback {:stdout res :stderr err}))))
+
+#_(defonce eval-response-handler
+    (.on (.-ipcRenderer electron) "response"
+         (fn [resp] (when-let [response-chan (get @async-channels (:id resp))]
+                      (async/go (async/>! response-chan resp))))))
+
+(defn register-nrepl-receiver []
+  (.on @nrepl-connection "data" (fn [data] (let [status (.-status (bencode/decode data))
+                                                 status1 (.toString (aget status 0))
+                                                 status2 (.toString (aget status 1))
+                                                 status3 (.toString (aget status 2))]
+                                             (js/console.log  "DATA RECEIVE" status1 status2 status3)))))
+(defonce nrepl-status-handler
+  (.on (.-ipcRenderer electron) "nrepl"
+       (fn [resp] (case (aget resp 0)
+                    "started" (fn []
+                                (reset! nrepl-connection (new (.-Socket (.require js/window "net"))))
+                                (nrepl-connect! (js/parseInt (aget resp 1)))
+                                (register-nrepl-receiver))
+                    nil))))
+
+#_(defn nrepl-async [data]
+    (let [response-chan (async/chan 1)
+          symb (str (gensym))]
+      (swap! async-channels assoc symb response-chan)
+      (.send  (.-ipcRenderer electron) "eval" #js [symb data])
+      (async/go (async/<! (async/timeout (* 2 60 1000)))
+                (when (contains? @async-channels symb)
+                  (swap! async-channels dissoc symb)))
+      response-chan))
 
 
 (defn flash-region [ace-ref sexp-positions]
@@ -38,7 +100,10 @@
                                                         (.-endIndex sexp-positions)))]
           (flash-region ace-ref sexp-positions)
           (when-not (empty? trimmed-bundle)
-            (.send  (.-ipcRenderer electron) "eval" trimmed-bundle)))))))
+            (nrepl-handler trimmed-bundle (fn [res] (prn "SUCCESS" res)))
+            #_(async/go (when-let [ret (async/<! (ipc-async trimmed-bundle))]
+                          (prn "RETURN VAL" ret)))
+            #_(.send  (.-ipcRenderer electron) "eval" trimmed-bundle)))))))
 
 (def ctrl-down? (atom false))
 
@@ -86,6 +151,9 @@
     [:div {:className "endsection"}]
     [:div [:a {:href "#"} "Top"]]]])
 
+(defn get-public-ns []
+  (.send  (.-ipcRenderer electron) "eval" "(ns-publics 'panaeolus.all)"))
+
 (defn root-component []
   (reagent/create-class
    {:componentWillUnmount
@@ -102,8 +170,15 @@
         (.setFontSize ace-ref 23)
         (.addEventListener js/document "keydown" keydown-listener)
         (.addEventListener js/document "keyup" keyup-listener)
+        (js/console.log editor-session)
         (swap! state assoc :ace-ref ace-ref)
-        (.focus ace-ref)))
+        (.focus ace-ref)
+        #_(js/setTimeout
+           (fn []
+             )
+           #_(fn [] (let [nrepl (.connect nrepl-client #js {:port nrepl-port :host "127.0.0.1"})]
+                      (.once nrepl "connect" #(reset! nrepl-connection nrepl))))
+           2000)))
     :reagent-render
     (fn []
       [:div
