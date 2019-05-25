@@ -61,7 +61,11 @@
         (recur))
       (if (and (not (empty? args)) (= "nrepl" (first args)))
         (let [nrepl-server (nrepl.server/start-server :bind "127.0.0.1" :port (Integer/parseInt (second args)))]
-          (println "[nrepl] server starting on port: " (second args))
-          (.addShutdownHook (Runtime/getRuntime) (Thread. #(nrepl.server/stop-server nrepl-server))))
+          (println (format "[nrepl:%s]" (second args)))
+          (.addShutdownHook (Runtime/getRuntime) (Thread. #(nrepl.server/stop-server nrepl-server)))
+          (loop []
+            (flush)
+            (print (-> (read-line) read-string eval))
+            (recur)))
         (do
           (apply rebel-readline.clojure.main/-main args))))))

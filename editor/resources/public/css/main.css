@@ -27,6 +27,27 @@
     animation-duration: 0.3s;
 }
 
+.inlineEval {
+    position: absolute;
+    z-index: 999;
+    margin: 0 2px;
+    text-shadow:
+        0 0 5px #262626,
+        0 0 10px #262626,
+        0 0 20px #262626,
+        0 0 40px #262626,
+        0 0 80px #262626,
+        0 0 90px #262626,
+        0 0 100px #262626,
+        0 0 150px #262626;
+    -webkit-animation-name: flash-animation;
+    -webkit-animation-duration: 0.3s;
+
+    animation-name: flash-animation;
+    animation-duration: 0.3s;
+    background-color: #262626;
+}
+
 @-webkit-keyframes flash-animation {
     from { background: #d3d3d3; }
     to   { background: default; }
