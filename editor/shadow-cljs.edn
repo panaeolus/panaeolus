@@ -7,12 +7,15 @@
 
  :builds {:main {:target :node-script
                  :output-to "resources/main.js"
+                 :compiler-options {:optimizations :simple}
                  :main app.main.core/main}
 
           :renderer {:target :browser
                      :output-dir "resources/public/js"
                      :asset-path "js"
                      :modules {:renderer {:entries [app.renderer.core]}}
+                     :compiler-options {:optimizations :simple}
                      :devtools {:before-load app.renderer.core/stop
-                                :after-load app.renderer.core/reload!}
+                                :after-load app.renderer.core/reload!
+                                :watch-dir "resources/public"}
                      }}}

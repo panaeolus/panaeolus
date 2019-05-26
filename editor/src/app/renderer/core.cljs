@@ -1,23 +1,28 @@
 (ns app.renderer.core
   (:require [reagent.core :as reagent :refer [atom]]
             ["react" :refer [createRef]]
+            ["react-highlight" :default Highlight]
             ["ace-builds" :as ace-editor]
             ["/js/sexpAtPoint" :as sexp-at-point]
             ["/js/nrepl-client" :as nrepl-client]
+            ["react-split-pane" :as SplitPane]
+            ;; ["/js/dynamic-mode"]
             ["bencode" :as bencode]
             ["net" :as net]
             ["vex-js" :as vex]
             [clojure.core.async :as async]
             [clojure.string :as string :refer [split-lines]]))
 
-(.registerPlugin vex (js/require "vex-dialog"))
-(set! (.-className (.-defaultOptions vex)) "vex-theme-os")
-(set! (.-text (.-YES (.-buttons (.-dialog vex)))) "Okiedokie")
-(set! (.-text (.-NO (.-buttons (.-dialog vex)))) "Aahw hell no")
 
 ;; (def nrepl-port 8912)
 
 (enable-console-print!)
+
+(when-not (aget vex "dialog")
+  (.registerPlugin vex (js/require "vex-dialog"))
+  (set! (.-className (.-defaultOptions vex)) "vex-theme-os")
+  (set! (.-text (.-YES (.-buttons (.-dialog vex)))) "Okiedokie")
+  (set! (.-text (.-NO (.-buttons (.-dialog vex)))) "Aahw hell no"))
 
 (defonce state (atom {:ace-ref nil :nrepl-callbacks {} :inline-ranges []}))
 
@@ -56,31 +61,83 @@
          (fn [resp] (when-let [response-chan (get @async-channels (:id resp))]
                       (async/go (async/>! response-chan resp))))))
 
+(def log-atom (atom []))
+
 (defn register-nrepl-receiver []
   (.on @nrepl-connection "data"
        (fn [data]
          (let [decoded-data (bencode/decode data)]
+           ;; (js/console.log decoded-data)
            (if-not (exists? (.-status decoded-data)) ;; status indicates a failure?
-             (when (exists? (.-value decoded-data))
+             (if-not (exists? (.-value decoded-data))
+               (if (exists? (.-out decoded-data))
+                 (swap! log-atom conj {:log (.toString (.-out decoded-data)) :type :out})
+                 (swap! log-atom conj {:log (.toString (.-err decoded-data)) :type :error}))
                (let [return-value (.toString (.-value decoded-data))
                      id (.toString (.-id decoded-data))]
                  (when-let [callback (get-in @state [:nrepl-callbacks id])]
-                   (callback return-value)
+                   (callback return-value false)
                    (swap! state update-in [:nrepl-callbacks] dissoc id))))
-             (let [status (.-status (bencode/decode data))
+             (let [id (.toString (.-id decoded-data))
+                   status (.-status (bencode/decode data))
                    status1 (.toString (aget status 0))
                    status2 (when (< 1 (.-length status))
                              (.toString (aget status 1)))
                    status3 (when (< 2 (.-length status))
                              (.toString (aget status 2)))]
+               (when-let [callback (get-in @state [:nrepl-callbacks id])]
+                 (callback "error" true)
+                 (swap! state update-in [:nrepl-callbacks] dissoc id))
                (when-not (= "done" status1)
                  (js/console.error  "REPL FAILURE: " status1 status2 status3))))))))
+
+(defn register-public-symbols []
+  (nrepl-handler "(ns-publics 'panaeolus.all)\n" (str (gensym))
+                 (fn [public-symbols]
+                   #_(.apply (.-push (.-$keywordList (.-$highlightRules (.-$mode (.getSession (:ace-ref @state))))))
+                             (.-$keywordList (.-$highlightRules (.-$mode (.getSession (:ace-ref @state)))))
+                             (->> (filter #(< -1 (.indexOf % "panaeolus.all"))
+                                          (clojure.string/split public-symbols " "))
+                                  (map #(.replace % "#'panaeolus.all/" ""))
+                                  clj->js))
+                   ;; var mode = session.$mode
+                   ;; mode.$highlightRules.addRules({...})
+                   ;; mode.$tokenizer = new Tokenizer(mode.$highlightRules.getRules());
+                   ;; session.bgTokenizer.setTokenizer(mode.$tokenizer);
+                   (.setKeywords (.-$highlightRules (.-$mode (.getSession (:ace-ref @state)))) #js {"keyword" "hlolli|sig"})
+                   (js/console.log (.-$highlightRules (.-$mode (.getSession (:ace-ref @state)))))
+                   (.resetCaches (.getSession (:ace-ref @state)))
+                   (.start (.-bgTokenizer (.getSession (:ace-ref @state))) 0)
+                   (.start (.-bgTokenizer (.getSession (:ace-ref @state))) 100)
+                   (.start (.-bgTokenizer (.getSession (:ace-ref @state))) 1000)
+                   (.start (.-bgTokenizer (.getSession (:ace-ref @state))) 3000)
+                   (.start (.-bgTokenizer (.getSession (:ace-ref @state))) 6000)
+
+                   (js/console.log (.-bgTokenizer (.getSession (:ace-ref @state))))
+                   ;; editor.session.bgTokenizer.start(0)
+
+
+                   #_(let [session (.getSession (:ace-ref @state))
+                           mode (.-$mode session)
+                           newTokenizer (new (.-Tokenizer (.require js/ace "ace/tokenizer")) (.getRules (.-$highlightRules mode)))]
+                       (js/console.log (.getRules (.-$highlightRules mode)))
+                       (.setTokenizer (.-bgTokenizer session) newTokenizer)
+                       )
+                   ;; editor.session.bgTokenizer.start(0);
+                   #_(.start (.-bgTokenizer (.getSession (:ace-ref @state))) 0)
+                   ;; (js/console.log (.-$keywordList (.-$highlightRules (.-$mode (.getSession (:ace-ref @state))))) )
+                   )))
+
+(defn initialize-namespace []
+  (nrepl-handler "(use 'panaeolus.all)(in-ns 'panaeolus.all)\n" (str (gensym))
+                 (fn [_] (js/setTimeout register-public-symbols 1000))))
 
 (defn nrepl-initialize [port]
   (do
     (reset! nrepl-connection (new (.-Socket (.require js/window "net"))))
     (nrepl-connect! port)
-    (register-nrepl-receiver)))
+    (register-nrepl-receiver)
+    (initialize-namespace)))
 
 (defonce nrepl-status-handler
   (.on (.-ipcRenderer electron) "nrepl"
@@ -89,18 +146,8 @@
            "started" (nrepl-initialize (js/parseInt (aget resp 1)))
            nil))))
 
-#_(defn nrepl-async [data]
-    (let [response-chan (async/chan 1)
-          symb (str (gensym))]
-      (swap! async-channels assoc symb response-chan)
-      (.send  (.-ipcRenderer electron) "eval" #js [symb data])
-      (async/go (async/<! (async/timeout (* 2 60 1000)))
-                (when (contains? @async-channels symb)
-                  (swap! async-channels dissoc symb)))
-      response-chan))
 
-
-(defn flash-region [ace-ref sexp-positions]
+(defn flash-region [ace-ref sexp-positions error?]
   (when (and ace-ref (exists? (.-startIndex sexp-positions)))
     (let [pointACoord (.indexToPosition (.-doc (.-session ace-ref)) (.-startIndex sexp-positions))
           pointBCoord (.indexToPosition (.-doc (.-session ace-ref)) (.-endIndex sexp-positions))
@@ -109,8 +156,9 @@
                      (.-column pointACoord)
                      (.-row pointBCoord)
                      (.-column pointBCoord))]
-      (set! (.-id range) (.addMarker (.-session ^js ace-ref) range "flashEval" "text"))
-      (js/setTimeout #(.removeMarker (.-session ace-ref) (.-id range)) 300))))
+      (set! (.-id range) (.addMarker (.-session ^js ace-ref) range
+                                     (if error? "flashEvalError" "flashEval") "text"))
+      (js/setTimeout #(.removeMarker (.-session ^js ace-ref) (.-id range)) 300))))
 
 (defn evaluate-outer-sexp []
   (when-let [ace-ref (:ace-ref @state)]
@@ -124,7 +172,7 @@
             (let [id (str (gensym))
                   react-node (atom nil)]
               (nrepl-handler trimmed-bundle id
-                             (fn [res]
+                             (fn [res error?]
                                (when (and ace-ref (exists? (.-startIndex sexp-positions)))
                                  (let [session (.getSession ace-ref)
                                        pointBCoord (.indexToPosition (.-doc session) (.-endIndex sexp-positions))
@@ -133,7 +181,7 @@
                                                   (inc (.-column pointBCoord))
                                                   (.-row pointBCoord)
                                                   (+ (.-column pointBCoord) 7 (count res)))]
-                                   (flash-region ace-ref sexp-positions)
+                                   (flash-region ace-ref sexp-positions error?)
                                    (.remove (.-doc session)
                                             (new (.-Range js/ace)
                                                  (.-row pointBCoord)
@@ -181,8 +229,8 @@
   [:ul {:className "powerline"}
    [:li {:className "left"}
     [:div
-     [:a {:href "#"} "177 "]
-     [:a {:href "#"} "*scratch*"]]
+     [:a {:href "#"} "1777 "]
+     [:a {:href "#"} "*live*"]]
     [:div {:className "endsection"}]
     [:div [:a {:href "#"} "Clojure"]]
     [:div {:className "shrinkable"} [:a {:href "#"} "Panaeolus version 0.4.0-alpha"]]
@@ -200,8 +248,6 @@
     [:div {:className "endsection"}]
     [:div [:a {:href "#"} "Top"]]]])
 
-(defn get-public-ns []
-  (.send (.-ipcRenderer electron) "eval" "(ns-publics 'panaeolus.all)"))
 
 (defn request-jre-boot []
   (.send  (.-ipcRenderer electron) "boot-jre" nil))
@@ -235,52 +281,41 @@
       (set! js/window.oncontextmenu nil))
     :componentDidMount
     (fn [this]
+      (.addEventListener js/document "keydown" keydown-listener)
+      (.addEventListener js/document "keyup" keyup-listener)
       (let [ace-ref (.edit ace-editor "ace")
             editor-session (.getSession ace-ref)]
         (.on (.-commands ace-ref) "exec" on-edit-handler)
         (.set (.-config js/ace) "basePath" "./ace")
+        (.loadModule (.-config js/ace) "ace/mode/clojure"
+                     (fn [clojure-mode] (.loadModule (.-config js/ace) "ace/mode/dynamic"
+                                                     (fn [highlight-rules]
+                                                       (let [dynamic-mode (new (.-Mode clojure-mode))]
+                                                         (set! (.-HighlightRules dynamic-mode) (.-DynHighlightRules highlight-rules))
+                                                         (.setMode editor-session dynamic-mode))))))
         (.setTheme ace-ref "ace/theme/cyberpunk")
-        (.setMode editor-session "ace/mode/clojure")
         (.setOption ace-ref "displayIndentGuides" false)
         (.setFontSize ace-ref 23)
-        (.addEventListener js/document "keydown" keydown-listener)
-        (.addEventListener js/document "keyup" keyup-listener)
+        (.setShowPrintMargin ace-ref false)
         (set! js/window.oncontextmenu right-click-menu)
         (swap! state assoc :ace-ref ace-ref)
         (.focus ace-ref)))
     :reagent-render
     (fn []
-      [:div
+      [:> SplitPane {:split "horizontal" :min-size "95%" :default-size "80%"}
        [:div {:id "ace"}]
-       #_[:> Ace {:mode "clojure"
-                  :ref ace-ref
-                  ;; (fn [ref] (when-not (:ace-ref @state) (prn "NOOOO") (swap! state assoc :ace-ref ref)))
-                  :theme "cyberpunk"
-                  :style {:font-family "Space Mono" :font-size "22px"}
-                  :maxLines js/Infinity
-                  :indentedSoftWrap true
-                  :cursorStyle "wide"
-                  :showPrintMargin false
-                  ;; :markers flash-queue
-                  :markers (:flash-queue @state)
-                  ;; :markers (if (empty? (:flash-queue @state)) #js [] (clj->js (:flash-queue @state)))
-                  ;; :editorProps {:$blockScrolling js/Infinity}
-                  :onCursorChange (fn [evt]
-                                    (let [current-row (.-row (.-selectionLead evt))
-                                          current-row (if (and (string? current-row) (not (empty? current-row)))
-                                                        (js/parseInt current-row) current-row)
-                                          current-column (.-column (.-selectionLead evt))
-                                          current-column (if (and (string? current-column) (not (empty? current-column)))
-                                                           (js/parseInt current-column) current-column)]
-                                      (swap! state assoc :current-row current-row)
-                                      (swap! state assoc :current-column current-column)))
-                  :onChange (fn [evt] (swap! state assoc :current-text evt))}]
-       [powerline]])}))
+       [:div {:id "log-area-container"}
+        [:div {:id "shadow-layer"}]
+        (into [:> Highlight {:class-name "clojure" :id "log-area"}]
+              (map #(vector :p (:log %)) @log-atom))
+        [powerline]]])}))
 
 (defn reload! []
   (.send (.-ipcRenderer electron) "dev-reload"))
 
-(defn start! []
+(defn start!
+  {:dev/autoload false}
+  []
   (request-jre-boot)
   (reagent/render
    [root-component]

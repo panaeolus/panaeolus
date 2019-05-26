@@ -27,6 +27,27 @@
     animation-duration: 0.3s;
 }
 
+
+.flashEvalError {
+    z-index: 9999999;
+    position: absolute;
+    text-shadow:
+        0 0 5px #7F073F,
+        0 0 10px #7F073F,
+        0 0 20px #7F073F,
+        0 0 40px #7F073F,
+        0 0 80px #7F073F,
+        0 0 90px #7F073F,
+        0 0 100px #7F073F,
+        0 0 150px #7F073F;
+    -webkit-animation-name: flash-animation;
+    -webkit-animation-duration: 0.3s;
+
+    animation-name: flash-animation;
+    animation-duration: 0.3s;
+}
+
+
 .inlineEval {
     position: absolute;
     z-index: 999;
@@ -78,8 +99,70 @@ html, body {
     width: 100%!important;
 }
 
-.ace-scrollbar {
-    overflow-x: hidden!important;
+.Pane1 {
+    overflow: hidden;
+    z-index: 2!important;
+}
+
+#shadow-layer {
+    width: 100%;
+    height: 24px;
+    position: absolute;
+}
+
+#shadow-layer:before {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom : 80%;
+    content: "";
+    background-image: linear-gradient(to bottom, rgba(1,1,1.1) 0%, rgba(1,1,1) 100%);
+    z-index: 10;
+    pointer-events: none;
+}
+
+#log-area-container {
+    width: 100%;
+    height: 100%;
+    background-color: #000000;
+}
+
+#log-area-container > pre {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    bottom: 24px;
+    margin: 0;
+    padding: 0;
+}
+
+#log-area-container > pre > code {
+    position: absolute;
+    bottom: 0;
+    left: 12px;
+    font-size: 16px;
+}
+
+
+#log-area {
+    width: 100%;
+    height: 100%;
+}
+
+#log-area, p {
+    display: table-row;
+    vertical-align: bottom;
+    margin: 0;
+    padding: 0;
+    font-size: 16px;
+    line-height: 24px;
+    /* position: absolute; */
+    /* top: 100%; */
+}
+
+.ace_scrollbar {
+    display: none !important;
 }
 
 .powerline {
@@ -223,4 +306,67 @@ html, body {
 }
 .powerline .right div:nth-child(2)+.endsection+div a {
     color: #f8f8f8;
+}
+
+
+/* RESIZER */
+
+.Resizer {
+    background: rgba(255, 255, 255, 0);
+    opacity: .2;
+    z-index: 10;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+    -moz-background-clip: padding;
+    -webkit-background-clip: padding;
+    background-clip: padding-box;
+}
+
+.Resizer:hover {
+    -webkit-transition: all 0.1s ease;
+    transition: all 0.1s ease;
+}
+
+.Resizer.horizontal {
+    /* box-shadow: 5px 10px #888888; */
+    /* box-sizing: content-box; */
+    z-index: 10;
+    height: 5px;
+    margin: -5px 0;
+    /* border-top: 5px solid rgba(0, 0, 0, 0.5); */
+    /* border-bottom: 5px solid rgba(0, 0, 0, 0.5); */
+    border-top: 3px solid rgba(200, 200, 200, 0.8);
+    border-bottom: 3px solid rgba(200, 200, 200, 0.8);
+    cursor: row-resize;
+    width: 100%;
+}
+
+.Resizer.horizontal:hover {
+    z-index: 10;
+    border-top: 4px solid rgba(220, 220, 220, 0.9);
+    border-bottom: 4px solid rgba(220, 220, 220, 0.9);
+
+    /* border-top: 3px solid rgba(255, 255, 255, 1); */
+    /* border-bottom: 3px solid rgba(255, 255, 255, 1); */
+
+}
+
+.Resizer.vertical {
+    width: 12px;
+    margin: 0 -5px;
+    border-left: 5px solid rgba(255, 255, 255, 0);
+    border-right: 5px solid rgba(255, 255, 255, 0);
+    cursor: col-resize;
+}
+
+.Resizer.vertical:hover {
+    border-left: 5px solid rgba(0, 0, 0, 0.5);
+    border-right: 5px solid rgba(0, 0, 0, 0.5);
+}
+.Resizer.disabled {
+    cursor: not-allowed;
+}
+.Resizer.disabled:hover {
+    border-color: transparent;
 }
