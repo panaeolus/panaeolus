@@ -7,14 +7,17 @@
 
  :builds {:main {:target :node-script
                  :output-to "resources/main.js"
-                 :compiler-options {:optimizations :simple}
+                 :compiler-options {
+                                    ;; :optimizations :simple
+                                    :infer-externs :auto}
                  :main app.main.core/main}
-
           :renderer {:target :browser
                      :output-dir "resources/public/js"
                      :asset-path "js"
                      :modules {:renderer {:entries [app.renderer.core]}}
-                     :compiler-options {:optimizations :simple}
+                     :compiler-options {
+                                        ;; :optimizations :simple
+                                        :infer-externs :auto}
                      :devtools {:before-load app.renderer.core/stop
                                 :after-load app.renderer.core/reload!
                                 :watch-dir "resources/public"}

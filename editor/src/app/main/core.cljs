@@ -22,13 +22,19 @@
                                  :height 600
                                  :webPreferences {:nodeIntegration true}
                                  })))
-  ;; (.toggleDevTools @main-window)
-  (.loadURL @main-window (str "file://" js/__dirname "/public/index.html"))
-  (.on @main-window "closed" #(reset! main-window nil)))
+  (.loadURL ^js @main-window (str "file://" js/__dirname "/public/index.html"))
+  (.on ^js @main-window "closed" #(reset! main-window nil)))
 
 (defn boot-jre! [resolve reject]
   (when-not @jre-connection
-    (let [jre-conn (jre/spawn #js ["java"] "-jar" #js [(path/join js/__dirname "panaeolus-0.4.0-SNAPSHOT.jar") "nrepl" (str nrepl-port)])]
+    (let [jre-conn (jre/spawn #js ["java" "-Xms1g" "-Xmx2g"
+                                   "-XX:+CMSConcurrentMTEnabled"
+                                   "-XX:MaxGCPauseMillis=20"
+                                   "-XX:MaxNewSize=257m"
+                                   "-XX:NewSize=256m"
+                                   "-XX:+UseTLAB"
+                                   "-XX:MaxTenuringThreshold=0"]
+                              "-jar" #js [(path/join js/__dirname "panaeolus-0.4.0-SNAPSHOT.jar") "nrepl" (str nrepl-port)])]
       (exit-hook (fn [] (.pause (.-stdin jre-conn)) (.kill jre-conn)))
       (.on (.-stdout jre-conn) "data"
            (fn [data] (let [data (.toString data)]
@@ -43,9 +49,11 @@
   (.on ipcMain "boot-jre"
        (fn [event arg]
          (-> (new js/Promise (fn [resolve reject] (boot-jre! resolve reject)))
-             (.then (fn [data] (.reply event "nrepl" data))))))
-  (.on ipcMain "dev-reload" (fn [event arg] (prn "dev Reload") (.reply event "nrepl-port-num" (.reply event "nrepl" #js ["started" nrepl-port]))))
-  (.on ipcMain "quit" (fn [_ _] (prn "quit1") (.quit app)))
+             (.then (fn [data] (.reply ^js event "nrepl" data))))))
+  (.on ipcMain "dev-reload" (fn [^js event arg] (prn "dev Reload")
+                              (.reply event "nrepl" #js ["started" nrepl-port])))
+  (.on ipcMain "quit" (fn [_ _] (.quit app)))
+  (.disableHardwareAcceleration app)
   (.on app "ready" init-browser)
   (.on app "window-all-closed" #(when-not (= js/process.platform "darwin") (prn "quit2") (.quit app))))
 

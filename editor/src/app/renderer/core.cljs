@@ -6,17 +6,21 @@
             ["/js/sexpAtPoint" :as sexp-at-point]
             ["/js/nrepl-client" :as nrepl-client]
             ["react-split-pane" :as SplitPane]
+            ["react-virtualized/dist/commonjs/AutoSizer" :refer (AutoSizer)]
+            ["react-virtualized/dist/commonjs/List" :refer (List)]
             ;; ["/js/dynamic-mode"]
             ["bencode" :as bencode]
             ["net" :as net]
+            ;; ["simplebar-react" :default SimpleBar]
             ["vex-js" :as vex]
             [clojure.core.async :as async]
             [clojure.string :as string :refer [split-lines]]))
 
-
 ;; (def nrepl-port 8912)
 
 (enable-console-print!)
+
+;; (js/require "simplebar/dist/simplebar.min.css")
 
 (when-not (aget vex "dialog")
   (.registerPlugin vex (js/require "vex-dialog"))
@@ -71,8 +75,8 @@
            (if-not (exists? (.-status decoded-data)) ;; status indicates a failure?
              (if-not (exists? (.-value decoded-data))
                (if (exists? (.-out decoded-data))
-                 (swap! log-atom conj {:log (.toString (.-out decoded-data)) :type :out})
-                 (swap! log-atom conj {:log (.toString (.-err decoded-data)) :type :error}))
+                 (swap! log-atom conj (.toString (.-out decoded-data)))
+                 (swap! log-atom conj (.toString (.-err decoded-data))))
                (let [return-value (.toString (.-value decoded-data))
                      id (.toString (.-id decoded-data))]
                  (when-let [callback (get-in @state [:nrepl-callbacks id])]
@@ -104,19 +108,16 @@
                    ;; mode.$highlightRules.addRules({...})
                    ;; mode.$tokenizer = new Tokenizer(mode.$highlightRules.getRules());
                    ;; session.bgTokenizer.setTokenizer(mode.$tokenizer);
-                   (.setKeywords (.-$highlightRules (.-$mode (.getSession (:ace-ref @state)))) #js {"keyword" "hlolli|sig"})
-                   (js/console.log (.-$highlightRules (.-$mode (.getSession (:ace-ref @state)))))
+                   (.setKeywords ^js (.-$highlightRules ^js (.-$mode ^js (.getSession ^js (:ace-ref @state)))) #js {"keyword" "hlolli|sig"})
+                   ;; (js/console.log (.-$highlightRules (.-$mode (.getSession (:ace-ref @state)))))
                    (.resetCaches (.getSession (:ace-ref @state)))
                    (.start (.-bgTokenizer (.getSession (:ace-ref @state))) 0)
                    (.start (.-bgTokenizer (.getSession (:ace-ref @state))) 100)
                    (.start (.-bgTokenizer (.getSession (:ace-ref @state))) 1000)
                    (.start (.-bgTokenizer (.getSession (:ace-ref @state))) 3000)
                    (.start (.-bgTokenizer (.getSession (:ace-ref @state))) 6000)
-
-                   (js/console.log (.-bgTokenizer (.getSession (:ace-ref @state))))
+                   ;; (js/console.log (.-bgTokenizer (.getSession (:ace-ref @state))))
                    ;; editor.session.bgTokenizer.start(0)
-
-
                    #_(let [session (.getSession (:ace-ref @state))
                            mode (.-$mode session)
                            newTokenizer (new (.-Tokenizer (.require js/ace "ace/tokenizer")) (.getRules (.-$highlightRules mode)))]
@@ -190,7 +191,6 @@
                                                  (count (.getLine (.-doc session) (.-row pointBCoord)))))
                                    (.insert session #js {:row (.-row pointBCoord) :column (inc (.-column pointBCoord))} (str " ;; => " res))
                                    (println "=> " res)
-
                                    (swap! state update :inline-ranges conj range)
                                    #_(set! (.-id range) (.addMarker (.-session ^js ace-ref) range "inlineEval" "text")))))))
             #_(async/go (when-let [ret (async/<! (ipc-async trimmed-bundle))]
@@ -270,7 +270,61 @@
                                                      :click (fn [] (when-let [ace-ref (:ace-ref @state)]
                                                                      (.setKeyboardHandler ace-ref "ace/keyboard/emacs")))}
                                                     {:label "vim"}]})))
-    (.popup menu #js {:window (.getCurrentWindow remote)})))
+    (.popup ^js menu #js {:window (.getCurrentWindow remote)})))
+
+
+;;   <List
+;;     width={300}
+;;     height={300}
+;;     rowCount={list.length}
+;;     rowHeight={20}
+;;     rowRenderer={rowRenderer}
+;;   />,
+
+
+;; function rowRenderer ({
+;;   key,         // Unique key within array of rows
+;;   index,       // Index of row within collection
+;;   isScrolling, // The List is currently being scrolled
+;;   isVisible,   // This row is visible within the List (eg it is not an overscanned row)
+;;   style        // Style object to be applied to row (to position it)
+;; }) {
+;;   return (
+;;     <div
+;;       key={key}
+;;       style={style}
+;;     >
+;;       {list[index]}
+;;     </div>
+;;   )
+;; }
+
+
+(defn log-row-renderer [^js env]
+  (reagent/as-element
+   [:> Highlight {:class-name "clojure"
+                  :key (.-key env)
+                  :style (.-style env)}
+    (nth @log-atom (.-index env))]))
+
+(defn logger-component-list [height width]
+  (js/console.log (count @log-atom))
+  [:> List {:rowCount (count @log-atom)
+            :id "log-area"
+            ;; :key (count @log-atom)
+            :scrollToAlignment "start"
+            ;; :overscanRowCount 200
+            :scrollToIndex (dec (count @log-atom))
+            :height (or height 0)
+            :width (or width 0)
+            :row-height 30
+            :row-renderer log-row-renderer}] )
+
+(defn logger-component []
+  [:> AutoSizer
+   (fn [^js size]
+     (reagent/as-element
+      [logger-component-list (.-height size) (.-width size)]))])
 
 (defn root-component []
   (reagent/create-class
@@ -288,11 +342,12 @@
         (.on (.-commands ace-ref) "exec" on-edit-handler)
         (.set (.-config js/ace) "basePath" "./ace")
         (.loadModule (.-config js/ace) "ace/mode/clojure"
-                     (fn [clojure-mode] (.loadModule (.-config js/ace) "ace/mode/dynamic"
-                                                     (fn [highlight-rules]
-                                                       (let [dynamic-mode (new (.-Mode clojure-mode))]
-                                                         (set! (.-HighlightRules dynamic-mode) (.-DynHighlightRules highlight-rules))
-                                                         (.setMode editor-session dynamic-mode))))))
+                     (fn [^js clojure-mode]
+                       (.loadModule (.-config js/ace) "ace/mode/dynamic"
+                                    (fn [^js highlight-rules]
+                                      (let [dynamic-mode (new (.-Mode clojure-mode))]
+                                        (set! ^js (.-HighlightRules dynamic-mode) (.-DynHighlightRules highlight-rules))
+                                        (.setMode editor-session dynamic-mode))))))
         (.setTheme ace-ref "ace/theme/cyberpunk")
         (.setOption ace-ref "displayIndentGuides" false)
         (.setFontSize ace-ref 23)
@@ -304,11 +359,37 @@
     (fn []
       [:> SplitPane {:split "horizontal" :min-size "95%" :default-size "80%"}
        [:div {:id "ace"}]
-       [:div {:id "log-area-container"}
-        [:div {:id "shadow-layer"}]
-        (into [:> Highlight {:class-name "clojure" :id "log-area"}]
-              (map #(vector :p (:log %)) @log-atom))
-        [powerline]]])}))
+       [logger-component]
+       #_[:div {:id "log-area-container"}
+          [:div {:id "shadow-layer"}]
+          [logger-component]
+          [powerline]]])}))
+
+;; import React from 'react';
+;; import ReactDOM from 'react-dom';
+;; import { List } from 'react-virtualized';
+
+;; // List data as an array of strings
+;; const list = [
+;;   'Brian Vaughn'
+;;   // And so on...
+;; ];
+
+#_(defn row-renderer [^js env]
+    (r/as-element []))
+
+
+;; // Render your list
+;; ReactDOM.render(
+;;   <List
+;;     width={300}
+;;     height={300}
+;;     rowCount={list.length}
+;;     rowHeight={20}
+;;     rowRenderer={rowRenderer}
+;;   />,
+;;   document.getElementById('example')
+;; );
 
 (defn reload! []
   (.send (.-ipcRenderer electron) "dev-reload"))
