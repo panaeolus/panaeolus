@@ -300,8 +300,11 @@ var Mode = function() {
         this.$outdent.autoOutdent(doc, row);
     };
 
-    this.$id = "ace/mode/clojure";
-}).call(Mode.prototype);
+        this.$id = "ace/mode/clojure";
+
+        this.$quotes = { '"': '"' };
+        this.lineCommentStart = ";";
+    }).call(Mode.prototype);
 
 exports.Mode = Mode;
 });

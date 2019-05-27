@@ -259,11 +259,27 @@
     #_(js/console.log event))
   nil)
 
-
 (defn right-click-menu [evt]
   (let [remote (.-remote electron)
         menu (new (.-Menu (.-remote electron)))
         MenuItem (.-MenuItem (.-remote electron))]
+    (.append menu (new MenuItem
+                       (clj->js {:label "Edit"
+                                 :submenu [{:label "Undo"
+                                            :accelerator "CmdOrCtrl+Z"
+                                            :selector "undo:"}
+                                           {:label "Reado"
+                                            :accelerator "Shift+CmdOrCtrl+Z"
+                                            :selector "redo:"}
+                                           {:label "Cut"
+                                            :accelerator "CmdOrCtrl+X"
+                                            :selector "cut:"}
+                                           {:label "Copy"
+                                            :accelerator "CmdOrCtrl+C"
+                                            :selector "copy:"}
+                                           {:label "Paste"
+                                            :accelerator "CmdOrCtrl+V"
+                                            :selector "paste:"}]})))
     (.append menu (new MenuItem (clj->js {:label "kbd mode"
                                           :submenu [{:label "default"}
                                                     {:label "emacs"
@@ -348,8 +364,12 @@
                                       (let [dynamic-mode (new (.-Mode clojure-mode))]
                                         (set! ^js (.-HighlightRules dynamic-mode) (.-DynHighlightRules highlight-rules))
                                         (.setMode editor-session dynamic-mode))))))
+        (.require js/ace "ace/ext/lang/paredit")
         (.setTheme ace-ref "ace/theme/cyberpunk")
         (.setOption ace-ref "displayIndentGuides" false)
+        (.setOption ace-ref "enableSnippets" true)
+        (.setOption ace-ref "enableLiveAutocompletion" false)
+        (.setOption ace-ref "enableBasicAutocompletion" true)
         (.setFontSize ace-ref 23)
         (.setShowPrintMargin ace-ref false)
         (set! js/window.oncontextmenu right-click-menu)
@@ -357,13 +377,12 @@
         (.focus ace-ref)))
     :reagent-render
     (fn []
-      [:> SplitPane {:split "horizontal" :min-size "95%" :default-size "80%"}
-       [:div {:id "ace"}]
-       [logger-component]
-       #_[:div {:id "log-area-container"}
-          [:div {:id "shadow-layer"}]
-          [logger-component]
-          [powerline]]])}))
+      [:div [:> SplitPane {:split "horizontal" :min-size "95%" :default-size "80%"}
+             [:div {:id "ace"}]
+             [logger-component]
+             ;; [:div {:id "log-area-container"}]
+             ]
+       [powerline]])}))
 
 ;; import React from 'react';
 ;; import ReactDOM from 'react-dom';
