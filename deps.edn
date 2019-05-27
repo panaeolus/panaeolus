@@ -13,10 +13,9 @@
          net.java.dev.jna/jna         {:mvn/version "5.3.0"}
          com.kunstmusik/CsoundJNA     {:mvn/version "1.0.1"}
          panaeolus/libcsound64        {:git/url "https://github.com/panaeolus/libcsound64.git"
-                                       :sha "f69077ae5252544307978a6dfc31efe3a1c718cd"}
+                                       :sha "17f968ab279441db527b9a6c0116afb89cf6aab7"}
          badigeon/badigeon            {:git/url "https://github.com/EwenG/badigeon.git"
-                                       :sha "e7f62a60d8e890fc84a47bcfdd59137e11ff1c95"
-                                       :tag "0.0.7"}
+                                       :sha "c9d249df351b30445d542f9b680418996f3fbf63"}
          nrepl                        {:mvn/version "0.6.0"}
          com.bhauman/rebel-readline   {:git/url "https://github.com/hlolli/rebel-readline.git"
                                        :sha "3e86aca3dde9061dc05ba5cf5fa8291c3ebd3c10"}}

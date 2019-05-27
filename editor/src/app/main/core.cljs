@@ -21,6 +21,7 @@
                        (clj->js {:width 800
                                  :height 600
                                  :webPreferences {:nodeIntegration true}
+                                 :icon (str "file://" js/__dirname  "/public/icons/panaeolus.icns")
                                  })))
   (.loadURL ^js @main-window (str "file://" js/__dirname "/public/index.html"))
   (.on ^js @main-window "closed" #(reset! main-window nil)))
