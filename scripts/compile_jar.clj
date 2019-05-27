@@ -10,6 +10,7 @@
             [clojure.tools.deps.alpha :as deps]
             [clojure.tools.deps.alpha.reader :as deps-reader]
             [panaeolus.all :as panaeolus]
+            [panaeolus.libcsound64 :as libcsound64]
             [clojure.java.shell :refer [sh]])
   (:import [net.lingala.zip4j.core ZipFile]
            [net.lingala.zip4j.exception ZipException]))
@@ -109,6 +110,8 @@
   :allow-unstable-deps? true
   :native-path "native"
   :native-prefixes {'overtone/ableton-link ""}})
+
+(libcsound64/spit-csound! "native")
 
 (defn -main []
   (println "cleaning target...")
