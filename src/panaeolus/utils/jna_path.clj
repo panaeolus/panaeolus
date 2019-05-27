@@ -5,7 +5,8 @@
    [clojure.edn :as edn]
    [clojure.java.io :as io]
    [clojure.tools.deps.alpha.reader :as deps-reader]
-   [clojure.walk :as walk]))
+   [clojure.walk :as walk]
+   [panaeolus.libcsound64 :as libcsound64]))
 
 (defn map-keys
   "Apply f to each key in m"
@@ -42,7 +43,6 @@
     :native-path "native"
     :native-prefixes {'overtone/ableton-link ""}})
 
-
 (defn- os-name
   "Returns a string representing the current operating system. Useful
    for debugging, etc. Prefer get-os for os-specific logic."
@@ -57,6 +57,11 @@
       (re-find #"[Ww]indows" os) :windows
       (re-find #"[Ll]inux" os)   :linux
       (re-find #"[Mm]ac" os)     :mac)))
+
+
+(defonce ^:private libcsound-cache-path
+  (System/setProperty "jna.library.path"
+                      (libcsound64/cache-csound!)))
 
 (def ^:private current-jna-path (System/getProperty "jna.library.path"))
 (def ^:private ld-library-path (System/getenv "LD_LIBRARY_PATH"))
