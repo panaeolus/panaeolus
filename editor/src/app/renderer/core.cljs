@@ -8,19 +8,14 @@
             ["react-split-pane" :as SplitPane]
             ["react-virtualized/dist/commonjs/AutoSizer" :refer (AutoSizer)]
             ["react-virtualized/dist/commonjs/List" :refer (List)]
-            ;; ["/js/dynamic-mode"]
             ["bencode" :as bencode]
             ["net" :as net]
-            ;; ["simplebar-react" :default SimpleBar]
             ["vex-js" :as vex]
             [clojure.core.async :as async]
             [clojure.string :as string :refer [split-lines]]))
 
-;; (def nrepl-port 8912)
-
 (enable-console-print!)
 
-;; (js/require "simplebar/dist/simplebar.min.css")
 
 (when-not (aget vex "dialog")
   (.registerPlugin vex (js/require "vex-dialog"))

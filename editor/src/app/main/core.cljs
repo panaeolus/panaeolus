@@ -34,7 +34,7 @@
                                    "-XX:NewSize=256m"
                                    "-XX:+UseTLAB"
                                    "-XX:MaxTenuringThreshold=0"]
-                              "-jar" #js [(path/join js/__dirname "panaeolus-0.4.0-SNAPSHOT.jar") "nrepl" (str nrepl-port)])]
+                              "-jar" #js [(path/join js/__dirname "panaeolus.jar") "nrepl" (str nrepl-port)])]
       (exit-hook (fn [] (.pause (.-stdin jre-conn)) (.kill jre-conn)))
       (.on (.-stdout jre-conn) "data"
            (fn [data] (let [data (.toString data)]
