@@ -1,5 +1,11 @@
 (ns panaeolus.config
-  (:require [clojure.edn :as edn]))
+  (:require [clojure.edn :as edn]
+            [clojure.spec.alpha :as s]))
+
+
+(s/def ::zerodbfs (s/and integer? pos?))
+
+(s/def ::ksmps (s/and integer? #(>= % 1)))
 
 (set! *warn-on-reflection* true)
 

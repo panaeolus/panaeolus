@@ -2,6 +2,7 @@
   (:require [panaeolus.csound.macros :as c]))
 
 (c/define-fx reverbsc
+  :orc-string
   "instr 1
   ain1, ain2 ins
   denorm ain1, ain2
@@ -21,4 +22,5 @@
 endin
 schedule(1, 0, -1)
 "
-  [] nil 2 2 {})
+  :num-outs 2
+  :release-time 4)

@@ -173,8 +173,9 @@
          :value (fn [parameter-value] (not (nil? parameter-value)))))
 
 (s/def ::live-code-arguments
-  (s/cat :required-args (s/cat :valid-live-code-action valid-live-code-action?
-                               :valid-live-code-pattern valid-live-code-pattern?)
+  (s/cat :required-args (s/or :control-only (s/cat :valid-live-code-action valid-live-code-action?)
+                              :full-deps    (s/cat :valid-live-code-action valid-live-code-action?
+                                                   :valid-live-code-pattern valid-live-code-pattern?))
          :opt-args (s/* valid-parameters?)))
 
 ;; (s/explain ::live-code-arguments [:loop "0xfff" :dur 2 :nn 50 :amp -10])
@@ -414,7 +415,6 @@
             (swap! globals/pattern-registry dissoc key)
             (swap! csound-jna/csound-instances dissoc key))) @csound-jna/csound-instances))
 
-
 (defn csound-pattern-control
   [i-name csound-instrument-number orc-string
    synth-form num-outputs release-time-secs config isFx?]
@@ -480,11 +480,13 @@
              {:i-name  fx-name
               :args     args
               :kill-fx
-              (fn [] (async/go (async/timeout release-time-secs)
-                               (when-not (empty? (-> fx-instance :inputs first :connected-from-ports))
-                                 ((:stop fx-instance))
-                                 (swap! globals/pattern-registry dissoc fx-name)
-                                 (swap! csound-jna/csound-instances dissoc fx-name))))
+              (fn [] (async/go
+
+                       (async/timeout release-time-secs)
+                       (when-not (empty? (-> fx-instance :inputs first :connected-from-ports))
+                         ((:stop fx-instance))
+                         (swap! globals/pattern-registry dissoc fx-name)
+                         (swap! csound-jna/csound-instances dissoc fx-name))))
               :fx-form  fx-form
               :loop-self? loop-self?}))))
 

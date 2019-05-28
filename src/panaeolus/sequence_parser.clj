@@ -3,7 +3,7 @@
             [clojure.string :as string]
             [panaeolus.pitches :refer [midi->freq note->midi freq->midi-noround]]))
 
-(set! *warn-on-reflection* true)
+;; (set! *warn-on-reflection* true)
 
 (def ^:private process-nname
   (comp note->midi keyword))

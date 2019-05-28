@@ -56,13 +56,13 @@
                                (if (empty? at)
                                  last-tick (last at)))))))))))
 
-(defn --replace-args-in-fx [old-fx new-fx]
-  (reduce (fn [init old-k]
-            (if (contains? new-fx old-k)
-              (assoc init old-k (assoc (get old-fx old-k) 1 (nth (get new-fx old-k) 1)))
-              init))
-          old-fx
-          (keys old-fx)))
+#_(defn --replace-args-in-fx [old-fx new-fx]
+    (reduce (fn [init old-k]
+              (if (contains? new-fx old-k)
+                (assoc init old-k (assoc (get old-fx old-k) 1 (nth (get new-fx old-k) 1)))
+                init))
+            old-fx
+            (keys old-fx)))
 
 (defn csound-event-loop-thread [get-current-state]
   (let [{:keys [i-name
@@ -127,60 +127,3 @@
                      0
                      a-index
                      ))))))))
-
-
-
-(comment
-
-  (require 'panaeolus.metronome)
-
-  (def params [{:amp {:default -12}}
-               {:nn {:default 60}}])
-
-  (event-loop "prufa" tezt '(prufa [1 1 0.5 0.5] :nn [36 38 40] :amp -20)
-              :envelope-type :perc :audio-backend :csound)
-
-  (def tezt (csound/spawn-csound-client "csound-2" 2 2 1))
-
-  ;; ((:init test))
-
-  @(:status tezt)
-
-  ((:start tezt))
-
-  ((:stop tezt))
-
-  ((:kill tezt))
-
-  (jack/connect "csound-2:output1" "system:playback_1")
-  (jack/connect "csound-2:output2" "system:playback_2")
-
-  (jack/disconnect "csound-3:output1" "system:playback_1")
-  (jack/disconnect "csound-3:output2" "system:playback_2")
-
-  (csound/compile-orc (:instance tezt) "print 2")
-
-  (csound/compile-orc (:instance tezt) "
-       instr 1
-       asig = poscil:a(ampdb(p4), cpsmidinn(p5))
-       outc asig, asig
-       endin
-")
-
-  (panaeolus.overtone.macros/definst+ ding20 :perc
-    [note 60 amp 1 gate 1]
-    (let [freq (midicps note)
-          snd  (sin-osc freq)
-          env  (env-gen (lin 0.01 0.1 0.2 0.3) gate :action FREE)]
-      (* amp env snd)))
-
-  (ding20 :stop
-          [1 1 1 1/3 1/3 1/3]
-          :note
-          [[59 61]   [63 65 66]]
-          :amp
-          0.9
-          ;; :fx [(tubescreamer :gain 0.1)]
-          )
-
-  )

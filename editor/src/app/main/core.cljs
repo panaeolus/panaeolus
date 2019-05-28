@@ -23,6 +23,10 @@
 (def nrepl-connection (atom nil))
 (def log-queue (atom []))
 
+(def file-prefix
+  (if (= (.-platform js/process) "win32")
+    "file:/" "file://"))
+
 (.setApplicationMenu Menu nil)
 
 (defn init-browser []
@@ -30,9 +34,9 @@
                        (clj->js {:width 800
                                  :height 600
                                  :webPreferences {:nodeIntegration true}
-                                 :icon (str "file://" js/__dirname  "/public/icons/AppIcon.icns")
+                                 :icon (str file-prefix js/__dirname "/public/icons/AppIcon.icns")
                                  })))
-  (.loadURL ^js @main-window (str "file://" js/__dirname "/public/index.html"))
+  (.loadURL ^js @main-window (str file-prefix js/__dirname "/public/index.html"))
   (.on ^js @main-window "closed" #(reset! main-window nil)))
 
 
