@@ -17,6 +17,10 @@
 
 (def +version+ "0.4.0-SNAPSHOT")
 
+(def windows?
+  (re-find #"[Ww]indows"
+           (System/getProperty "os.name")))
+
 (defn unzip-file
   [zip dest]
   (try
@@ -26,7 +30,10 @@
       (.printStackTrace e)
       e)))
 
-(def jars (clojure.string/split (classpath/make-classpath {:aliases []}) #":"))
+(def jars
+  (clojure.string/split
+   (classpath/make-classpath {:aliases []})
+   (if windows? #";" #":")))
 
 (def clojure-jar
   (first (filter #(re-find #"clojure-1.10.0" %) jars)))
@@ -142,7 +149,9 @@
   ;; (sh "mv" "target/classes/META-INF-bak" "target/classes/META-INF")
   (println "making a jar")
   ;; (Thread/sleep 1000)
-  (sh "rm" "-rf" "target/classes/META-INF")
+  (if windows?
+    (sh "cmd" "/c" "rmdir" "/s" "target\\classes\\META-INF")
+    (sh "rm" "-rf" "target/classes/META-INF"))
   (jar/jar 'panaeolus {:mvn/version +version+}
            {:out-path (str "target/panaeolus-" +version+ ".jar")
             :main 'panaeolus.all
