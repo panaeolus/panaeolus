@@ -183,7 +183,7 @@ html, body {
 
 .powerline {
     z-index: 9999999;
-    font-family: "Droid Sans Mono for Powerline", "Droid Sans Mono", Mono;
+    font-family: "Space Mono", Mono;
     list-style: none;
     padding: 0;
     display: -webkit-box;

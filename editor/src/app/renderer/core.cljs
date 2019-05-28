@@ -16,7 +16,6 @@
 
 (enable-console-print!)
 
-
 (when-not (aget vex "dialog")
   (.registerPlugin vex (js/require "vex-dialog"))
   (set! (.-className (.-defaultOptions vex)) "vex-theme-os")
@@ -142,6 +141,10 @@
            "started" (nrepl-initialize (js/parseInt (aget resp 1)))
            nil))))
 
+(defonce backend-log
+  (.on (.-ipcRenderer electron) "logs-from-backend"
+       (fn [_ resp]
+         (swap! log-atom update conj (js->clj resp)))))
 
 (defn flash-region [ace-ref sexp-positions error?]
   (when (and ace-ref (exists? (.-startIndex sexp-positions)))
@@ -245,7 +248,7 @@
 
 
 (defn request-jre-boot []
-  (.send  (.-ipcRenderer electron) "boot-jre" nil))
+  (.send (.-ipcRenderer electron) "boot-jre" nil))
 
 (defn on-edit-handler [event]
   (let [edit-event? (not (.-readOnly (.-command event)))]
@@ -338,72 +341,47 @@
       [logger-component-list (.-height size) (.-width size)]))])
 
 (defn root-component []
-  (reagent/create-class
-   {:componentWillUnmount
-    (fn []
-      (.removeEventListener js/document "keydown" keydown-listener)
-      (.removeEventListener js/document "keyup" keyup-listener)
-      (set! js/window.oncontextmenu nil))
-    :componentDidMount
-    (fn [this]
-      (.addEventListener js/document "keydown" keydown-listener)
-      (.addEventListener js/document "keyup" keyup-listener)
-      (let [ace-ref (.edit ace-editor "ace")
-            editor-session (.getSession ace-ref)]
-        (.on (.-commands ace-ref) "exec" on-edit-handler)
-        (.set (.-config js/ace) "basePath" "./ace")
-        (.loadModule (.-config js/ace) "ace/mode/clojure"
-                     (fn [^js clojure-mode]
-                       (.loadModule (.-config js/ace) "ace/mode/dynamic"
-                                    (fn [^js highlight-rules]
-                                      (let [dynamic-mode (new (.-Mode clojure-mode))]
-                                        (set! ^js (.-HighlightRules dynamic-mode) (.-DynHighlightRules highlight-rules))
-                                        (.setMode editor-session dynamic-mode))))))
-        (.require js/ace "ace/ext/lang/paredit")
-        (.setTheme ace-ref "ace/theme/cyberpunk")
-        (.setOption ace-ref "displayIndentGuides" false)
-        (.setOption ace-ref "enableSnippets" true)
-        (.setOption ace-ref "enableLiveAutocompletion" false)
-        (.setOption ace-ref "enableBasicAutocompletion" true)
-        (.setFontSize ace-ref 23)
-        (.setShowPrintMargin ace-ref false)
-        (set! js/window.oncontextmenu right-click-menu)
-        (swap! state assoc :ace-ref ace-ref)
-        (.focus ace-ref)))
-    :reagent-render
-    (fn []
-      [:div [:> SplitPane {:split "horizontal" :min-size "95%" :default-size "80%"}
-             [:div {:id "ace"}]
-             [logger-component]
-             ;; [:div {:id "log-area-container"}]
-             ]
-       [powerline]])}))
+  (let [backend-poller (js/setInterval #(.send (.-ipcRenderer electron) "poll-logs" nil) 5000)]
+    (reagent/create-class
+     {:componentWillUnmount
+      (fn []
+        (.removeEventListener js/document "keydown" keydown-listener)
+        (.removeEventListener js/document "keyup" keyup-listener)
+        (set! js/window.oncontextmenu nil)
+        (.clearInterval backend-poller))
+      :componentDidMount
+      (fn [this]
+        (.addEventListener js/document "keydown" keydown-listener)
+        (.addEventListener js/document "keyup" keyup-listener)
+        (let [ace-ref (.edit ace-editor "ace")
+              editor-session (.getSession ace-ref)]
+          (.on (.-commands ace-ref) "exec" on-edit-handler)
+          (.set (.-config js/ace) "basePath" "./ace")
+          (.loadModule (.-config js/ace) "ace/mode/clojure"
+                       (fn [^js clojure-mode]
+                         (.loadModule (.-config js/ace) "ace/mode/dynamic"
+                                      (fn [^js highlight-rules]
+                                        (let [dynamic-mode (new (.-Mode clojure-mode))]
+                                          (set! ^js (.-HighlightRules dynamic-mode) (.-DynHighlightRules highlight-rules))
+                                          (.setMode editor-session dynamic-mode))))))
+          (.require js/ace "ace/ext/lang/paredit")
+          (.setTheme ace-ref "ace/theme/cyberpunk")
+          (.setOption ace-ref "displayIndentGuides" false)
+          (.setOption ace-ref "enableSnippets" true)
+          (.setOption ace-ref "enableLiveAutocompletion" false)
+          (.setOption ace-ref "enableBasicAutocompletion" true)
+          (.setFontSize ace-ref 23)
+          (.setShowPrintMargin ace-ref false)
+          (set! js/window.oncontextmenu right-click-menu)
+          (swap! state assoc :ace-ref ace-ref)
+          (.focus ace-ref)))
+      :reagent-render
+      (fn []
+        [:div [:> SplitPane {:split "horizontal" :min-size "95%" :default-size "80%"}
+               [:div {:id "ace"}]
+               [logger-component]]
+         [powerline]])})))
 
-;; import React from 'react';
-;; import ReactDOM from 'react-dom';
-;; import { List } from 'react-virtualized';
-
-;; // List data as an array of strings
-;; const list = [
-;;   'Brian Vaughn'
-;;   // And so on...
-;; ];
-
-#_(defn row-renderer [^js env]
-    (r/as-element []))
-
-
-;; // Render your list
-;; ReactDOM.render(
-;;   <List
-;;     width={300}
-;;     height={300}
-;;     rowCount={list.length}
-;;     rowHeight={20}
-;;     rowRenderer={rowRenderer}
-;;   />,
-;;   document.getElementById('example')
-;; );
 
 (defn reload! []
   (.send (.-ipcRenderer electron) "dev-reload"))
