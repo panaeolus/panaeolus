@@ -33,7 +33,7 @@
     "command-exists": "^1.2.8",
     "create-react-class": "^15.6.3",
     "env-paths": "^2.2.0",
-    "node-jre": "git://github.com/panaeolus/node-jre.git#b1ee266ba4b339b5332acc125de84f7e7c6ae358",
+    "node-jre": "git://github.com/panaeolus/node-jre.git#a3430a062a398901430afa1d7ef9bd5448c996d8",
     "react": "^16.8.6",
     "react-ace": "^6.5.0",
     "react-dom": "^16.8.6",

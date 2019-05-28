@@ -16,8 +16,6 @@
 
 (jre/setJreDir panaeolus-cache-dir)
 
-(def jre-system-wide? (atom true))
-
 (def nrepl-port (+ 1025 (rand-int (- 65535 1025))))
 
 (def main-window (atom nil))
@@ -38,7 +36,7 @@
   (.on ^js @main-window "closed" #(reset! main-window nil)))
 
 
-(defn boot-jre! [resolve reject]
+(defn boot-jre! [system-wide? resolve reject]
   (when-not @jre-connection
     (let [jvm-opts ["-Xms512M"
                     "-Xmx4G"
@@ -53,16 +51,17 @@
           process-options #js {:encoding "utf8"
                                :cwd (str js/__dirname)
                                :env #js {:OPCODE6DIR64 (path/join panaeolus-cache-dir "csound-6.13" "Opcodes64")}}
-          jre-conn (if @jre-system-wide?
+          jre-conn (if system-wide?
                      (child-process/spawn "java"
                                           (clj->js (into jvm-opts
                                                          ["-jar" (path/join js/__dirname "panaeolus.jar")
                                                           "nrepl" (str nrepl-port)]))
                                           process-options)
-                     (jre/spawn #js [(string/join " " jvm-opts)]
-                                "-jar"
-                                #js [(path/join js/__dirname "panaeolus.jar") "nrepl" (str nrepl-port)]
-                                process-options))]
+                     (do
+                       (jre/spawn #js [(string/join " " jvm-opts)]
+                                  "-jar"
+                                  #js [(path/join js/__dirname "panaeolus.jar") "nrepl" (str nrepl-port)]
+                                  process-options)))]
       (exit-hook (fn [] (.pause (.-stdin jre-conn)) (.kill jre-conn)))
       (.on (.-stdout jre-conn) "data"
            (fn [data] (let [data (.toString data)]
@@ -79,14 +78,18 @@
        (fn [event arg]
          (-> (new js/Promise
                   (fn [resolve reject]
-                    (if (and (not ((.-sync command-exists)
-                                   (if (= (.-platform js/process) "darwin")
-                                     "/usr/libexec/java_home -v"
-                                     "java -version")))
-                             (not (fs/existsSync (path/join panaeolus-cache-dir jre/jreDirName))))
-                      (do (reset! jre-system-wide? false)
-                          (jre/install (fn [] (boot-jre! resolve reject))))
-                      (boot-jre! resolve reject))))
+                    (if-not ((.-sync command-exists)
+                             (if (= (.-platform js/process) "darwin")
+                               "jdb -version"
+                               "java -version"))
+                      (if (fs/existsSync (path/join panaeolus-cache-dir jre/jreDirName))
+                        (do (jre/setJreDir (path/join panaeolus-cache-dir jre/jreDirName))
+                            (boot-jre! false resolve reject))
+                        (jre/install (fn []
+                                       (jre/setJreDir (path/join panaeolus-cache-dir jre/jreDirName))
+                                       ;; (jre/setJreDir panaeolus-cache-dir)
+                                       (boot-jre! false resolve reject))))
+                      (boot-jre! true resolve reject))))
              (.then (fn [data] (.reply ^js event "nrepl" data))))))
   (.on ipcMain "dev-reload" (fn [^js event arg] (prn "dev Reload")
                               (.reply event "nrepl" #js ["started" nrepl-port])))
