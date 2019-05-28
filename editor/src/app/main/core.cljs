@@ -1,5 +1,6 @@
 (ns app.main.core
-  (:require ["electron" :refer [app BrowserWindow crashReporter ipcMain Menu]]
+  (:require [clojure.string :as string]
+            ["electron" :refer [app BrowserWindow crashReporter ipcMain Menu]]
             ["async-exit-hook" :as exit-hook]
             ["node-jre" :as jre]
             ["path" :as path]
@@ -28,14 +29,21 @@
 
 (defn boot-jre! [resolve reject]
   (when-not @jre-connection
-    (let [jre-conn (jre/spawn #js ["java" "-Xms1g" "-Xmx2g"
-                                   "-XX:+CMSConcurrentMTEnabled"
-                                   "-XX:MaxGCPauseMillis=20"
-                                   "-XX:MaxNewSize=257m"
-                                   "-XX:NewSize=256m"
-                                   "-XX:+UseTLAB"
-                                   "-XX:MaxTenuringThreshold=0"]
-                              "-jar" #js [(path/join js/__dirname "panaeolus.jar") "nrepl" (str nrepl-port)]
+    (let [jre-conn (jre/spawn #js [(string/join
+                                    " "
+                                    [
+                                     ;; "-Xms512M"
+                                     ;; "-Xmx4G"
+                                     "-XX:--XX:+CMSConcurrentMTEnabled"
+                                     "-XX:MaxGCPauseMillis=20"
+                                     "-XX:MaxNewSize=257M"
+                                     "-XX:NewSize=256M"
+                                     "-XX:+UseTLAB" "-Djna.debug_load=true"
+                                     "-XX:MaxTenuringThreshold=0"
+                                     "-Dname=hommi"])]
+                              ;; #js []
+                              "-jar"
+                              #js [(path/join js/__dirname "panaeolus.jar") "nrepl" (str nrepl-port)]
                               #js {:encoding "utf8"
                                    :cwd (str js/__dirname)})]
       (exit-hook (fn [] (.pause (.-stdin jre-conn)) (.kill jre-conn)))

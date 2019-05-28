@@ -15,7 +15,7 @@
          panaeolus/libcsound64        {:git/url "https://github.com/panaeolus/libcsound64.git"
                                        :sha "c4bfbdbf08b6820129bcf4313e2a309693ff761b"}
          badigeon/badigeon            {:git/url "https://github.com/EwenG/badigeon.git"
-                                       :sha "c9d249df351b30445d542f9b680418996f3fbf"}
+                                       :sha "c9d249df351b30445d542f9b680418996f3fbf63"}
          nrepl                        {:mvn/version "0.6.0"}
          com.bhauman/rebel-readline   {:git/url "https://github.com/hlolli/rebel-readline.git"
                                        :sha "3e86aca3dde9061dc05ba5cf5fa8291c3ebd3c10"}}

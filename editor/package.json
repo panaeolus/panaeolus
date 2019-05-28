@@ -31,7 +31,7 @@
     "bencode": "^2.0.1",
     "brace": "^0.11.1",
     "create-react-class": "^15.6.3",
-    "node-jre": "^0.2.3",
+    "node-jre": "git://github.com/panaeolus/node-jre.git",
     "react": "^16.8.6",
     "react-ace": "^6.5.0",
     "react-dom": "^16.8.6",
