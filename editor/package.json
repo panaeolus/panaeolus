@@ -7,9 +7,9 @@
     "dev": "./node_modules/.bin/shadow-cljs watch main renderer",
     "build": "./node_modules/.bin/shadow-cljs compile main renderer",
     "release": "shadow-cljs release main renderer",
-    "package:darwin": "electron-packager . panaeolus --out dist/ --ignore node_modules/brace --ignore .shadow-cljs  --ignore node_modules/simplebar --ignore node_modules/higlight.js --ignore 'node_modles/react*' --icon=resources/public/icons/AppIcon.icns --overwrite",
-    "package:windows": "electron-packager . panaeolus --out dist/ --ignore node_modules/brace --ignore .shadow-cljs  --ignore node_modules/simplebar --ignore node_modules/higlight.js --ignore 'node_modles/react*' --overwrite",
-    "package:linux": "electron-packager . panaeolus --out dist/ --ignore node_modules/brace --ignore .shadow-cljs  --ignore node_modules/simplebar --ignore node_modules/higlight.js --ignore 'node_modles/react*' --overwrite",
+    "package:darwin": "electron-packager . panaeolus --out dist/ --ignore .shadow-cljs --ignore node_modules/higlight.js --ignore 'node_modles/react*' --icon=resources/public/icons/AppIcon.icns --overwrite",
+    "package:windows": "electron-packager . panaeolus --out dist/ --ignore .shadow-cljs --ignore node_modules/higlight.js --ignore 'node_modles/react*' --overwrite",
+    "package:linux": "electron-packager . panaeolus --out dist/ --ignore .shadow-cljs --ignore node_modules/higlight.js --ignore 'node_modles/react*' --overwrite",
     "clean": "rm -rf resources/public/js/* && rm -rf target"
   },
   "keywords": [

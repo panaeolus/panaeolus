@@ -40,27 +40,29 @@
 
 (defn boot-jre! [resolve reject]
   (when-not @jre-connection
-    (let [jvm-opts [
-                    ;; "-Xms512M"
-                    ;; "-Xmx4G"
+    (let [jvm-opts ["-Xms512M"
+                    "-Xmx4G"
                     "-XX:+CMSConcurrentMTEnabled"
                     "-XX:MaxGCPauseMillis=20"
                     "-XX:MaxNewSize=257M"
                     "-XX:NewSize=256M"
-                    "-XX:+UseTLAB" "-Djna.debug_load=true"
-                    "-XX:MaxTenuringThreshold=0"]
+                    "-XX:+UseTLAB"
+                    "-XX:MaxTenuringThreshold=0"
+                    "-Djna.debug_load=true"
+                    ]
+          process-options #js {:encoding "utf8"
+                               :cwd (str js/__dirname)
+                               :env #js {:OPCODE6DIR64 (path/join panaeolus-cache-dir "csound-6.13" "Opcodes64")}}
           jre-conn (if @jre-system-wide?
                      (child-process/spawn "java"
                                           (clj->js (into jvm-opts
                                                          ["-jar" (path/join js/__dirname "panaeolus.jar")
                                                           "nrepl" (str nrepl-port)]))
-                                          #js {:encoding "utf8"
-                                               :cwd (str js/__dirname)})
+                                          process-options)
                      (jre/spawn #js [(string/join " " jvm-opts)]
                                 "-jar"
                                 #js [(path/join js/__dirname "panaeolus.jar") "nrepl" (str nrepl-port)]
-                                #js {:encoding "utf8"
-                                     :cwd (str js/__dirname)}))]
+                                process-options))]
       (exit-hook (fn [] (.pause (.-stdin jre-conn)) (.kill jre-conn)))
       (.on (.-stdout jre-conn) "data"
            (fn [data] (let [data (.toString data)]
@@ -77,7 +79,10 @@
        (fn [event arg]
          (-> (new js/Promise
                   (fn [resolve reject]
-                    (if (and (not ((.-sync command-exists) "java"))
+                    (if (and (not ((.-sync command-exists)
+                                   (if (= (.-platform js/process) "darwin")
+                                     "/usr/libexec/java_home -v"
+                                     "java -version")))
                              (not (fs/existsSync (path/join panaeolus-cache-dir jre/jreDirName))))
                       (do (reset! jre-system-wide? false)
                           (jre/install (fn [] (boot-jre! resolve reject))))

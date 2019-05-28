@@ -6,14 +6,14 @@
 
  :deps  {org.clojure/clojure          {:mvn/version "1.10.0"}
          org.clojure/core.async       {:mvn/version "0.4.474"}
-         overtone/ableton-link        {:mvn/version "1.0.0-beta4"}
+         overtone/ableton-link        {:mvn/version "1.0.0-beta5"}
          com.google.inject/guice      {:mvn/version "4.2.2"}
          org.jaudiolibs/jnajack       {:mvn/version "1.3.0" :exclusions [net.java.dev.jna/jna]}
          instaparse                   {:mvn/version "1.4.9"}
          net.java.dev.jna/jna         {:mvn/version "5.3.0"}
          com.kunstmusik/CsoundJNA     {:mvn/version "1.0.1"}
          panaeolus/libcsound64        {:git/url "https://github.com/panaeolus/libcsound64.git"
-                                       :sha "c4bfbdbf08b6820129bcf4313e2a309693ff761b"}
+                                       :sha "d38aa9cf577bdd429bbab9c18d1eec1192923c7b"}
          badigeon/badigeon            {:git/url "https://github.com/EwenG/badigeon.git"
                                        :sha "c9d249df351b30445d542f9b680418996f3fbf63"}
          nrepl                        {:mvn/version "0.6.0"}
