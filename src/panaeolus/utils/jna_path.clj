@@ -8,6 +8,8 @@
    [clojure.walk :as walk]
    [panaeolus.libcsound64 :as libcsound64]))
 
+(set! *warn-on-reflection* true)
+
 (defn- os-name
   "Returns a string representing the current operating system. Useful
    for debugging, etc. Prefer get-os for os-specific logic."

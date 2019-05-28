@@ -1,5 +1,7 @@
 (ns panaeolus.utils.utils)
 
+(set! *warn-on-reflection* true)
+
 (defn normalize-vector [arr low high]
   (let [min-val   (apply min arr)
         max-val   (apply max arr)
