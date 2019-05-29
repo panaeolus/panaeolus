@@ -158,6 +158,9 @@
       (swap! csound-jna/csound-instances assoc i-name new-instance)
       new-instance)))
 
+(s/def ::valid-live-code-modifier?
+  (s/and keyword? #(contains? #{:stop :solo :kill} %)))
+
 (def valid-live-code-action?
   #(contains? #{:loop :stop :solo :kill} %))
 
@@ -173,26 +176,11 @@
          :value (fn [parameter-value] (not (nil? parameter-value)))))
 
 (s/def ::live-code-arguments
-  (s/cat :required-args (s/or :control-only (s/cat :valid-live-code-action valid-live-code-action?)
-                              :full-deps    (s/cat :valid-live-code-action valid-live-code-action?
-                                                   :valid-live-code-pattern valid-live-code-pattern?))
-         :opt-args (s/* valid-parameters?)))
-
-;; (s/explain ::live-code-arguments [:loop "0xfff" :dur 2 :nn 50 :amp -10])
-
-;; (swap! globals/pattern-registry dissoc (:client-name cur-node))
-;; (swap! csound-jna/csound-instances dissoc (:client-name cur-node))
-
-#_(let [new-fx [:src :fx1 :fx2 :fx6 :fx4 :fx5]
-        [kill-chain _ survivor-chain] (diff [:src :fx1 :fx2 :fx3 :fx4 :fx5] new-fx)
-        linear-survivors (vec (take-while #(not (nil? %)) survivor-chain))
-        last-survivor (last linear-survivors)]
-    [linear-survivors (vec (second (split-at (.indexOf new-fx last-survivor) new-fx)))])
-
-
-;; [to-disconnect to-connect to-stay]
-;; (diff (set (map :i-name old-fx-instances))
-;;       (set (map :i-name new-fx-instances)))
+  (s/alt :modifier    (s/cat :modifier ::valid-live-code-modifier? :rest (s/* any?))
+         :initializer (s/cat
+                       :valid-live-code-action valid-live-code-action?
+                       :valid-live-code-pattern valid-live-code-pattern?
+                       :opt-args (s/* valid-parameters?))))
 
 ;; NOTE, you can also get the old-fx-instances
 ;; from the csound-instances atom at this point.
@@ -417,14 +405,14 @@
 
 (defn csound-pattern-control
   [i-name csound-instrument-number orc-string
-   synth-form num-outputs release-time-secs config isFx?]
+   instr-form num-outputs release-time-secs config isFx?]
   (fn [& args]
     {:pre [(s/valid? ::live-code-arguments args)]}
     (if (= :stop (first args))
       (csound-pattern-stop i-name)
       (let [current-state    (get @globals/pattern-registry i-name)
             pat-exists?      (some? current-state)
-            argv-positions (mapv :name synth-form)
+            argv-positions (mapv :name instr-form)
             args (-> (if (string? (second args))
                        (squeeze-in-minilang-pattern args argv-positions)
                        args)
@@ -439,7 +427,7 @@
             debounce-time       (calculate-debounce-time release-time-ms fx-instances)
             instrument-instance (csound-make-instance
                                  i-name csound-instrument-number
-                                 orc-string num-outputs synth-form debounce-time config isFx?)
+                                 orc-string num-outputs instr-form debounce-time config isFx?)
 
             needs-reroute?   (cond
                                (not pat-exists?) false

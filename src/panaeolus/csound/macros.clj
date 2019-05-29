@@ -103,24 +103,46 @@
        :type          ::fx})
      ~fx-name))
 
+(s/def ::instr-name symbol?)
+
+(s/def ::instr-number (s/and integer? #(not (neg? %))))
+
+(s/def ::instr-form (s/+ ::parameter-spec))
+
+(s/fdef definst
+  [env]
+  :args (s/cat :instr-name ::instr-name
+               (s/keys* :req [::instr-form ::instr-number]
+                        :req-un [(or ::orc-string ::orc-filepath ::orc-internal-filepath)]
+                        :opt [::num-outs ::init-hook ::release-hook
+                              ::release-time ::config]))
+  :ret :instrument-controller fn?)
 
 (defmacro definst
   "Defines an instrument like definst does, but returns it
    with Panaeolus pattern controls."
-  [i-name orc-string synth-form csound-instrument-number num-outs release-time-secs config]
-  `(do (def ~i-name
-         (pat-ctl/csound-pattern-control
-          ~(str *ns* "/" i-name) ~csound-instrument-number
-          ~orc-string ~synth-form
-          ~num-outs ~release-time-secs ~config false))
-       (alter-meta! (var ~i-name) merge (meta (var ~i-name))
-                    {:arglists      (list (mapv (comp name :name) ~synth-form)
-                                          (mapv #(str (name (:name %)) "(" (:default %) ")")
-                                                ~synth-form))
-                     :audio-enginge :csound
-                     :inst          (str ~i-name)
-                     :type          ::instrument})
-       ~i-name))
+  [instr-name & {:keys [orc-string instr-form instr-number num-outs release-time config] :as env}]
+  `(let [orc-string# (or ~orc-string
+                         (and (:orc-filepath ~env)
+                              (slurp (io/file (:orc-filepath ~env))))
+                         (and (:orc-internal-filepath ~env)
+                              (slurp (io/resource (:orc-internal-filepath ~env)))))
+         num-outs# (or ~num-outs 2)
+         release-time# (or ~release-time 2)
+         config# (or ~config {})]
+     (def ~instr-name
+       (pat-ctl/csound-pattern-control
+        ~(str *ns* "/" instr-name) ~instr-number
+        orc-string# ~instr-form
+        num-outs# release-time# config# false))
+     (alter-meta! (var ~instr-name) merge (meta (var ~instr-name))
+                  {:arglists      (list (mapv (comp name :name) ~instr-form)
+                                        (mapv #(str (name (:name %)) "(" (:default %) ")")
+                                              ~instr-form))
+                   :audio-enginge :csound
+                   :inst          (str ~instr-name)
+                   :type          ::instrument})
+     ~instr-name))
 
 (defmacro kill! [pname]
   `(let [pname# (str '~`pname)]

@@ -88,8 +88,8 @@
   (.stop instance))
 
 (defn input-message-closure
-  [synth-form csound-instrument-number release-time isFx?]
-  (let [param-vector (reduce into [] (map #(vector (:name %) (:default %)) synth-form))]
+  [instr-form csound-instrument-number release-time isFx?]
+  (let [param-vector (reduce into [] (map #(vector (:name %) (:default %)) instr-form))]
     (fn [csnd debounce-channel]
       (fn [& args]
         (when csound-instrument-number
@@ -99,7 +99,7 @@
                                        (get processed-args (:name v)
                                             (:default v))))
                                []
-                               synth-form)]
+                               instr-form)]
             (input-message-async
              @csnd
              (clojure.string/join
@@ -156,68 +156,3 @@
      :release-channel release-channel
      :release-time release-time
      :scheduled-to-kill? false}))
-
-(comment
-  (def tezt3 (spawn-csound-client "csound#fx#1" 2 2 1 60 false (fn [& rest])))
-
-  ;; ((:init test))
-  (print "a")
-  @(:status tezt2)
-
-  ((:start tezt3))
-
-  ((:stop tezt2))
-
-  ((:kill tezt2))
-
-  (jack/connect "csound-102:output1" "system:playback_1")
-  (jack/connect "csound-1:output2" "system:playback_2")
-
-  (jack/disconnect "csound-3:output1" "system:playback_1")
-  (jack/disconnect "csound-3:output2" "system:playback_2")
-
-  (compile-orc @(:instance tezt2) "print 0dbfs")
-  ((:compile tezt2) "print 0dbfs")
-
-  ((:compile tezt3) "instr 1
-       asig = poscil:a(ampdb(p4), cpsmidinn(p5))
-       outc asig*1000, asig*1000
-       endin
-        print 1
-       schedule(1, 0, 3, -2, 60)
-")
-
-  ((:compile tezt2) "
-  opcode binauralize, aa, akk
-
-  ain,kcent,kdiff xin
-  ifftsz = 1024
-  ; determine pitches
-  kp1 = kcent + (kdiff/2)
-  kp2 = kcent - (kdiff/2)
-  krat1 = kp1 / kcent
-  krat2	= kp2 / kcent
-  ; take it apart
-  fsig pvsanal	ain, ifftsz, ifftsz/4, ifftsz, 1
-  ; create derived streams
-  fbinL	pvscale	fsig, krat1, 1
-  fbinR	pvscale	fsig, krat2, 1
-  ; put it back together
-  abinL	pvsynth	fbinL
-  abinR	pvsynth	fbinR
-  ; send it out
-  xout abinL, abinR
-  endop
-       instr 1
-       asig = poscil:a(ampdb(p4), cpsmidinn(p5))
-       outc asig, asig
-       endin
-       schedule(1, 0, 3, -21, 70)
-")
-
-  (perform-ksmps (:instance tezt))
-
-  (perform-ksmps test3)
-
-  (compile-orc (:instance tezt2) "schedule(1, 0, 1, -12, 60)")
-  )
