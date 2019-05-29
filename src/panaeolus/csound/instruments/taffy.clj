@@ -1,9 +1,10 @@
 (ns panaeolus.csound.instruments.taffy
-  (:require [clojure.java.io :as io]
-            [panaeolus.csound.macros :as c]))
+  (:require [panaeolus.csound.macros :as c]))
 
 (c/definst taffy
-  (slurp (io/resource "panaeolus/csound/instruments/orchestra/dubstep/taffy.orc"))
+  :orc-internal-filepath
+  "panaeolus/csound/instruments/orchestra/dubstep/taffy.orc"
+  :instr-form
   [{:name :dur :default 1}
    {:name :nn :default 48}
    {:name :amp :default -12}
@@ -11,7 +12,10 @@
    {:name :depth :default 0.1}
    {:name :lpf :default 1000}
    {:name :res :default 0.5}]
-  3 2 1 {})
+  :instr-number 3
+  :num-outs 2
+  :release-time 2.5
+  )
 
 ;; (taffy :loop [1 1 1 1] :nn 50 :dur [1 0.5] :div [0.1 2000 1200] :lpf 12000  :res 0.1 :depth 1)
-;; (taffy :stop [1])
+;; (taffy :stop)

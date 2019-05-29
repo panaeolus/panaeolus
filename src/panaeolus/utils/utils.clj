@@ -39,3 +39,13 @@
         (if (fn? beats)
           beats
           (throw (AssertionError. beats " must be vector, list or number.")))))))
+
+(defn index-position-of
+  "returns the index of pred in a collection,
+  otherwise nil"
+  [pred coll]
+  (first (keep-indexed
+          (fn [idx x]
+            (when (pred x)
+              idx))
+          coll))  )

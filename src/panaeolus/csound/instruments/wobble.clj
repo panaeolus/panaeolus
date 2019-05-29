@@ -1,12 +1,18 @@
 (ns panaeolus.csound.instruments.wobble
-  (:require [clojure.java.io :as io]
-            [panaeolus.csound.macros :as c]))
+  (:require [panaeolus.csound.macros :as c]))
 
 (c/definst wobble
-  (slurp (io/resource "panaeolus/csound/instruments/orchestra/dubstep/wobble.orc"))
+  :orc-internal-filepath
+  "panaeolus/csound/instruments/orchestra/dubstep/wobble.orc"
+  :instr-form
   [{:name :dur :default 2}
    {:name :nn :default 48}
    {:name :amp :default -12}
    {:name :div :default 1}
    {:name :res :default 0.3}]
-  1 2 4 {})
+  :instr-number 1
+  :num-outs 2
+  :release-time 3)
+
+;; (wobble :loop [1 1 1 1] :amp -14)
+;; (wobble :stop)

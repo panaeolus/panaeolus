@@ -22,10 +22,9 @@
   (let [orig-arglists (if (some #(= :dur %) args)
                         orig-arglists (rest orig-arglists))]
     (letfn [(advance-to-arg [arg orig]
-              (let [idx (.indexOf ^clojure.lang.PersistentVector$ChunkedSeq orig arg)]
-                (if (neg? idx)
-                  orig
-                  (vec (subvec (into [] orig) (inc idx))))))]
+              (if-let [idx (utils/index-position-of #(= arg %) orig)]
+                (vec (subvec (into [] orig) (inc idx)))
+                orig))]
       (loop [args     args
              orig     orig-arglists
              out-args []]

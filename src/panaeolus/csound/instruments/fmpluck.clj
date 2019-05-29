@@ -1,6 +1,5 @@
 (ns panaeolus.csound.instruments.fmpluck
   (:require
-   [clojure.java.io :as io]
    [panaeolus.csound.macros :as c]))
 
 (c/definst fmpluck
@@ -13,5 +12,3 @@
   :instr-number 1
   :num-outs 2
   :release-time 2)
-
-(fmpluck :loop [1 1 1 1])

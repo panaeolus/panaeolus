@@ -112,10 +112,10 @@
 (s/fdef definst
   [env]
   :args (s/cat :instr-name ::instr-name
-               (s/keys* :req [::instr-form ::instr-number]
-                        :req-un [(or ::orc-string ::orc-filepath ::orc-internal-filepath)]
-                        :opt [::num-outs ::init-hook ::release-hook
-                              ::release-time ::config]))
+               (s/keys :req [::instr-form ::instr-number]
+                       :req-un [(or ::orc-string ::orc-filepath ::orc-internal-filepath)]
+                       :opt [::num-outs ::init-hook ::release-hook
+                             ::release-time ::config]))
   :ret :instrument-controller fn?)
 
 (defmacro definst
@@ -140,7 +140,7 @@
                                         (mapv #(str (name (:name %)) "(" (:default %) ")")
                                               ~instr-form))
                    :audio-enginge :csound
-                   :inst          (str ~instr-name)
+                   :inst          ~(str *ns* "/" instr-name)
                    :type          ::instrument})
      ~instr-name))
 
@@ -153,60 +153,3 @@
                (swap! panaeolus.globals/pattern-registry dissoc key)
                (swap! csound-jna/csound-instances dissoc key)))
            @csound-jna/csound-instances)))
-
-(comment
-
-  (def params [{:name :dur :default 1}
-               {:name :nn :default 60}
-               {:name :amp :default -12}])
-
-  (clojure.pprint/pprint
-   (macroexpand-1
-    (definst-csound beep31
-      "instr 1
-   asig = poscil:a(ampdb(p4), cpsmidinn(p5))
-   outc asig, asig
-   endin"
-      params
-      1 2 {})))
-
-  (beep31 1 -12 58)
-
-  (definst+ beep1
-    "instr 1
-   asig = poscil:a(ampdb(p5), cpsmidinn(p4))
-   aenv linseg 0, 0.02, 1, p3 - 0.05, 1, 0.02, 0, 0.01, 0
-   asig *= aenv
-   outc asig, asig
-   endin"
-    params
-    1 2)
-
-  (definst beep31
-    "instr 1
-   asig = poscil:a(ampdb(p4), cpsmidinn(p5))
-   outc asig, asig
-   endin"
-    params
-    1 2 )
-
-  (meta #'beep31)
-
-
-  (def wrong-meta
-    (-> (fn [some thing else]
-          (+ some thing else))
-        (with-meta {:arglists '['bull 'crap]})))
-
-  (wrong-meta 1 2 3)
-
-  (def changeme
-    (fn [some thing else]
-      (+ some thing else)))
-
-  (alter-meta! (var changeme) merge
-               (meta (var changeme))
-               {:arglists '([test1 test2])})
-
-  (changeme 1 2 3)
-  )
