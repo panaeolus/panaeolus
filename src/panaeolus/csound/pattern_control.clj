@@ -16,6 +16,12 @@
   (do (swap! globals/pattern-registry dissoc k-name)
       :stop))
 
+(defn csound-pattern-solo [k-name]
+  (let [pattern (select-keys @globals/pattern-registry [k-name])]
+    (when-not (empty? pattern)
+      (reset! globals/pattern-registry pattern)))
+  :solo)
+
 (defn csound-initialize-jack-graph
   "Connect new pattern jack ports, if jack nodes
    already exits, then ensure that the connections
@@ -399,7 +405,8 @@
                  args
                  fx-instances
                  needs-reroute?
-                 isFx?))
+                 isFx?)
+          :solo (csound-pattern-solo i-name))
         pat-ctl))))
 
 (defn csound-fx-control-data

@@ -71,7 +71,6 @@
                  (assoc param-map (first given-params) (second given-params))
                  (assoc param-map (ffirst default-params) (first given-params))))))))
 
-;; [:dur 0.1 :rate 5.0 :depth 0.001 :fback 0 :shape 1] nil
 ;; (process-arguments [:a 1 :b 2 :c 6] [1 2 :a 3])
 ;; (process-arguments [:dur 1 :nn 60 :amp -12]  [:nn 28 :dur 2 :amp -22])
 

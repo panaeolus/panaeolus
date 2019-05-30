@@ -1,13 +1,16 @@
-(ns panaeolus.csound.samplers)
+(ns panaeolus.csound.samplers
+  (:require [clojure.java.io :as io]
+            [clojure.string :as string]
+            [panaeolus.csound.macros :as c]))
 
-(defn- sample-directory->csound [directory-path]
+(defn sample-directory->csound [directory-path]
   (let [dir-contents (sort
                       (mapv #(.getPath %)
                             (remove #(.isDirectory %)
                                     (file-seq (io/file directory-path)))))]
     (map-indexed #(str "gi_ ftgen " (inc %1) ",0,0,1,\"" %2 "\",0,0,0") dir-contents)))
 
-(defn- produce-slice-sampler-orchestra [directory-path]
+(defn produce-slice-sampler-orchestra [directory-path]
   (let [csound-tables (sample-directory->csound directory-path)]
     (str (string/join
           "\n" csound-tables)
@@ -49,3 +52,17 @@
   outs aL, aR
   endin
   " (count csound-tables)))))
+
+(defmacro define-sampler [sampler-name directory-path]
+  `(c/definst ~sampler-name
+     :orc-string (produce-slice-sampler-orchestra ~directory-path)
+     :instr-form [{:name :dur :default 2}
+                  {:name :nn :default 60}
+                  {:name :amp :default -18}
+                  {:name :sample :default 0}
+                  {:name :mode :default 2}
+                  {:name :slice :default 0}
+                  {:name :width :default 1}]
+     :instr-number 1
+     :num-outs 2
+     :release-time 2))

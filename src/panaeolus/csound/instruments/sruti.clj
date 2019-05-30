@@ -42,7 +42,8 @@ a8 poscil3	kenv, gkfreqSruti-koff3, itbl
 a9 poscil3	kenv, gkfreqSruti-koff4, itbl
 
 aout sum a2, a3, a4, a5, a6, a7, a8, a9
-
+aenv linseg 0, 0.02, 1, p3 - 0.05, 1, 0.02, 0, 0.01, 0
+aout *= aenv
 outs aout, aout
 
 endin"
