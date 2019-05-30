@@ -20,6 +20,6 @@ endin
 "
   :num-outs 2
   :release-time 4
-  :init-hook "event_i(1, 0, -1)"
-  :release-hook "event_i(1, 0, 4)"
+  :init-hook "event_i \"i\", 1, 0, -1"
+  :release-hook "event_i \"i\", 1, 0, 4"
   )

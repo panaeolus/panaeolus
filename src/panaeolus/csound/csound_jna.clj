@@ -2,7 +2,7 @@
   (:require [clojure.core.async :refer [go go-loop chan alts! <! >! close! timeout] :as async]
             panaeolus.utils.jna-path
             [panaeolus.globals :as globals]
-            [panaeolus.csound.utils :as csound-utils]
+            [panaeolus.utils.utils :as utils]
             [panaeolus.jack2.jack-lib :as jack]
             [panaeolus.config :as config]
             [clojure.string :as string])
@@ -73,10 +73,8 @@
 
 (def message-callback
   (reify MessageCallback
-    (invoke [this inst
-             attr msg]
-      (print msg)
-      (flush))))
+    (invoke [this inst attr msg]
+      (print attr msg))))
 
 (defn set-option [^Csound instance ^String option]
   (.setOption instance option))
@@ -93,7 +91,7 @@
     (fn [csnd debounce-channel]
       (fn [& args]
         (when csound-instrument-number
-          (let [processed-args (csound-utils/process-arguments param-vector args)
+          (let [processed-args (utils/process-arguments param-vector args)
                 p-list (reduce (fn [i v]
                                  (conj i
                                        (get processed-args (:name v)
@@ -129,7 +127,7 @@
            (str "--ksmps=" (or (:ksmps config) (:ksmps @config/config)))
            (str "-+jack_client=" client-name)])
     (start @csnd)
-    (.setMessageCallback ^Csound @csnd message-callback)
+    ;; (.setMessageCallback ^Csound @csnd message-callback)
     {:instance csnd
      :client-name client-name
      :start    #(send-off thread

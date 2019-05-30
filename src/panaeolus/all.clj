@@ -38,6 +38,7 @@
  'panaeolus.pitches
  ;; built-in fx
  'panaeolus.csound.fx.binauralize
+ 'panaeolus.csound.fx.dubflang
  'panaeolus.csound.fx.exciter
  'panaeolus.csound.fx.flanger
  'panaeolus.csound.fx.reverbsc
@@ -45,8 +46,10 @@
  ;; built-in instruments
  'panaeolus.csound.instruments.metallic-casio
  'panaeolus.csound.instruments.fmpluck
+ 'panaeolus.csound.instruments.hammer
  'panaeolus.csound.instruments.pluck
  'panaeolus.csound.instruments.priest
+ 'panaeolus.csound.instruments.sruti
  'panaeolus.csound.instruments.taffy
  'panaeolus.csound.instruments.wobble
  )

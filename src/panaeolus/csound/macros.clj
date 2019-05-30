@@ -69,7 +69,8 @@
    To prevent clicking effect on reverbs etc, set release-time
    high enough so that for node destruction, it's certain no
    audio is being processed."
-  [fx-name & {:keys [orc-string fx-form ctl-instr num-outs release-time instance-config] :as env}]
+  [fx-name & {:keys [orc-string fx-form ctl-instr num-outs release-time
+                     init-hook release-hook instance-config] :as env}]
   `(do
      (def ~fx-name
        (fn [& args#]
@@ -88,11 +89,12 @@
              (when loops-self?#
                (apply (pat-ctl/csound-pattern-control
                        fx-name# ~ctl-instr orc-string# fx-form#
-                       num-outs# release-time# instance-config# true) args#))
+                       num-outs# release-time#
+                       ~init-hook ~release-hook instance-config# true) args#))
              (apply (pat-ctl/csound-fx-control-data
                      host-pattern-name# fx-name# ~ctl-instr
                      orc-string# fx-form# num-outs# release-time#
-                     instance-config# loops-self?#) args#)))))
+                     ~init-hook ~release-hook instance-config# loops-self?#) args#)))))
      (alter-meta!
       (var ~fx-name) merge
       (meta (var ~fx-name))
@@ -134,7 +136,8 @@
        (pat-ctl/csound-pattern-control
         ~(str *ns* "/" instr-name) ~instr-number
         orc-string# ~instr-form
-        num-outs# release-time# config# false))
+        num-outs# release-time# nil nil
+        config# false))
      (alter-meta! (var ~instr-name) merge (meta (var ~instr-name))
                   {:arglists      (list (mapv (comp name :name) ~instr-form)
                                         (mapv #(str (name (:name %)) "(" (:default %) ")")

@@ -78,7 +78,9 @@
   (filter #(re-find #"jcraft" %) jars))
 
 (def jna-jars
-  (filter #(re-find #"jna/jna" %) jars))
+  (if windows?
+    (filter #(re-find #"jna\\jna" %) jars)
+    (filter #(re-find #"jna/jna" %) jars)    ))
 
 (def jline-jars
   (filter #(re-find #"jline" %) jars))
@@ -146,12 +148,11 @@
   (run! #(unzip-file % "target/classes") jcraft-jars)
   (run! #(unzip-file % "target/classes") jna-jars)
   (run! #(unzip-file % "target/classes") jline-jars)
-  ;; (sh "mv" "target/classes/META-INF-bak" "target/classes/META-INF")
   (println "making a jar")
-  ;; (Thread/sleep 1000)
   (if windows?
-    (sh "cmd" "/c" "rmdir" "/s" "target\\classes\\META-INF")
+    (sh "cmd" "/c" "rmdir" "/s" "/q" "target\\classes\\META-INF")
     (sh "rm" "-rf" "target/classes/META-INF"))
+
   (jar/jar 'panaeolus {:mvn/version +version+}
            {:out-path (str "target/panaeolus-" +version+ ".jar")
             :main 'panaeolus.all

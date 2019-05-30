@@ -4,8 +4,9 @@
 
 (def pattern-registry (atom {}))
 
-;; (defn playing? [instrument]
-;;   (some  #(= % (:inst (meta (var instrument)))) (keys @pattern-registry)))
+(defmacro playing? [instrument]
+  `(or (some  #(= % (:inst (meta (var ~instrument))))
+              (keys @pattern-registry)) false))
 
 ;; (def a 1)
 

@@ -3,8 +3,8 @@
             [panaeolus.csound.macros :as c]))
 
 (c/define-fx shred
-  (str (slurp (io/resource "src/panaeolus/csound/fx/udo/shred.udo"))
-       "
+  :orc-string  (str (slurp (io/resource "src/panaeolus/csound/fx/udo/shred.udo"))
+                    "
 gkTransPose init 1
 gkTransRand init 0.1
 gkDepth init 1
@@ -32,7 +32,6 @@ instr 1
 
     afader init 0
     if (p3 < 0) then
-      printk 1, 1
       afader expseg 0.001, 0.1, 1, 99999999, 1
     else
        printk -1, 1
@@ -53,11 +52,13 @@ endin
 alwayson(1, 0, -1)
 ")
 
-  [{:name :dur        :default 1}
-   {:name :transpose  :default 1}
-   {:name :random :default 0.1}
-   {:name :depth :default 1}
-   {:name :rate :default 5.5}
-   {:name :mode :default 0}]
-  2 2 5 {}
+  :fx-form [{:name :dur        :default 1}
+            {:name :transpose  :default 1}
+            {:name :random :default 0.1}
+            {:name :depth :default 1}
+            {:name :rate :default 5.5}
+            {:name :mode :default 0}]
+  :ctl-instr 2
+  :num-outs 2
+  :release-time 3
   )

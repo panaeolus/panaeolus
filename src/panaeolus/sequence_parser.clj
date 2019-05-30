@@ -81,7 +81,7 @@
        (apply conj i v)))
    [] sek))
 
-(defn sequence-parser [pat-string]
+(defn- sequence-parser [pat-string]
   (let [parsed-sekuenze (sequence-transformer pat-string)]
     ;; (prn parsed-sekuenze)
     ;; (prn (clean-vectors (sequence-transformer pat-string)))
@@ -138,6 +138,17 @@
           ;; (prn data)
           (recur tail (first head) shift ^java.lang.Number propogated-time data))))))
 
+(defn process-parseable-pattern
+  "If a patterns has a string parameter, parse that string
+   and swap the result of that data with the string provided
+   before further processing."
+  [args orig-arglists]
+  (let [{:keys [time nn]} (sequence-parser (second args))
+        args              (vec args)]
+    (doall
+     (concat (list (first args))
+             (list (vec time) (vec nn))
+             (into [] (subvec args 2))))))
 
 ;; (sequence-parser "r*10 c5 c5/8 ^53 0x0fee0")
 ;; (sequence-parser "^2 2*0.25 0xffef9 4 2*2:2")
