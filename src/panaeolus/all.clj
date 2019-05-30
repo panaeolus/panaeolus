@@ -36,6 +36,7 @@
  'panaeolus.metronome
  'panaeolus.chords
  'panaeolus.pitches
+ 'panaeolus.functions
  ;; built-in fx
  'panaeolus.csound.fx.binauralize
  'panaeolus.csound.fx.dubflang

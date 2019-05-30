@@ -34,13 +34,14 @@
         beats     (if (fn? beats) (beats {:last-tick last-tick}) beats)
         mod-div   (calc-mod-div beats)
         ;; CHANGEME, make configureable
+        queue-end (+ last-tick mod-div) ;; to calculate the last absolute dur
         ]
     (loop [beats     (remove zero? beats)
            silence   0
            last-beat 0
            at        []]
       (if (empty? beats)
-        [at (+ last-tick mod-div)]
+        [at (+ last-tick mod-div) queue-end]
         (let [fbeat (first beats)]
           (recur (rest beats)
                  (if (neg? fbeat)
@@ -71,7 +72,7 @@
                 args
                 fx-instances
                 isFx?]} (get-current-state)]
-    (go-loop [[queue mod-div] (event-queue-fn)
+    (go-loop [[queue mod-div queue-end] (event-queue-fn)
               instrument-instance instrument-instance
               args args
               fx-instances fx-instances
@@ -88,11 +89,14 @@
                                needs-reroute?)]
           (link/at next-timestamp
                    (fn []
-                     (let [args-processed (resolve-arg-indicies args index a-index next-timestamp)]
+                     (let [timestamp-after-next (if (< 1 (count queue))
+                                                  (second queue)
+                                                  queue-end)
+                           args-processed (resolve-arg-indicies args index a-index next-timestamp timestamp-after-next)]
                        (when-not (empty? fx-instances)
                          (run! (fn [inst]
                                  (apply (:send inst)
-                                        (resolve-arg-indicies (:args inst) index a-index next-timestamp)))
+                                        (resolve-arg-indicies (:args inst) index a-index next-timestamp timestamp-after-next)))
                                (remove :loop-self? fx-instances)))
                        (if (some sequential? args-processed)
                          (run! #(apply (:send instrument-instance) %)
@@ -101,7 +105,7 @@
                                 (resolve-arg-indicies args index a-index next-timestamp)))
                        (put! wait-chn true))))
           (<! wait-chn)
-          (recur [(rest queue) mod-div]
+          (recur [(rest queue) mod-div queue-end]
                  instrument-instance
                  args
                  fx-instances
@@ -118,8 +122,8 @@
                   needs-reroute?)]
             (let [{:keys [event-queue-fn instrument-instance
                           args fx-instances]} event-form
-                  [queue new-mod-div] (event-queue-fn mod-div)]
-              (recur [queue new-mod-div]
+                  [queue new-mod-div queue-end] (event-queue-fn mod-div)]
+              (recur [queue new-mod-div queue-end]
                      instrument-instance
                      args
                      fx-instances

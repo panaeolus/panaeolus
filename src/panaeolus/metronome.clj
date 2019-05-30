@@ -9,7 +9,7 @@
 (defn set-bpm [bpm]
   (link/set-bpm bpm))
 
-(defn get-bpm [& [as-buffer?]]
+(defn get-bpm []
   (link/get-bpm))
 
 (set-bpm (or (:bpm config) 120))

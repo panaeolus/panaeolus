@@ -30,10 +30,8 @@ instr 1
   a1, a2 binauralize (ain1+ain2)/1.3, gkcent, gkdiff
   afader init 0
   if (p3 < 0) then
-    printk 1, 1
     afader expseg 0.001, 0.1, 1, 99999999, 1
   else
-    printk -1, 1
     afader expseg 1, p3, 0.001
   endif
   outs a1*afader, a2*afader
