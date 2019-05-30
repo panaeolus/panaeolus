@@ -74,7 +74,7 @@
 (def message-callback
   (reify MessageCallback
     (invoke [this inst attr msg]
-      (print attr msg))))
+      (print msg))))
 
 (defn set-option [^Csound instance ^String option]
   (.setOption instance option))
@@ -127,7 +127,7 @@
            (str "--ksmps=" (or (:ksmps config) (:ksmps @config/config)))
            (str "-+jack_client=" client-name)])
     (start @csnd)
-    ;; (.setMessageCallback ^Csound @csnd message-callback)
+    (.setMessageCallback ^Csound @csnd message-callback)
     {:instance csnd
      :client-name client-name
      :start    #(send-off thread

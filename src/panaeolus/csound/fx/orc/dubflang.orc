@@ -16,6 +16,7 @@ opcode mischiefTable,0,iiio
     ires2 = 0.5 * sin:i(ix) * cos:i(0.5 * ix * $M_PI)
     ires3 = ires1 + ires2
       indx += 1
+      tablew ires3, indx, gitbl, 0, 0, 1
     od
     mischiefTable isize, istartnum, iamount, inum + 1
   endif
@@ -58,7 +59,7 @@ endin
 event_i "i", 2, 0, 0
 event_i "i", 3, 0, 0
 
-girate init 0.1
+gkrate init 0.1
 gkdelay init 0.1
 
 instr 4
@@ -69,28 +70,30 @@ instr 4
   ;; ain2 poscil 0.1, 220
 
   kdelay portk gkdelay, 0.1
-  ktraverser = poscil:k(1, girate/2)
+  ktraverser = poscil:k(1, gkrate/2)
   ioffset = 1000
-  aphasor phasor girate
-  alfo tablexkt aphasor, ioffset + ((giTabCnt - 1) * abs:k(ktraverser)), 0, 32, 1, 0, 0
+  aphasor phasor gkrate
+  alfo tablexkt aphasor, ioffset + ((giTabCnt - 1) * abs:k(ktraverser)), 0, giTabSize, 1, 0, 1
 
-  adbuf1 delayr 1.2
-  aflang1 deltapx kdelay * alfo, 32
-  delayw ain1
+  ;; adbuf1 delayr 1.2
+  ;; aflang1 deltap3 kdelay * abs:a(alfo)
+  ;; delayw ain1
 
-  adbuf2 delayr 1.2
-  aflang2 deltapx kdelay * alfo, 32
-  delayw ain2
+  ;; adbuf2 delayr 1.2
+  ;; aflang2 deltap3 kdelay * abs:a(alfo)
+  ;; delayw ain2
 
-  aflang1 dcblock aflang1
-  aflang2 dcblock aflang2
+  aflang1 vdelay ain1,  kdelay * abs:a(alfo), 20
+  ;; aflang1 dcblock2 aflang1, 4
+  ;; aflang2 dcblock2 aflang2, 4
 
-  outs aflang1, aflang2
+
+  outs aflang1, aflang1
 
 endin
 
 instr 5
-  girate = p4
+  gkrate = p4
   gkdelay = p5
 endin
 

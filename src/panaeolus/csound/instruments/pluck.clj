@@ -13,7 +13,7 @@
    {:name :noise :default 0.01}]
   :instr-number 1
   :num-outs 2
-  :release-time 2
+  :release-time 8
   )
 
 ;; (pluck :loop [1 1 1 1] :amp -2 :fx [(panaeolus.csound.fx.dubflang/dubflang :dur 1 :rate 20 :dt 1)])
