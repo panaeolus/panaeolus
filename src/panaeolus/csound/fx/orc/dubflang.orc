@@ -14,7 +14,7 @@ opcode mischiefTable,0,iiio
       ix = (1 + inum) / (2 * iamount)
     ires1 = (1 - iz) * sin:i(iz * pow:i(ix^2, iz) * (iamount / 16))
     ires2 = 0.5 * sin:i(ix) * cos:i(0.5 * ix * $M_PI)
-    ires3 = ires1 + ires2
+      ires3 = ires1 + ires2
       indx += 1
       tablew ires3, indx, gitbl, 0, 0, 1
     od
@@ -43,7 +43,7 @@ opcode taffyTable,0,iiio
 endop
 
 giTabSize = 1024
-giTabCnt = 513
+giTabCnt = 512
 
 instr 2
   istartnum = 1000
@@ -61,40 +61,35 @@ event_i "i", 3, 0, 0
 
 gkrate init 0.1
 gkdelay init 0.1
+gkfreq init 200
+
 
 instr 4
+  setksmps 1
   ain1, ain2 ins
   aflang1 init 0
   aflang2 init 0
-  ;; ain1 poscil 0.1, 220
-  ;; ain2 poscil 0.1, 220
-
   kdelay portk gkdelay, 0.1
-  ktraverser = poscil:k(1, gkrate/2)
+  atraverser = poscil:k(1, gkrate/2)
   ioffset = 1000
-  aphasor phasor gkrate
-  alfo tablexkt aphasor, ioffset + ((giTabCnt - 1) * abs:k(ktraverser)), 0, giTabSize, 1, 0, 1
+  ;; if (gkmode == 0) then
+  ;;   ioffset = 1000
+  ;; else
+  ;;   ioffset = 2000
+  ;; endif
+  aphasor phasor gkfreq
+  alfo tablexkt aphasor, ioffset + ((giTabCnt - 1) * abs:k(downsamp(atraverser))), 4, 256, 0, 0, 0
 
-  ;; adbuf1 delayr 1.2
-  ;; aflang1 deltap3 kdelay * abs:a(alfo)
-  ;; delayw ain1
-
-  ;; adbuf2 delayr 1.2
-  ;; aflang2 deltap3 kdelay * abs:a(alfo)
-  ;; delayw ain2
-
-  aflang1 vdelay ain1,  kdelay * abs:a(alfo), 20
-  ;; aflang1 dcblock2 aflang1, 4
-  ;; aflang2 dcblock2 aflang2, 4
-
-
-  outs aflang1, aflang1
-
+  aflang1, aflang2 vdelayxws ain1, ain2, kdelay * abs:a(alfo), 2, 16
+  aflang1 dcblock2 aflang1
+  aflang2 dcblock2 aflang2
+  outs aflang1, aflang2
 endin
 
 instr 5
   gkrate = p4
   gkdelay = p5
+  gkfreq = p6
 endin
 
 event_i "i", 4, 0, -1

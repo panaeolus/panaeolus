@@ -102,7 +102,7 @@
                          (run! #(apply (:send instrument-instance) %)
                                (expand-nested-vectors-to-multiarg args-processed))
                          (apply (:send instrument-instance)
-                                (resolve-arg-indicies args index a-index next-timestamp)))
+                                (resolve-arg-indicies args index a-index next-timestamp timestamp-after-next)))
                        (put! wait-chn true))))
           (<! wait-chn)
           (recur [(rest queue) mod-div queue-end]

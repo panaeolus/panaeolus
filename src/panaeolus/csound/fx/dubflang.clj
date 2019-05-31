@@ -8,7 +8,9 @@
   :fx-form
   [{:name :dur :default 0.1}
    {:name :rate :default 0.1}
-   {:name :dt :default 0.001}]
+   {:name :dt :default 0.001}
+   {:name :freq :default 100}
+   {:name :mode :default 0}]
   :ctl-instr 5
   :num-outs 2
   :release-time 3
