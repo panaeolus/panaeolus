@@ -22,20 +22,20 @@
   [synth-form]
   (reduce #(-> %1 (assoc (:name %2) (:default %2))) {} synth-form))
 
-(s/def ::parameter-name keyword?)
+(s/def :parameter/name keyword?)
 
-(s/def ::parameter-default-value number?)
+(s/def :parameter/default number?)
 
-(s/def ::parameter-transformer fn?)
+(s/def :parameter/transformer fn?)
 
-(s/def ::parameter-spec (s/keys :req [::parameter-name ::parameter-default-value]
-                                :opt [::parameter-transformer]))
+(s/def ::parameter-spec (s/keys :req-un [:parameter/name :parameter/default]
+                                :opt [:parameter/transformer]))
 
 (s/def ::fx-form (s/* ::parameter-spec))
 
 (s/def ::fx-name symbol?)
 
-(s/def ::orc-string string?)
+(s/def ::orc-string #(string? (eval %)))
 
 (s/def ::ctl-instr (s/and integer? #(not (neg? %))))
 
@@ -54,14 +54,13 @@
 (s/def ::orc-internal-filepath (s/and string? #(not (nil? (io/resource %)))))
 
 (s/fdef define-fx
-  [env]
   :args (s/cat :fx-name ::fx-name
-               (s/keys* :req [::fx-name]
-                        :req-un [(or ::orc-string ::orc-filepath ::orc-internal-filepath)]
+               :define-fx-params
+               (s/keys* :req-un [(or ::orc-string ::orc-filepath ::orc-internal-filepath)]
                         :opt [::fx-form ::ctl-instr ::num-outs
                               ::init-hook ::release-hook
                               ::release-time ::config]))
-  :ret :instrument-controller fn?)
+  :ret fn?)
 
 (defmacro define-fx
   "Defines an effect, by spawning instruments that
@@ -112,13 +111,13 @@
 (s/def ::instr-form (s/+ ::parameter-spec))
 
 (s/fdef definst
-  [env]
   :args (s/cat :instr-name ::instr-name
-               (s/keys :req [::instr-form ::instr-number]
-                       :req-un [(or ::orc-string ::orc-filepath ::orc-internal-filepath)]
-                       :opt [::num-outs ::init-hook ::release-hook
-                             ::release-time ::config]))
-  :ret :instrument-controller fn?)
+               :definst-params
+               (s/keys* :req-un [::instr-form ::instr-number
+                                 (or ::orc-string ::orc-filepath ::orc-internal-filepath)]
+                        :opt [::num-outs ::init-hook ::release-hook
+                              ::release-time ::config]))
+  :ret fn?)
 
 (defmacro definst
   "Defines an instrument like definst does, but returns it

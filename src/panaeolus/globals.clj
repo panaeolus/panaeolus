@@ -1,6 +1,12 @@
-(ns panaeolus.globals)
+(ns panaeolus.globals
+  (:require [expound.alpha :as expound]
+            [clojure.spec.alpha :as s]))
 
 (set! *warn-on-reflection* true)
+
+(s/check-asserts true)
+
+(set! s/*explain-out* expound/printer)
 
 (def pattern-registry (atom {}))
 

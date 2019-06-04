@@ -15,6 +15,5 @@
   :num-outs 2
   :release-time 3
   :config {:csound-messagelevel 0}
-  ;; :init-hook "event_i \"i\", 4, 0, -1"
   :release-hook "event_i \"i\", 4, 0, 3"
   )

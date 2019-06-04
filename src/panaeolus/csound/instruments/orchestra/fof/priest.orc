@@ -46,7 +46,7 @@ instr 1
   a10	linen		a51, iattack, p3, (p3*.1)			;amp envelope
   a16 fof      a10,inote+a2,  428*(ienv/100), k2, 200, .003, .017, .005, 10, 1,2, inote, 0, 1
   a7 =        (a11 + a12 + a13 + a14 + a15 + a16) * iamp
-  outs  a7*.9,a7*.6
+  outs  a7*.09,a7*.06
 endin
 
 ;------------------------------------------
@@ -91,7 +91,7 @@ instr 2
   a10	linen		5833+a26, iattack, p3, (p3*.1)			;amp envelope
   a16 fof      a10,inote+a2*.5,  a4+428*(ienv/100), k2, 200, .003, .017, .005, 10, 1,2, inote, 0, 1
   a7 =        (a11 + a12 + a13 + a14 + a15 + a16) * iamp
-  outs  a7*imorph,a7*(1-imorph)
+  outs  a7*imorph*0.1,a7*(1-imorph)*0.1
 endin
 
 
@@ -140,7 +140,7 @@ instr 3
     a16 fof      a10,inote+a2+a90,  428*(ienv/100), k2, 200, .003, .017, .005, 10, 1,2, inote, 0, 1
     a7 =        (a11 + a12 + a13 + a14 + a15 + a16) * iamp
 
-    outs  a7*.9,a7*.6
+    outs  a7*.09,a7*.06
 endin
 
 instr 4
@@ -153,6 +153,7 @@ instr 4
   elseif (imode >= 2) then
     instrNumber = 3
   endif
+
   ;; Simple event forwarding based on a given mode value
   event_i("i", instrNumber, 0, p3, p4, p5, p6, p7, p8)
 endin
