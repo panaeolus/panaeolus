@@ -13,8 +13,6 @@
 
 (set! *warn-on-reflection* true)
 
-(def ignoreme Type)
-
 (defn require-and-immigrate
   "Create a public var in this namespace for each public var in the
   namespaces named by ns-names. The created vars have the same name, value

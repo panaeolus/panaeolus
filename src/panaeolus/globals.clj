@@ -6,7 +6,7 @@
 
 (s/check-asserts true)
 
-(set! s/*explain-out* expound/printer)
+(alter-var-root #'s/*explain-out* (constantly expound/printer))
 
 (def pattern-registry (atom {}))
 
