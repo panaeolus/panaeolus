@@ -35,6 +35,9 @@
                  :extra-deps {net.lingala.zip4j/zip4j {:mvn/version "1.3.2"}
                               asm/asm {:mvn/version "3.3.1"}}
                  :jvm-opts ["-Dclojure.compile.warn-on-reflection=true"]}
+           :test {:extra-deps {lambdaisland/kaocha {:mvn/version "0.0-418"}
+                               kaocha-noyoda {:mvn/version "2019-06-03"}}
+                  :extra-paths ["test"]}
            :native-image {:main-opts ["-m clj.native-image panaeolus.all"
                                       "-Dclojure.compiler.direct-linking=true"
                                       "--no-server"

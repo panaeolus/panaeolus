@@ -53,9 +53,11 @@
 
 (defn process-arguments
   "Process the given arguments so that
-   a function can be given (f 1 2 3 :somekey 4)
+   this function can be given (f 1 2 3 :somekey 4)
    where all values besides keywords are processed
-   sequenceially. Keyword represent a parameter name."
+   sequenceially. Keyword represent a parameter name.
+   This function is called after fill-missing-keys but
+   just before giving it csound's input-message-fn."
   [param-vector arg-env]
   (let [default-arg-map (apply hash-map param-vector)]
     (loop [default-params (partition 2 param-vector)
@@ -80,26 +82,26 @@
    with calling `process-arguments`
    to resolve the arguments correctly."
   [args orig-arglists]
-  (let [orig-arglists (if (some #(= :dur %) args)
-                        orig-arglists (rest orig-arglists))]
+  (let [orig-arglists (rest (rest orig-arglists)) ; remove :dur
+        ]
     (letfn [(advance-to-arg [arg orig]
-              (if-let [idx (index-position-of #(= arg %) orig)]
-                (vec (subvec (into [] orig) (inc idx)))
-                orig))]
+              (if (= :dur arg)
+                orig
+                (if-let [idx (index-position-of #(= arg %) orig)]
+                  (vec (subvec (into [] orig) idx))
+                  orig)))]
       (loop [args     args
              orig     orig-arglists
              out-args []]
-        (if (or (empty? args)
-                ;; ignore tangling keyword
+        (if (or (empty? args) ; ignore tangling keyword/value
                 (and (= 1 (count args)) (keyword? (first args))))
           out-args
           (if (keyword? (first args))
             (recur (rest (rest args))
-                   ;; (rest orig)
                    (advance-to-arg (first args) orig)
                    (conj out-args (first args) (second args)))
             (recur (rest args)
-                   (vec (rest orig))
+                   (vec (rest (rest orig)))
                    (conj out-args (first orig) (first args)))))))))
 
 (defn hash-jack-client-to-32 [original-name]
@@ -108,4 +110,4 @@
         simple-name (apply str rest)]
     (str "pae/" (subs hash 0 (min 12 (count hash)))
          "/"
-         (subs original-name 0 (min 15 (count simple-name))))))
+         (subs simple-name 0 (min 15 (count simple-name))))))
