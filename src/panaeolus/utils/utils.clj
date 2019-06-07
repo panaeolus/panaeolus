@@ -1,4 +1,5 @@
-(ns panaeolus.utils.utils)
+(ns panaeolus.utils.utils
+  (:require [clojure.string :as string]))
 
 (set! *warn-on-reflection* true)
 
@@ -100,3 +101,11 @@
             (recur (rest args)
                    (vec (rest orig))
                    (conj out-args (first orig) (first args)))))))))
+
+(defn hash-jack-client-to-32 [original-name]
+  (let [hash (str (.hashCode ^java.lang.String original-name))
+        [ns & rest] (string/split original-name #"/")
+        simple-name (apply str rest)]
+    (str "pae/" (subs hash 0 (min 12 (count hash)))
+         "/"
+         (subs original-name 0 (min 15 (count simple-name))))))

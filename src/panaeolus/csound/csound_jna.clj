@@ -114,7 +114,6 @@
         thread (agent nil)
         debounce-channel (when-not isFx? (chan (async/sliding-buffer 1)))
         release-channel (when-not isFx? (debounce debounce-channel release-time client-name))]
-    (prn "0DBFS!!!" client-name (or (:zerodbfs config) 1))
     (run! #(set-option @csnd %)
           ["-iadc:null" "-odac:null"
            (str "--messagelevel=" (or (:csound-messagelevel config) (:csound-messagelevel @config/config)))
