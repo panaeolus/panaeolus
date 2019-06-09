@@ -128,7 +128,11 @@
                     :compiler-options {:disable-locals-clearing false
                                        :direct-linking true}
                     :classpath (classpath/make-classpath {:aliases []})})
-  ;; (sh "mv" "target/classes/META-INF" "target/classes/META-INF-bak")
+  (compile/extract-classes-from-dependencies
+   {:deps-map (assoc (deps-reader/slurp-deps "deps.edn")
+                     :deps '{org.clojure/clojure {:mvn/version "1.10.0"}})
+    })
+
   (unzip-file clojure-jar "target/classes")
   (unzip-file csound-jar "target/classes")
   (unzip-file clojure-spec-jar "target/classes")

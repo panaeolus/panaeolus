@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+COMPILING_PANAEOLUS=1 clojure -Sdeps "{:paths [\"src\" \"resources\" \"scripts\"]}" -m build
