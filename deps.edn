@@ -6,7 +6,7 @@
 
  :deps  {org.clojure/clojure          {:mvn/version "1.10.0"}
          org.clojure/core.async       {:mvn/version "0.4.474"}
-         overtone/ableton-link        {:mvn/version "1.0.0-beta7"}
+         overtone/ableton-link        {:mvn/version "1.0.0-beta10"}
          com.google.inject/guice      {:mvn/version "4.2.2"}
          expound                      {:mvn/version "0.7.2"}
          org.jaudiolibs/jnajack       {:mvn/version "1.3.0" :exclusions [net.java.dev.jna/jna]}
@@ -33,7 +33,8 @@
            ;; cp target/panaeolus-0.4.0-SNAPSHOT.jar editor/resources/panaeolus.jar
            :jar {:extra-paths ["scripts"]
                  :extra-deps {net.lingala.zip4j/zip4j {:mvn/version "1.3.2"}
-                              asm/asm {:mvn/version "3.3.1"}}
+                              asm/asm {:mvn/version "3.3.1"}
+							  org.slf4j/slf4j-api {:mvn/version "1.8.0-beta4"}}
                  :jvm-opts ["-Dclojure.compile.warn-on-reflection=true"]}
            :test {:extra-deps {lambdaisland/kaocha {:mvn/version "0.0-418"}
                                kaocha-noyoda {:mvn/version "2019-06-03"}}

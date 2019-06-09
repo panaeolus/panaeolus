@@ -11,6 +11,7 @@
             [clojure.tools.deps.alpha.reader :as deps-reader]
             [panaeolus.all :as panaeolus]
             [panaeolus.libcsound64 :as libcsound64]
+            [overtone.ableton-link :refer [spit-abletonlink-lib!]]
             [clojure.java.shell :refer [sh]])
   (:import [net.lingala.zip4j.core ZipFile]
            [net.lingala.zip4j.exception ZipException]))
@@ -80,10 +81,13 @@
 (def jna-jars
   (if windows?
     (filter #(re-find #"jna\\jna" %) jars)
-    (filter #(re-find #"jna/jna" %) jars)    ))
+    (filter #(re-find #"jna/jna" %) jars)))
 
 (def jline-jars
   (filter #(re-find #"jline" %) jars))
+
+(def slf4j-jars
+  (filter #(re-find #"slf4j" %) jars))
 
 (defn map-keys
   "Apply f to each key in m"
@@ -112,15 +116,8 @@
         edn/read-string
         canonicalize-all-syms)))
 
-;; extract the native dependencies with badigeon
-(bundle/extract-native-dependencies
- (System/getProperty "user.dir")
- {:deps-map (slurp-deps-edn)
-  :allow-unstable-deps? true
-  :native-path "native"
-  :native-prefixes {'overtone/ableton-link ""}})
-
 (libcsound64/spit-csound! "native")
+(spit-abletonlink-lib! "native")
 
 (defn -main []
   (println "cleaning target...")
@@ -148,6 +145,7 @@
   (run! #(unzip-file % "target/classes") jcraft-jars)
   (run! #(unzip-file % "target/classes") jna-jars)
   (run! #(unzip-file % "target/classes") jline-jars)
+  (run! #(unzip-file % "target/classes") slf4j-jars)
   (println "making a jar")
   (if windows?
     (sh "cmd" "/c" "rmdir" "/s" "/q" "target\\classes\\META-INF")
@@ -156,7 +154,7 @@
   (jar/jar 'panaeolus {:mvn/version +version+}
            {:out-path (str "target/panaeolus-" +version+ ".jar")
             :main 'panaeolus.all
-            :paths ["src" "target/classes" "native"]
+            :paths ["src" "target/classes" "native" "windows"]
             :deps '{org.clojure/clojure {:mvn/version "1.10.0"}}
             :mvn/repos '{"clojars" {:url "https://repo.clojars.org/"}
                          "bintray" {:url "http://jcenter.bintray.com"}}
