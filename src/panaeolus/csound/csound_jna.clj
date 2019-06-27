@@ -1,14 +1,25 @@
 (ns panaeolus.csound.csound-jna
   (:require [clojure.core.async :refer [go go-loop chan alts! <! >! close! timeout] :as async]
-            panaeolus.utils.jna-path
+            [clojure.string :as string]
+            [panaeolus.utils.jna-path :as jna-path]
             [panaeolus.globals :as globals]
             [panaeolus.utils.utils :as utils]
             [panaeolus.jack2.jack-lib :as jack]
             [panaeolus.config :as config]
-            [clojure.string :as string])
-  (:import [com.kunstmusik.csoundjna Csound MessageCallback]))
+			[tech.jna :as jna])
+  (:import [com.kunstmusik.csoundjna Csound MessageCallback]
+           [com.sun.jna.platform.win32 Kernel32]))
 
 (set! *warn-on-reflection* true)
+
+(defonce ^:private __WINDOWS_NATIVE_DEPS__ 
+  (when (= :windows (jna-path/get-os))
+    (jna/load-library "libstdc++-6")
+	(jna/load-library "libgcc_s_seh-1")
+	(jna/load-library "libgnurx-0")
+	(jna/load-library "rtjack")
+	(.SetEnvironmentVariable Kernel32/INSTANCE
+	  "OPCODE6DIR64" jna-path/libcsound-cache-path)))
 
 (defn debounce
   "https://gist.github.com/scttnlsn/9744501"
@@ -139,7 +150,7 @@
      :stop     #(when-not (= :stop @status)
                   (reset! status :stop))
      :send (fn [& args] (apply (input-msg-cb csnd debounce-channel) args))
-     :compile (fn [orc] (compile-orc @csnd orc))
+     :compile (fn [orc] (compile-orc-async @csnd orc))
      :inputs (mapv #(hash-map :port-name (str client-name ":input" (inc %))
                               :connected-from-instances []
                               :connected-from-ports []

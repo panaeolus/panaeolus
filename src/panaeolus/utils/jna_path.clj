@@ -16,7 +16,7 @@
   []
   (System/getProperty "os.name"))
 
-(defn- get-os
+(defn get-os
   "Return the OS as a keyword. One of :windows :linux :mac"
   []
   (let [os (os-name)]
@@ -26,7 +26,7 @@
       (re-find #"[Mm]ac" os)     :mac)))
 
 
-(defonce ^:private libcsound-cache-path
+(defonce libcsound-cache-path
   (System/setProperty "jna.library.path"
                       (libcsound64/cache-csound!)))
 
@@ -46,7 +46,7 @@
   (case (get-os)
     :linux   (System/setProperty "jna.library.path" linux-jna-library-path)
     :mac     (System/setProperty "jna.library.path" mac-jna-library-path)
-    :windows (System/setProperty "jna.library.path" current-jna-path)))
+    :windows (System/setProperty "jna.library.path" (string/replace current-jna-path #":" ";"))))
 
 ;; JNI Path for CsoundJNI
 

@@ -1,6 +1,8 @@
 (ns panaeolus.config
   (:require [clojure.edn :as edn]
-            [clojure.spec.alpha :as s]))
+            [clojure.java.io :as io]
+            [clojure.spec.alpha :as s]
+			[panaeolus.utils.jna-path :refer [get-os]]))
 
 
 (s/def ::zerodbfs (s/and integer? pos?))
@@ -13,25 +15,25 @@
   (System/getProperty "user.home"))
 
 (def ^:private panaeolus-config-directory
-  (str home-directory "/.panaeolus"))
+  (io/file home-directory ".panaeolus"))
 
 (def ^:private panaeolus-user-config
-  (str panaeolus-config-directory "/config.edn"))
+  (io/file panaeolus-config-directory "/config.edn"))
 
 (def ^:private default-config
   {:bpm                  120
    :nchnls               2
    :jack-system-out      "system:playback_"
-   :sample-rate          48000
+   :sample-rate          (if (= :windows (get-os)) 44100 48000)
    :ksmps                256
-   :iobufsamps           256
+   :iobufsamps           (if (= :windows (get-os)) 2048 1024)
    :hardwarebufsamps     4096
-   :samples-directory    (str home-directory "/samples")
+   :samples-directory    (.getAbsolutePath (io/file home-directory "samples"))
    :csound-messagelevel  35
    :csound-instruments   []})
 
 (def ^:private user-config
-  (if (.exists (clojure.java.io/as-file panaeolus-user-config))
+  (if (.exists panaeolus-user-config)
     (edn/read-string (slurp panaeolus-user-config))
     {}))
 

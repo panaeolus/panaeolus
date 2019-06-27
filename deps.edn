@@ -6,7 +6,7 @@
 
  :deps  {org.clojure/clojure          {:mvn/version "1.10.0"}
          org.clojure/core.async       {:mvn/version "0.4.474"}
-         overtone/ableton-link        {:mvn/version "1.0.0-beta10"}
+         overtone/ableton-link        {:mvn/version "1.0.0-beta11"}
          com.google.inject/guice      {:mvn/version "4.2.2"}
          expound                      {:mvn/version "0.7.2"}
          org.jaudiolibs/jnajack       {:mvn/version "1.3.0"}
@@ -14,12 +14,13 @@
          net.java.dev.jna/jna         {:mvn/version "5.3.1"}
          com.kunstmusik/CsoundJNA     {:mvn/version "1.0.1"}
          panaeolus/libcsound64        {:git/url "https://github.com/panaeolus/libcsound64.git"
-                                       :sha "246210a9aee6539bfbb2ae9b8aac5d9f163993e0"}
-         badigeon/badigeon            {:git/url "https://github.com/hlolli/badigeon.git"
-                                       :sha "6e9282a83a33e35bfb32161715f133bc33c0057f"}
+                                       :sha "ab7eac89566f37c3caed5bc99b6d26102be10e71"}
+         badigeon/badigeon            {:git/url "https://github.com/EwenG/badigeon.git"
+                                       :sha "eef05fcd3ad110b96b8ffee185143d4b676e3cd1"}
          nrepl                        {:mvn/version "0.6.0"}
          com.bhauman/rebel-readline   {:git/url "https://github.com/hlolli/rebel-readline.git"
                                        :sha "3e86aca3dde9061dc05ba5cf5fa8291c3ebd3c10"}
+		 techascent/tech.jna          {:mvn/version "3.18"}
          ;; org.jline/jline-terminal-jna {:mvn/version "3.11.0"}
          }
 
@@ -38,6 +39,7 @@
            :test {:extra-deps {lambdaisland/kaocha {:mvn/version "0.0-418"}
                                kaocha-noyoda {:mvn/version "2019-06-03"}}
                   :extra-paths ["test"]}
+	       :jna-debug {:jvm-opts ["-Djna.debug_load=true"]}
            :native-image {:main-opts ["-m clj.native-image panaeolus.all"
                                       "-Dclojure.compiler.direct-linking=true"
                                       "--no-server"
