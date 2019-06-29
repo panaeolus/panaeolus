@@ -3,7 +3,7 @@
             [panaeolus.csound.macros :as c]))
 
 (c/define-fx exciter
-  :orc-internal-filepath "panaeolus/csound/fx/orc/exciter.orc"
+  :orc-internal-filepath "fx/exciter.orc"
   :fx-form [{:name :dur :default 1}
             {:name :freq :default 100}
             {:name :ceil :default 1}

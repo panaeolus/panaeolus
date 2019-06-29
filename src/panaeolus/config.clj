@@ -33,7 +33,7 @@
    :csound-instruments   []})
 
 (def ^:private user-config
-  (if (.exists panaeolus-user-config)
+  (if (.exists ^java.io.File panaeolus-user-config)
     (edn/read-string (slurp panaeolus-user-config))
     {}))
 

@@ -5,7 +5,7 @@
 
 (c/definst pluck
   :orc-internal-filepath
-  "panaeolus/csound/instruments/orchestra/fm/pluck.orc"
+  "instruments/fm/pluck.orc"
   :instr-form
   [{:name :dur :default 2}
    {:name :nn :default 48}

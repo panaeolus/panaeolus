@@ -4,7 +4,7 @@
 
 (c/definst metallic-casio
   :orc-internal-filepath
-  "panaeolus/csound/instruments/orchestra/additive/metallic-casio.orc"
+  "instruments/additive/metallic-casio.orc"
   :instr-form
   [{:name :dur :default 1}
    {:name :nn :default 60}

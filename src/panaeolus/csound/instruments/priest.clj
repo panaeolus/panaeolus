@@ -4,7 +4,7 @@
 ;; From the legendary piece "The Electric Priest" from Tobias Enhus
 (c/definst priest
   :orc-internal-filepath
-  "panaeolus/csound/instruments/orchestra/fof/priest.orc"
+  "instruments/fof/priest.orc"
   :instr-form
   [{:name :dur :default 1}
    {:name :nn :default 32}

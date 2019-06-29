@@ -2,7 +2,7 @@
 {:source-paths ["src"]
 
  :dependencies [[reagent "0.8.1"]
-                [com.google.javascript/closure-compiler-unshaded "v20190513"]
+                #_[com.google.javascript/closure-compiler-unshaded "v20190513"]
                 [org.clojure/core.async "0.4.490"]]
 
  :builds {:main {:target :node-script

@@ -3,7 +3,7 @@
 
 (c/define-fx flanger
   :orc-internal-filepath
-  "panaeolus/csound/fx/orc/flanger.orc"
+  "fx/flanger.orc"
   :fx-form [{:name :dur   :default 0.1}
             {:name :rate  :default 5.0}
             {:name :depth :default 0.001}

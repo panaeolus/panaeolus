@@ -23,8 +23,10 @@
 (def nrepl-connection (atom nil))
 (def log-queue (atom []))
 
+(def windows? (= (.-platform js/process) "win32"))
+
 (def file-prefix
-  (if (= (.-platform js/process) "win32")
+  (if windows?
     "file:/" "file://"))
 
 (.setApplicationMenu Menu nil)
@@ -50,26 +52,37 @@
                     "-XX:NewSize=256M"
                     "-XX:+UseTLAB"
                     "-XX:MaxTenuringThreshold=0"
-                    "-Djna.debug_load=true"
+                    ;; "-Djna.debug_load=true"
                     ]
-          process-options #js {:encoding "utf8"
-                               :cwd (str js/__dirname)
-                               :env #js {:OPCODE6DIR64 (path/join panaeolus-cache-dir "csound-6.13" "Opcodes64")}}
+          process-options (if windows?
+		                   #js {:encoding "utf8"
+						        :env #js {:OPCODE6DIR64 (path/join js/__dirname "panaeolus" "libcsound64" "windows" "x86_64")}
+                                :cwd (path/join js/__dirname "panaeolus")
+							    :shell true
+							    :detached false}
+				           #js {:encoding "utf8"
+                                :cwd (str js/__dirname)
+                                :env #js {:OPCODE6DIR64 (path/join panaeolus-cache-dir "csound-6.13" "Opcodes64")}}
+							   )
           jre-conn (if system-wide?
                      (child-process/spawn "java"
                                           (clj->js (into jvm-opts
-                                                         ["-jar" (path/join js/__dirname "panaeolus.jar")
-                                                          "nrepl" (str nrepl-port)]))
+										                 (if windows?
+														   ["panaeolus.all" "nrepl" (str nrepl-port)]
+                                                           ["-jar" (path/join js/__dirname "panaeolus.jar") "nrepl" (str nrepl-port)])))
                                           process-options)
                      (do
                        (jre/spawn #js [(string/join " " jvm-opts)]
-                                  "-jar"
-                                  #js [(path/join js/__dirname "panaeolus.jar") "nrepl" (str nrepl-port)]
+                                  (if windows? "panaeolus.all" "-jar")
+                                  (if windows?
+                                    #js ["nrepl" (str nrepl-port)]
+				                    #js [(path/join js/__dirname "panaeolus.jar") "nrepl" (str nrepl-port)])
                                   process-options)))]
       (exit-hook (fn [] (.pause (.-stdin jre-conn)) (.kill jre-conn)))
       (.on (.-stdout jre-conn) "data"
-           (fn [data] (let [data (.toString data)]
-                        (if (= (str "[nrepl:" nrepl-port "]\n") data)
+           (fn [data] (let [data (.toString data)] (prn "DATA" data)
+                        (if (or (= (str "[nrepl:" nrepl-port "]\n") data)
+						        (= (str "[nrepl:" nrepl-port "]\r\n") data))
                           (js/setTimeout #(resolve #js ["started" nrepl-port]) 100)
                           (print data))
                         (swap! log-queue conj data))))
@@ -86,13 +99,12 @@
                              (if (= (.-platform js/process) "darwin")
                                "jdb -version"
                                "java -version"))
-                      (if (fs/existsSync (path/join panaeolus-cache-dir jre/jreDirName))
-                        (do (jre/setJreDir (path/join panaeolus-cache-dir jre/jreDirName))
-                            (boot-jre! false resolve reject))
-                        (jre/install (fn []
-                                       (jre/setJreDir (path/join panaeolus-cache-dir jre/jreDirName))
-                                       ;; (jre/setJreDir panaeolus-cache-dir)
-                                       (boot-jre! false resolve reject))))
+                      (do (jre/setJreDir (path/join panaeolus-cache-dir jre/jreDirName))
+					    (if (fs/existsSync (path/join panaeolus-cache-dir jre/jreDirName))
+                          (boot-jre! false resolve reject)
+                         (jre/install (fn [result]
+						               (prn "RESULT" result)
+                                       (boot-jre! false resolve reject)))))
                       (boot-jre! true resolve reject))))
              (.then (fn [data] (.reply ^js event "nrepl" data))))))
   (.on ipcMain "dev-reload" (fn [^js event arg] (prn "dev Reload")
@@ -104,7 +116,7 @@
   (.on ipcMain "quit" (fn [_ _] (.quit app)))
   (.disableHardwareAcceleration app)
   (.on app "ready" init-browser)
-  (.on app "window-all-closed" #(when-not (= js/process.platform "darwin") (prn "quit2") (.quit app))))
+  (.on app "window-all-closed" #(when-not (= js/process.platform "darwin") (.quit app))))
 
 
 

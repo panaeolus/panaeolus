@@ -5,7 +5,7 @@
  :paths ["src" "resources" "./deps.edn"]
 
  :deps  {org.clojure/clojure          {:mvn/version "1.10.0"}
-         org.clojure/core.async       {:mvn/version "0.4.474"}
+         org.clojure/core.async       {:mvn/version "0.4.500"}
          overtone/ableton-link        {:mvn/version "1.0.0-beta11"}
          com.google.inject/guice      {:mvn/version "4.2.2"}
          expound                      {:mvn/version "0.7.2"}
@@ -21,7 +21,7 @@
          com.bhauman/rebel-readline   {:git/url "https://github.com/hlolli/rebel-readline.git"
                                        :sha "3e86aca3dde9061dc05ba5cf5fa8291c3ebd3c10"}
 		 techascent/tech.jna          {:mvn/version "3.18"}
-         ;; org.jline/jline-terminal-jna {:mvn/version "3.11.0"}
+         asm/asm                      {:mvn/version "3.3.1"}
          }
 
  :aliases {:nrepl {:extra-deps {cider/cider-nrepl {:mvn/version "0.22.0-SNAPSHOT"}}
@@ -33,6 +33,7 @@
                      org.fxmisc.richtext/richtextfx {:mvn/version "0.10.0"}
                      org.fxmisc.flowless/flowless {:mvn/version "0.6.1"}}}
            ;; COMPILING_PANAEOLUS=1 clojure -A:jar -R:jar -m compile-jar
+		   ;; $env:COMPILING_PANAEOLUS = '1'; clojure -A:jar -m build
            ;; cp target/panaeolus-0.4.0-SNAPSHOT.jar editor/resources/panaeolus.jar
            :jar {:extra-paths ["scripts"]
                  :jvm-opts ["-Dclojure.compile.warn-on-reflection=true"]}

@@ -3,7 +3,7 @@
 
 (c/definst hammer
   :orc-internal-filepath
-  "panaeolus/csound/instruments/orchestra/synth/hammer.orc"
+  "instruments/synth/hammer.orc"
   :instr-form
   [{:name :dur :default 1}
    {:name :nn :default 32}

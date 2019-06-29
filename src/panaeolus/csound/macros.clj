@@ -4,7 +4,6 @@
             [panaeolus.config :as config]
             [panaeolus.utils.utils :as utils]
             [panaeolus.csound.pattern-control :as pat-ctl]
-            [clojure.core.async :refer [<! >! timeout go go-loop chan put! poll!] :as async]
             [clojure.java.io :as io]
             [clojure.spec.alpha :as s]
             [clojure.spec.test.alpha :as stest]))

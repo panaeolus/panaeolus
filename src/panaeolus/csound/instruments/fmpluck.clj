@@ -4,7 +4,7 @@
 
 (c/definst fmpluck
   :orc-internal-filepath
-  "panaeolus/csound/instruments/orchestra/fm/fmpluck.orc"
+  "instruments/fm/fmpluck.orc"
   :instr-form  [{:name :dur :default 2}
                 {:name :nn :default 48}
                 {:name :amp :default -12}

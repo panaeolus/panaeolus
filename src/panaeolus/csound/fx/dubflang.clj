@@ -4,7 +4,7 @@
 
 (c/define-fx dubflang
   :orc-internal-filepath
-  "panaeolus/csound/fx/orc/dubflang.orc"
+  "fx/dubflang.orc"
   :fx-form
   [{:name :dur :default 0.1}
    {:name :rate :default 0.1}

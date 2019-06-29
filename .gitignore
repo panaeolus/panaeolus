@@ -30,6 +30,7 @@ editor/yarn.lock
 editor/package-lock.json
 editor/node_modules
 editor/resources/main.js
+editor/resources/panaeolus
 editor/resources/*.jar
 editor/resources/public/js/*.js
 editor/resources/public/js/*.edn

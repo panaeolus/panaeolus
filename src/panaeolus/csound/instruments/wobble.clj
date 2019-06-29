@@ -3,7 +3,7 @@
 
 (c/definst wobble
   :orc-internal-filepath
-  "panaeolus/csound/instruments/orchestra/dubstep/wobble.orc"
+  "instruments/dubstep/wobble.orc"
   :instr-form
   [{:name :dur :default 2}
    {:name :nn :default 48}

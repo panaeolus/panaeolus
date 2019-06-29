@@ -36,7 +36,9 @@
   (.connect @nrepl-connection nrepl-port "127.0.0.1" (fn [])))
 
 (defn nrepl-handler [msg id callback]
+  (prn "nrepl handler" msg id callback nrepl-connection)
   (when @nrepl-connection
+    (prn "hingað1")
     (swap! state assoc-in [:nrepl-callbacks id] callback)
     ;; timeout if something fails
     (async/go (async/<! (async/timeout (* 2 60 1000)))
@@ -128,7 +130,7 @@
                  (fn [_] (js/setTimeout register-public-symbols 1000))))
 
 (defn nrepl-initialize [port]
-  (do
+  (do (prn "nrepl initialize!" port)
     (reset! nrepl-connection (new (.-Socket (.require js/window "net"))))
     (nrepl-connect! port)
     (register-nrepl-receiver)
@@ -137,6 +139,7 @@
 (defonce nrepl-status-handler
   (.on (.-ipcRenderer electron) "nrepl"
        (fn [event resp]
+	     (prn "nrepl ready" event resp)
          (case (aget resp 0)
            "started" (nrepl-initialize (js/parseInt (aget resp 1)))
            nil))))
@@ -144,7 +147,8 @@
 (defonce backend-log
   (.on (.-ipcRenderer electron) "logs-from-backend"
        (fn [_ resp]
-         (swap! log-atom update conj (js->clj resp)))))
+	     (prn "BACKEND LOG" (js->clj resp))
+         #_(swap! log-atom conj (js->clj resp)))))
 
 (defn flash-region [ace-ref sexp-positions error?]
   (when (and ace-ref (exists? (.-startIndex sexp-positions)))
@@ -172,6 +176,7 @@
                   react-node (atom nil)]
               (nrepl-handler trimmed-bundle id
                              (fn [res error?]
+							   (js/console.log "RES" res)
                                (when (and ace-ref (exists? (.-startIndex sexp-positions)))
                                  (let [session (.getSession ace-ref)
                                        pointBCoord (.indexToPosition (.-doc session) (.-endIndex sexp-positions))
@@ -322,7 +327,6 @@
     (nth @log-atom (.-index env))]))
 
 (defn logger-component-list [height width]
-  (js/console.log (count @log-atom))
   [:> List {:rowCount (count @log-atom)
             :id "log-area"
             ;; :key (count @log-atom)
@@ -348,7 +352,8 @@
         (.removeEventListener js/document "keydown" keydown-listener)
         (.removeEventListener js/document "keyup" keyup-listener)
         (set! js/window.oncontextmenu nil)
-        (.clearInterval backend-poller))
+        (when backend-poller 
+		  (.clearInterval backend-poller)))
       :componentDidMount
       (fn [this]
         (.addEventListener js/document "keydown" keydown-listener)

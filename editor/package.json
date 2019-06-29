@@ -1,46 +1,46 @@
 {
-  "name": "shadow-electorn-starter",
-  "version": "1.0.0",
-  "description": "panaeolus simple electron-ui",
-  "main": "resources/main.js",
-  "scripts": {
-    "dev": "./node_modules/.bin/shadow-cljs watch main renderer",
-    "build": "./node_modules/.bin/shadow-cljs compile main renderer",
-    "release": "shadow-cljs release main renderer",
-    "package:darwin": "electron-packager . panaeolus --out dist/ --ignore .shadow-cljs --ignore node_modules/higlight.js --ignore 'node_modles/react*' --icon=resources/public/icons/AppIcon.icns --overwrite",
-    "package:windows": "electron-packager . panaeolus --out dist/ --ignore .shadow-cljs --ignore node_modules/higlight.js --ignore 'node_modles/react*' --overwrite",
-    "package:linux": "electron-packager . panaeolus --out dist/ --ignore .shadow-cljs --ignore node_modules/higlight.js --ignore 'node_modles/react*' --overwrite",
-    "clean": "rm -rf resources/public/js/* && rm -rf target"
-  },
-  "keywords": [
-    "shadow-cljs",
-    "reagent",
-    "electron"
-  ],
-  "author": "Hlöðver Sigurðsson <hlolli@gmail.com>",
-  "license": "GPL-3.0",
-  "devDependencies": {
-    "electron": "^5.0.1",
-    "electron-packager": "^13.1.1",
-    "shadow-cljs": "^2.8.37"
-  },
-  "dependencies": {
-    "ace-builds": "^1.4.4",
-    "ajv": "6.10.0",
-    "async-exit-hook": "^2.0.1",
-    "bencode": "^2.0.1",
-    "brace": "^0.11.1",
-    "command-exists": "^1.2.8",
-    "create-react-class": "^15.6.3",
-    "env-paths": "^2.2.0",
-    "node-jre": "git://github.com/panaeolus/node-jre.git#a3430a062a398901430afa1d7ef9bd5448c996d8",
-    "react": "^16.8.6",
-    "react-ace": "^6.5.0",
-    "react-dom": "^16.8.6",
-    "react-highlight": "^0.12.0",
-    "react-split-pane": "^0.1.87",
-    "react-virtualized": "^9.21.1",
-    "uri-js": "^4.2.2",
-    "vex-js": "^4.1.0"
-  }
+	"name": "PanaeolusEditor",
+	"version": "1.0.0",
+	"description": "panaeolus simple electron-ui",
+	"main": "resources/main.js",
+	"scripts": {
+		"dev": "./node_modules/.bin/shadow-cljs watch main renderer",
+		"build": "./node_modules/.bin/shadow-cljs compile main renderer",
+		"release": "shadow-cljs release main renderer",
+		"package:darwin": "electron-packager . panaeolus --out dist/ --ignore .shadow-cljs --ignore node_modules/higlight.js --ignore 'node_modles/react*' --icon=resources/public/icons/AppIcon.icns --overwrite",
+		"package:windows": "electron-packager . panaeolus --out dist/ --ignore .shadow-cljs --ignore node_modules/higlight.js --ignore 'node_modles/react*' --overwrite",
+		"package:linux": "electron-packager . panaeolus --out dist/ --ignore .shadow-cljs --ignore node_modules/higlight.js --ignore 'node_modles/react*' --overwrite",
+		"clean": "rm -rf resources/public/js/* && rm -rf target"
+	},
+	"keywords": [
+		"shadow-cljs",
+		"reagent",
+		"electron"
+	],
+	"author": "Hlöðver Sigurðsson <hlolli@gmail.com>",
+	"license": "GPL-3.0",
+	"devDependencies": {
+		"electron": "^5.0.6",
+		"electron-packager": "^13.1.1",
+		"shadow-cljs": "^2.8.37"
+	},
+	"dependencies": {
+		"ace-builds": "^1.4.4",
+		"ajv": "6.10.0",
+		"async-exit-hook": "^2.0.1",
+		"bencode": "^2.0.1",
+		"brace": "^0.11.1",
+		"command-exists": "^1.2.8",
+		"create-react-class": "^15.6.3",
+		"env-paths": "^2.2.0",
+		"node-jre": "git://github.com/panaeolus/node-jre.git#aa6e1fc66ccb4f3a0c978bd9bfcf97ee58156041",
+		"react": "^16.8.6",
+		"react-ace": "^6.5.0",
+		"react-dom": "^16.8.6",
+		"react-highlight": "^0.12.0",
+		"react-split-pane": "^0.1.87",
+		"react-virtualized": "^9.21.1",
+		"uri-js": "^4.2.2",
+		"vex-js": "^4.1.0"
+	}
 }

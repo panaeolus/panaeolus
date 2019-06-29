@@ -3,7 +3,7 @@
             [panaeolus.csound.macros :as c]))
 
 (c/define-fx shred
-  :orc-string  (str (slurp (io/resource "panaeolus/csound/fx/udo/shred.udo"))
+  :orc-string  (str (slurp (io/resource "fx/shred.udo"))
                     "
 gkTransPose init 1
 gkTransRand init 0.1

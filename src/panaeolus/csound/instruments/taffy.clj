@@ -3,7 +3,7 @@
 
 (c/definst taffy
   :orc-internal-filepath
-  "panaeolus/csound/instruments/orchestra/dubstep/taffy.orc"
+  "instruments/dubstep/taffy.orc"
   :instr-form
   [{:name :dur :default 1}
    {:name :nn :default 48}
