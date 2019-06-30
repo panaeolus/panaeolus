@@ -18,7 +18,7 @@
   (io/file home-directory ".panaeolus"))
 
 (def ^:private panaeolus-user-config
-  (io/file panaeolus-config-directory "/config.edn"))
+  (io/file panaeolus-config-directory "config.edn"))
 
 (def ^:private default-config
   {:bpm                  120
