@@ -14,15 +14,14 @@
          net.java.dev.jna/jna         {:mvn/version "5.3.1"}
          com.kunstmusik/CsoundJNA     {:mvn/version "1.0.1"}
          panaeolus/libcsound64        {:git/url "https://github.com/panaeolus/libcsound64.git"
-                                       :sha "ab7eac89566f37c3caed5bc99b6d26102be10e71"}
+                                       :sha "9d9625d5b1226d30d7447a05605da569005ce0c1"}
          badigeon/badigeon            {:git/url "https://github.com/EwenG/badigeon.git"
-                                       :sha "eef05fcd3ad110b96b8ffee185143d4b676e3cd1"}
+                                       :sha "1e28b19e6461d827e7c2ad579ee010b8dde332c8"}
          nrepl                        {:mvn/version "0.6.0"}
-         com.bhauman/rebel-readline   {:git/url "https://github.com/hlolli/rebel-readline.git"
-                                       :sha "3e86aca3dde9061dc05ba5cf5fa8291c3ebd3c10"}
-		 techascent/tech.jna          {:mvn/version "3.18"}
-         asm/asm                      {:mvn/version "3.3.1"}
-         }
+         ;; com.bhauman/rebel-readline   {:git/url "https://github.com/hlolli/rebel-readline.git"
+         ;;                               :sha "3e86aca3dde9061dc05ba5cf5fa8291c3ebd3c10"}
+         techascent/tech.jna          {:mvn/version "3.18"}
+         asm/asm                      {:mvn/version "3.3.1"}}
 
  :aliases {:nrepl {:extra-deps {cider/cider-nrepl {:mvn/version "0.22.0-SNAPSHOT"}}
                    :main-opts ["-m nrepl.cmdline --middleware [cider.nrepl/cider-middleware]"
@@ -33,14 +32,14 @@
                      org.fxmisc.richtext/richtextfx {:mvn/version "0.10.0"}
                      org.fxmisc.flowless/flowless {:mvn/version "0.6.1"}}}
            ;; COMPILING_PANAEOLUS=1 clojure -A:jar -R:jar -m compile-jar
-		   ;; $env:COMPILING_PANAEOLUS = '1'; clojure -A:jar -m build
+           ;; $env:COMPILING_PANAEOLUS = '1'; clojure -A:jar -m build
            ;; cp target/panaeolus-0.4.0-SNAPSHOT.jar editor/resources/panaeolus.jar
            :jar {:extra-paths ["scripts"]
                  :jvm-opts ["-Dclojure.compile.warn-on-reflection=true"]}
            :test {:extra-deps {lambdaisland/kaocha {:mvn/version "0.0-418"}
                                kaocha-noyoda {:mvn/version "2019-06-03"}}
                   :extra-paths ["test"]}
-	       :jna-debug {:jvm-opts ["-Djna.debug_load=true"]}
+           :jna-debug {:jvm-opts ["-Djna.debug_load=true"]}
            :native-image {:main-opts ["-m clj.native-image panaeolus.all"
                                       "-Dclojure.compiler.direct-linking=true"
                                       "--no-server"

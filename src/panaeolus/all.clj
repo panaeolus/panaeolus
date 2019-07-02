@@ -27,15 +27,12 @@
    panaeolus.csound.instruments.sruti
    panaeolus.csound.instruments.taffy
    panaeolus.csound.instruments.wobble
-   
+
    )
   (:import [clojure.lang Var]
            [org.objectweb.asm Type]))
 
 (def __is_windows__ (re-find #"[Ww]indows" (System/getProperty "os.name")))
-
-(when-not __is_windows__
-  (require 'rebel-readline.clojure.main))
 
 (set! *warn-on-reflection* true)
 
@@ -77,12 +74,12 @@
  'panaeolus.csound.instruments.taffy
  'panaeolus.csound.instruments.wobble
  )
- 
-(defmacro require-rebel-readline [args]
-  (when-not `__is_windows__
-    `(do
-      (require 'rebel-readline.clojure.main)
-      (apply rebel-readline.clojure.main/-main ~args))))
+
+#_(defmacro require-rebel-readline [args]
+    (when-not `__is_windows__
+      `(do
+         (require 'rebel-readline.clojure.main)
+         (apply rebel-readline.clojure.main/-main ~args))))
 
 (defn -main [& args]
   (if (or *compile-files* (System/getenv "COMPILING_PANAEOLUS"))
@@ -92,12 +89,13 @@
         (flush)
         (print (-> (read-line) read-string eval))
         (recur))
-      (if (or __is_windows__ (and (not (empty? args)) (= "nrepl" (first args))))
-        (let [nrepl-server (nrepl.server/start-server :bind "127.0.0.1" :port (Integer/parseInt (or (second args) 4445)))]
-          (println (format "[nrepl:%s]" (second args)))
-          (.addShutdownHook (Runtime/getRuntime) (Thread. #(nrepl.server/stop-server nrepl-server)))
-          (loop []
-            (flush)
-            (print (-> (read-line) read-string eval))
-            (recur)))
-        (require-rebel-readline args)))))
+      (let [nrepl-server (nrepl.server/start-server :bind "127.0.0.1" :port (Integer/parseInt (or (second args) 4445)))]
+        (println (format "[nrepl:%s]" (second args)))
+        (.addShutdownHook (Runtime/getRuntime) (Thread. #(nrepl.server/stop-server nrepl-server))))
+      #_(if (or __is_windows__ (and (not (empty? args)) (= "nrepl" (first args))))
+          (
+           #_(loop []
+               (flush)
+               (print (-> (read-line) read-string eval))
+               (recur)))
+          (require-rebel-readline args)))))

@@ -36,9 +36,7 @@
   (.connect @nrepl-connection nrepl-port "127.0.0.1" (fn [])))
 
 (defn nrepl-handler [msg id callback]
-  (prn "nrepl handler" msg id callback nrepl-connection)
   (when @nrepl-connection
-    (prn "hingað1")
     (swap! state assoc-in [:nrepl-callbacks id] callback)
     ;; timeout if something fails
     (async/go (async/<! (async/timeout (* 2 60 1000)))
@@ -67,7 +65,6 @@
   (.on @nrepl-connection "data"
        (fn [data]
          (let [decoded-data (bencode/decode data)]
-           ;; (js/console.log decoded-data)
            (if-not (exists? (.-status decoded-data)) ;; status indicates a failure?
              (if-not (exists? (.-value decoded-data))
                (if (exists? (.-out decoded-data))
@@ -130,7 +127,7 @@
                  (fn [_] (js/setTimeout register-public-symbols 1000))))
 
 (defn nrepl-initialize [port]
-  (do (prn "nrepl initialize!" port)
+  (do
     (reset! nrepl-connection (new (.-Socket (.require js/window "net"))))
     (nrepl-connect! port)
     (register-nrepl-receiver)
@@ -139,7 +136,6 @@
 (defonce nrepl-status-handler
   (.on (.-ipcRenderer electron) "nrepl"
        (fn [event resp]
-	     (prn "nrepl ready" event resp)
          (case (aget resp 0)
            "started" (nrepl-initialize (js/parseInt (aget resp 1)))
            nil))))
@@ -252,8 +248,8 @@
     [:div [:a {:href "#"} "Top"]]]])
 
 
-(defn request-jre-boot []
-  (.send (.-ipcRenderer electron) "boot-jre" nil))
+(defn get-nrepl-port []
+  (.send (.-ipcRenderer electron) "get-nrepl-port" nil))
 
 (defn on-edit-handler [event]
   (let [edit-event? (not (.-readOnly (.-command event)))]
@@ -352,10 +348,11 @@
         (.removeEventListener js/document "keydown" keydown-listener)
         (.removeEventListener js/document "keyup" keyup-listener)
         (set! js/window.oncontextmenu nil)
-        (when backend-poller 
-		  (.clearInterval backend-poller)))
+        (when backend-poller
+          (.clearInterval backend-poller)))
       :componentDidMount
       (fn [this]
+        (get-nrepl-port)
         (.addEventListener js/document "keydown" keydown-listener)
         (.addEventListener js/document "keyup" keyup-listener)
         (let [ace-ref (.edit ace-editor "ace")
@@ -394,7 +391,6 @@
 (defn start!
   {:dev/autoload false}
   []
-  (request-jre-boot)
   (reagent/render
    [root-component]
    (js/document.getElementById "app-container")))
