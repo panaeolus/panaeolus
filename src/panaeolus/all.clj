@@ -5,6 +5,7 @@
    nrepl.server
    panaeolus.csound.csound-jna
    panaeolus.csound.pattern-control
+   panaeolus.jack2.jack-lib
    ;; immigrants
    panaeolus.csound.macros
    panaeolus.metronome
@@ -79,6 +80,16 @@
          (require 'rebel-readline.clojure.main)
          (apply rebel-readline.clojure.main/-main ~args))))
 
+(def nrepl-server-atom (atom nil))
+
+(.addShutdownHook (Runtime/getRuntime) 
+		  (Thread. #(do (when-let [nrepl-server @nrepl-server-atom]
+		                  (println "killing nrepl server..")
+		                  (nrepl.server/stop-server nrepl-server))
+		                (when-let [jack-server @panaeolus.jack2.jack-lib/jack-server-atom]
+						  (.destroy ^java.lang.ProcessImpl jack-server)
+						  (println "killing jackd..")))))
+
 (defn -main [& args]
   (if (or *compile-files* (System/getenv "COMPILING_PANAEOLUS"))
     (System/exit 0)
@@ -87,9 +98,7 @@
         (flush)
         (print (-> (read-line) read-string eval))
         (recur))
-      (let [nrepl-server (nrepl.server/start-server :bind "127.0.0.1" :port (Integer/parseInt (or (second args) 4445)))]
-        (println (format "[nrepl:%s]" (second args)))
-        (.addShutdownHook (Runtime/getRuntime) (Thread. #(nrepl.server/stop-server nrepl-server))))
+      (reset! nrepl-server-atom (nrepl.server/start-server :bind "127.0.0.1" :port (Integer/parseInt (or (second args) 4445))))
       #_(if (or __is_windows__ (and (not (empty? args)) (= "nrepl" (first args))))
           (
            #_(loop []

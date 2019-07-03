@@ -1,14 +1,15 @@
 (ns panaeolus.jack2.jack-lib
   (:require
    [clojure.java.io :as io]
-   [panaeolus.utils.jna-path :as jna-path]
-   [panaeolus.utils.subprocess :as subprocess])
+   [clojure.core.async :as async]
+   [panaeolus.utils.jna-path :as jna-path])
   (:import
    [org.jaudiolibs.jnajack.lowlevel JackLibraryDirect]
    [org.jaudiolibs.jnajack JackOptions JackStatus JackClient]
    [org.jaudiolibs.jnajack JackPortType]
    [org.jaudiolibs.jnajack JackPortFlags]
    [org.jaudiolibs.jnajack Jack JackException]
+   [java.lang ProcessBuilder]
    [java.util List EnumSet]
    [java.nio FloatBuffer]
    [java.util Arrays]
@@ -17,14 +18,16 @@
 
 (set! *warn-on-reflection* true)
 
-(defn spawd-jackd-windows! []
-  (let [ps (atom nil)]
+(def jack-server-atom (atom nil))
+
+(defn spawn-jackd-windows! []
+  (let [kill-callback (fn [] (println "jackd.exe died"))]
     (async/thread
-      (let [jackd-file (io/file jna-path/libcsound-cache-path "windows" "x86_64" "jackd.exe")
-            jackd-loc (.getPath jackd-file)
-            pbuilder (ProcessBuilder. (into-array String ["cmd" "/c" jackd-loc "-d" "portaudio" "-p" "2048" "-r" "44100"]))
+      (let [jackd-file (io/file jna-path/libcsound-cache-path "jackd.exe")
+            jackd-loc (.getAbsolutePath jackd-file)
+            pbuilder (ProcessBuilder. ^"[Ljava.lang.String;" (into-array String ["cmd" "/c" jackd-loc "-d" "portaudio" "-p" "2048" "-r" "44100"]))
             process  (.start pbuilder)]
-        (reset! ps process)
+        (reset! jack-server-atom process)
         (try (with-open [error-stream (clojure.java.io/reader (.getErrorStream process))]
                (loop []
                  (when-let [line (.readLine ^java.io.BufferedReader error-stream)]
@@ -36,11 +39,12 @@
                  (when-let [line (.readLine ^java.io.BufferedReader reader)]
                    (println line)
                    (recur))))
-             (catch java.io.IOException e kill-callback nil))))
-    ps))
+             (catch java.io.IOException e kill-callback nil))))))
 
-(defn start-jackd []
-  (subprocess/async-proc))
+(when (= :windows (jna-path/get-os))
+  (spawn-jackd-windows!)
+  (async/<!! (async/timeout 2000)))
+
 
 (def jack-server ^Jack (Jack/getInstance))
 
