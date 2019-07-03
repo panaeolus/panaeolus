@@ -58,33 +58,24 @@
                     "-XX:MaxTenuringThreshold=0"
                     ;; "-Djna.debug_load=true"
                     ]
-          process-options (if windows?
-                            #js {:encoding "utf8"
-                                 :env #js {:OPCODE6DIR64 (path/join js/__dirname "panaeolus" "libcsound64" "windows" "x86_64")}
-                                 :cwd (path/join js/__dirname "panaeolus")
-                                 :shell true
-                                 :detached false}
-                            #js {:encoding "utf8"
+          process-options 
+                           #js {:encoding "utf8"
                                  :cwd (str js/__dirname)
                                  :env #js {:OPCODE6DIR64
                                            (cond
                                              darwin? (path/join panaeolus-cache-dir "csound-6.13" "Opcodes64")
+											 windows? (path/join js/__dirname "panaeolus" "libcsound64" "windows" "x86_64")
                                              :default (path/join panaeolus-cache-dir
                                                                  "csound-6.13" "csound"
-                                                                 "plugins64-6.0"))}})
+                                                                 "plugins64-6.0"))}}
           jre-conn (if system-wide?
                      (child-process/spawn
                       "java"
-                      (clj->js (into jvm-opts
-                                     (if windows?
-                                       ["panaeolus.all" "nrepl" (str nrepl-port)]
-                                       ["-jar" (path/join js/__dirname "panaeolus.jar") "nrepl" (str nrepl-port)])))
+                      (clj->js (into jvm-opts ["-jar" (path/join js/__dirname "panaeolus.jar") "nrepl" (str nrepl-port)]))
                       process-options)
                      (jre/spawn #js [(string/join " " jvm-opts)]
-                                (if windows? "panaeolus.all" "-jar")
-                                (if windows?
-                                  #js ["nrepl" (str nrepl-port)]
-                                  #js [(path/join js/__dirname "panaeolus.jar") "nrepl" (str nrepl-port)])
+                                "-jar"
+                                  #js [(path/join js/__dirname "panaeolus.jar") "nrepl" (str nrepl-port)]
                                 process-options))]
       (exit-hook safe-jre-kill)
       (.on (.-stdout jre-conn) "data"
