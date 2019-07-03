@@ -26,9 +26,7 @@
    panaeolus.csound.instruments.priest
    panaeolus.csound.instruments.sruti
    panaeolus.csound.instruments.taffy
-   panaeolus.csound.instruments.wobble
-
-   )
+   panaeolus.csound.instruments.wobble)
   (:import [clojure.lang Var]
            [org.objectweb.asm Type]))
 
