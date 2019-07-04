@@ -5,7 +5,7 @@
  :paths ["src" "resources" "./deps.edn"]
 
  :deps  {;; asm/asm                      {:mvn/version "3.3.1"}
-         badigeon/badigeon            {:git/url "https://github.com/EwenG/badigeon.git" :sha "1e28b19e6461d827e7c2ad579ee010b8dde332c8"}
+         badigeon/badigeon            {:git/url "https://github.com/EwenG/badigeon.git" :sha "5718cd5d10e41228717fe2fe145470b9b85fa281"}
          com.google.inject/guice      {:mvn/version "4.2.2"}
          com.kunstmusik/CsoundJNA     {:mvn/version "1.0.1"}
          expound                      {:mvn/version "0.7.2"}

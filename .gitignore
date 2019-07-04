@@ -36,3 +36,11 @@ editor/resources/public/js/*.edn
 editor/resources/public/js/cljs-runtime
 editor/.shadow-cljs
 editor/dist
+editor/out
+
+# Public Keys
+*.p12
+*.pfx
+
+# Private
+editor/forge.config.js

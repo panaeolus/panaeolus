@@ -28,11 +28,18 @@
 
 (def darwin? (= js/process.platform "darwin"))
 
+(when windows?
+  (and (js/require "electron-squirrel-startup") 
+       (do (.quit app) (.exit js/process 0))))
+
 (def file-prefix
   (if windows?
     "file:/" "file://"))
 
-(def icon-loc (str file-prefix js/__dirname "/public/icons/AppIcon.icns") )
+(def icon-loc 
+  (if darwin? 
+    (str file-prefix js/__dirname "/public/icons/AppIcon.icns")
+	(str file-prefix js/__dirname "/public/icons/panaeolus.ico")))
 
 (def index-html-loc (str file-prefix js/__dirname "/public/index.html"))
 
@@ -112,9 +119,9 @@
                 (clj->js {:windowOpts main-window-opts
                           :templateUrl splash-html-loc
                           :delay 0
-                          :splashScreenOpts {:height 500
-                                             :width 500
-                                             :backgroundColor "white"}}))]
+                          :splashScreenOpts {:height 400
+                                             :width 400
+                                             :backgroundColor "black"}}))]
     (reset! main-window (.-main splash))
     (-> (boot-jre-promise) (.then (fn [res] (.loadURL ^js @main-window index-html-loc))))))
 
