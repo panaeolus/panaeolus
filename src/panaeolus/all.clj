@@ -98,7 +98,8 @@
         (flush)
         (print (-> (read-line) read-string eval))
         (recur))
-      (reset! nrepl-server-atom (nrepl.server/start-server :bind "127.0.0.1" :port (Integer/parseInt (or (second args) 4445))))
+      (do (reset! nrepl-server-atom (nrepl.server/start-server :bind "127.0.0.1" :port (Integer/parseInt (or (second args) 4445))))
+	      (println (format "[nrepl:%s]" (second args))))
       #_(if (or __is_windows__ (and (not (empty? args)) (= "nrepl" (first args))))
           (
            #_(loop []

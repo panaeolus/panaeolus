@@ -17,11 +17,11 @@
                     :compiler-options {:disable-locals-clearing false
                                        :direct-linking true}})
   (uberjar/bundle (str "target/panaeolus-" +version+)
-                  {:allow-unstable-deps? true
-                   :deps-map (-> (deps-reader/slurp-deps "deps.edn")
+                  {:deps-map (-> (deps-reader/slurp-deps "deps.edn")
                                  (assoc :paths ["target/classes" "resources"])
                                  (update :deps dissoc 'badigeon/badigeon)
-                                 (update :deps dissoc 'org.clojure/core.async))})
+                                 (update :deps dissoc 'org.clojure/core.async)
+								 )})
   (spit (str "target/panaeolus-" +version+ "/META-INF/MANIFEST.MF")
         (jar/make-manifest 'panaeolus.all))
   (zip/zip (str "target/panaeolus-" +version+) (str "target/panaeolus-" +version+ ".jar"))
