@@ -26,7 +26,7 @@
       (re-find #"[Mm]ac" os)     :mac)))
 
 
-(defonce libcsound-cache-path
+(def libcsound-cache-path
   (let [cache-path (libcsound64/cache-csound!)]
     (System/setProperty "jna.library.path" cache-path)
 	cache-path))
@@ -43,7 +43,7 @@
   (->> [ld-library-path current-jna-path]
        (string/join ":")))
 
-(defonce ^:private __SET_JNA_PATH__
+(def ^:private __SET_JNA_PATH__
   (case (get-os)
     :linux   (System/setProperty "jna.library.path" linux-jna-library-path)
     :mac     (System/setProperty "jna.library.path" mac-jna-library-path)
@@ -54,7 +54,7 @@
 (def ^:private current-jni-path
   (System/getProperty "java.library.path"))
 
-(defonce ^:private __SET_JNI_PATH__
+(def ^:private __SET_JNI_PATH__
   (case (get-os)
     :linux   (System/setProperty
               "java.library.path"

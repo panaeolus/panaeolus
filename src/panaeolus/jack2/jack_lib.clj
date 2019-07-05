@@ -25,7 +25,7 @@
     (async/thread
       (let [jackd-file (io/file jna-path/libcsound-cache-path "jackd.exe")
             jackd-loc (.getAbsolutePath jackd-file)
-            pbuilder (ProcessBuilder. ^"[Ljava.lang.String;" (into-array String ["cmd" "/c" jackd-loc "-d" "portaudio" "-p" "2048" "-r" "44100"]))
+            pbuilder (ProcessBuilder. ^"[Ljava.lang.String;" (into-array String ["cmd.exe" "/c" (str "\"" jackd-loc "\"") "-d" "portaudio" "-p" "2048" "-r" "44100"]))
             process  (.start pbuilder)]
         (reset! jack-server-atom process)
         (try (with-open [error-stream (clojure.java.io/reader (.getErrorStream process))]

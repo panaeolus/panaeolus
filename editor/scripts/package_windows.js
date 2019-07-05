@@ -17,7 +17,6 @@ const options = {
    "yarn.lock",
    "shell.nix"
   ]
-  
 };
 
 async function bundleElectronApp(options) {

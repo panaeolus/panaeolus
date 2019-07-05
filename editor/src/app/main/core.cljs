@@ -28,10 +28,6 @@
 
 (def darwin? (= js/process.platform "darwin"))
 
-(when windows?
-  (and (js/require "electron-squirrel-startup") 
-       (do (.quit app) (.exit js/process 0))))
-
 (def file-prefix
   (if windows?
     "file:/" "file://"))
@@ -71,7 +67,7 @@
                :env #js {:OPCODE6DIR64
                          (cond
                            darwin? (path/join panaeolus-cache-dir "csound-6.13" "Opcodes64")
-                           windows? (path/join js/__dirname "panaeolus" "libcsound64" "windows" "x86_64")
+                           windows? (path/join (string/replace panaeolus-cache-dir "\\Local\\" "\\Roaming\\") "csound-6.13")
                            :default (path/join panaeolus-cache-dir
                                                "csound-6.13" "csound"
                                                "plugins64-6.0"))}}
@@ -126,6 +122,9 @@
     (-> (boot-jre-promise) (.then (fn [res] (.loadURL ^js @main-window index-html-loc))))))
 
 (defn main []
+  (when windows?
+    (and (js/require "electron-squirrel-startup") 
+         (do (.quit app) (.exit js/process 0))))
   (.on ipcMain "get-nrepl-port"
        (fn [event arg]
          (.reply ^js event "nrepl" #js ["started" nrepl-port])))

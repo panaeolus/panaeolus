@@ -5,7 +5,6 @@
    nrepl.server
    panaeolus.csound.csound-jna
    panaeolus.csound.pattern-control
-   panaeolus.jack2.jack-lib
    ;; immigrants
    panaeolus.csound.macros
    panaeolus.metronome

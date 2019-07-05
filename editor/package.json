@@ -18,16 +18,13 @@
     "reagent",
     "electron"
   ],
-  "author": "Hlöðver Sigurðsson <hlolli@gmail.com>",
+  "author": "Hlodver Sigurdsson <hlolli@gmail.com>",
   "license": "GPL-3.0",
-  "config": {
-    "forge": "forge.config.js"
-  },
   "devDependencies": {
-    "@electron-forge/maker-squirrel": "^6.0.0-beta.39",
     "electron": "5.0.6",
+    "electron-builder": "^20.44.4",
+    "electron-builder-squirrel-windows": "^21.0.6",
     "electron-packager": "^13.1.1",
-    "electron-prebuilt-compile": "git://github.com/stanurkov/e-p-c.git#5.0.5-forked",
     "shadow-cljs": "^2.8.37"
   },
   "dependencies": {
@@ -50,5 +47,47 @@
     "react-virtualized": "^9.21.1",
     "uri-js": "^4.2.2",
     "vex-js": "^4.1.0"
+  },
+  "build": {
+    "files": [
+      "!.shadow-cljs",
+      "!node_modules/higlight.js",
+      "!resources/public/js/cljs-runtime",
+      "!windows_installer.js",
+      "!panaeolus_signing_key.pfx",
+      "!scripts",
+      "!src",
+      "!yarn.lock",
+      "!shell.nix"
+    ],
+    "appId": "panaeolus",
+	"asar": false,
+    "dmg": {
+      "contents": [
+        {
+          "x": 110,
+          "y": 150
+        },
+        {
+          "x": 240,
+          "y": 150,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    },
+	"squirrelWindows": {
+	  "iconUrl": "https://raw.githubusercontent.com/panaeolus/panaeolus/e0ac656afb61447dc7a2a83a2ab42b73ce28683d/editor/resources/public/icons/panaeolus.ico"
+	},
+    "win": {
+      "target": "squirrel",
+      "icon": "resources/public/icons/panaeolus.ico"
+    }
   }
 }
