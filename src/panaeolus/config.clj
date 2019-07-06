@@ -3,6 +3,7 @@
             [clojure.java.io :as io]
             [clojure.spec.alpha :as s]
             [panaeolus.utils.jna-path :refer [get-os]]
+            [panaeolus.utils.utils :as utils]
             [zprint.core :as zp]))
 
 (s/def ::zerodbfs (s/and integer? pos?))
@@ -34,32 +35,26 @@
    :bpm               120})
 
 (defn read-config []
-(if (.exists ^java.io.File panaeolus-user-config)
-    (edn/read-string (slurp panaeolus-user-config))
+  (if (.exists ^java.io.File panaeolus-user-config)
+    (try (edn/read-string (slurp panaeolus-user-config))
+         (catch Exception e (binding [*out* *err*]
+                              (println "Error: invalid config "
+                                       panaeolus-user-config))))
     (do (.mkdirs ^java.io.File panaeolus-config-directory) {})))
 
-(def ^:private non-reconciled-config (read-config))
+(def non-reconciled-config (read-config))
 
 (defn reconciled-config []
-  (loop [dc  (keys default-config)
-         rc  {}]
-    (if (empty? dc)
-      (do
-        (spit (.getAbsolutePath ^java.io.File panaeolus-user-config) (zp/zprint-str rc))
-        rc)
-      (let [fdc (first dc)
-            nrc (if (contains? non-reconciled-config fdc)
-                  rc
-                  (assoc rc fdc (get default-config fdc)))]
-        (recur (rest dc)
-               nrc)))))
+  (let [rc (utils/deep-merge default-config non-reconciled-config)]
+    (spit (.getAbsolutePath ^java.io.File panaeolus-user-config)
+          (zp/zprint-str rc))
+    rc))
 
 (def config (atom (reconciled-config)))
 
 (defn update-config!
-  "The callback gets passed the current config, the return value is the new value" 
+  "The callback gets passed the current config, the return value is the new value"
   [callback]
   (let [new-config (callback @config)]
     (spit (.getAbsolutePath ^java.io.File panaeolus-user-config) (zp/zprint-str new-config))
-	(reset! config new-config)))
-	
+    (reset! config new-config)))

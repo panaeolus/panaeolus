@@ -68,8 +68,8 @@
                                      #(-> %
                                           (update :connected-from-ports conj next-port-name)
                                           (update :connected-from-instances conj (:client-name graph-node))))))
-                          (when (< channel-index (:nchnls @config/config))
-                            (let [system-out-base (:jack-system-out @config/config)
+                          (when (< channel-index (get-in @config/config [:csound :nchnls]))
+                            (let [system-out-base (get-in @config/config [:jack :system-out])
                                   system-port-name (str system-out-base (inc channel-index))]
                               (async/go-loop [retry 0]
                                 (let [query-result (jack/query-connection (:i-name graph-node))]
@@ -205,20 +205,22 @@
           (let [current-outputs (:outputs instrument-instance)]
             (doseq [output current-outputs]
               (let [connected-to-port (first (:connected-to-ports output))
-                    system-out-base (:jack-system-out @config/config)
+                    system-out-base (get-in @config/config [:jack :system-out])
                     system-port-name (str system-out-base (inc (:channel-index output)))]
                 (when connected-to-port
                   (jack/disconnect (:port-name output) connected-to-port))
-                (when (< (:channel-index output) (:nchnls @config/config))
+                (when (< (:channel-index output) (get-in @config/config [:csound :nchnls]))
                   (jack/connect (:port-name output) system-port-name))
                 (swap! csound-jna/csound-instances update-in
                        [(:client-name instrument-instance)
                         :outputs
                         (:channel-index output)]
                        assoc
-                       :connected-to-ports (if (< (:channel-index output) (:nchnls @config/config))
+                       :connected-to-ports (if (< (:channel-index output)
+                                                  (get-in @config/config [:csound :nchnls]))
                                              [system-port-name] [])
-                       :connected-to-instances (if (< (:channel-index output) (:nchnls @config/config))
+                       :connected-to-instances (if (< (:channel-index output)
+                                                      (get-in @config/config [:csound :nchnls]))
                                                  ["system"] [])))))
           ;; connect to first node
           (let [current-outputs (:outputs instrument-instance)
@@ -281,8 +283,8 @@
                                      #(-> %
                                           (update :connected-from-ports conj next-port-name)
                                           (update :connected-from-instances conj (:client-name graph-node))))))
-                          (when (< channel-index (:nchnls @config/config))
-                            (let [system-out-base (:jack-system-out @config/config)
+                          (when (< channel-index (get-in @config/config [:csound :nchnls]))
+                            (let [system-out-base (get-in @config/config [:jack :system-out])
                                   system-port-name (str system-out-base (inc channel-index))]
                               (async/go-loop [retry 0]
                                 (let [query-result (jack/query-connection (:client-name graph-node))]

@@ -111,3 +111,10 @@
     (str "pae/" (subs hash 0 (min 12 (count hash)))
          "/"
          (subs simple-name 0 (min 15 (count simple-name))))))
+
+(defn deep-merge [& maps]
+  (apply merge-with (fn [& args]
+                      (if (every? map? args)
+                        (apply deep-merge args)
+                        (last args)))
+         maps))

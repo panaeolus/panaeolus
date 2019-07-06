@@ -6,20 +6,20 @@
             [panaeolus.utils.utils :as utils]
             [panaeolus.jack2.jack-lib :as jack]
             [panaeolus.config :as config]
-			[tech.jna :as jna])
+            [tech.jna :as jna])
   (:import [com.kunstmusik.csoundjna Csound MessageCallback]
            [com.sun.jna.platform.win32 Kernel32]))
 
 (set! *warn-on-reflection* true)
 
-(defonce ^:private __WINDOWS_NATIVE_DEPS__ 
+(defonce ^:private __WINDOWS_NATIVE_DEPS__
   (when (= :windows (jna-path/get-os))
     (jna/load-library "libstdc++-6")
-	(jna/load-library "libgcc_s_seh-1")
-	(jna/load-library "libgnurx-0")
-	(jna/load-library "rtjack")
-	(.SetEnvironmentVariable Kernel32/INSTANCE
-	  "OPCODE6DIR64" jna-path/libcsound-cache-path)))
+    (jna/load-library "libgcc_s_seh-1")
+    (jna/load-library "libgnurx-0")
+    (jna/load-library "rtjack")
+    (.SetEnvironmentVariable Kernel32/INSTANCE
+                             "OPCODE6DIR64" jna-path/libcsound-cache-path)))
 
 (defn debounce
   "https://gist.github.com/scttnlsn/9744501"

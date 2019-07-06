@@ -29,7 +29,7 @@
 (def libcsound-cache-path
   (let [cache-path (libcsound64/cache-csound!)]
     (System/setProperty "jna.library.path" cache-path)
-	cache-path))
+    cache-path))
 
 (def ^:private current-jna-path (System/getProperty "jna.library.path"))
 (def ^:private ld-library-path (System/getenv "LD_LIBRARY_PATH"))
