@@ -1,7 +1,9 @@
 (ns app.main.core
-  (:require [clojure.string :as string]
+  (:require [app.main.events :as events]
+            [app.main.globals :as globals]
+            [clojure.string :as string]
             ["electron" :refer [app BrowserWindow crashReporter ipcMain Menu]]
-            ["@trodi/electron-splashscreen" :refer (initDynamicSplashScreen)]
+            ["/js/splash_screen" :refer (initDynamicSplashScreen)]
             ["async-exit-hook" :as exit-hook]
             ["node-jre" :as jre]
             ["path" :as path]
@@ -17,12 +19,9 @@
 
 (jre/setJreDir panaeolus-cache-dir)
 
-(def nrepl-port (+ 1025 (rand-int (- 65535 1025))))
-
 (def main-window (atom nil))
-(def jre-connection (atom nil))
+
 (def nrepl-connection (atom nil))
-(def log-queue (atom []))
 
 (def windows? (= (.-platform js/process) "win32"))
 
@@ -32,10 +31,10 @@
   (if windows?
     "file:/" "file://"))
 
-(def icon-loc 
-  (if darwin? 
+(def icon-loc
+  (if darwin?
     (str file-prefix js/__dirname "/public/icons/AppIcon.icns")
-	(str file-prefix js/__dirname "/public/icons/panaeolus.ico")))
+    (str file-prefix js/__dirname "/public/icons/panaeolus.ico")))
 
 (def index-html-loc (str file-prefix js/__dirname "/public/index.html"))
 
@@ -43,14 +42,8 @@
 
 (.setApplicationMenu Menu nil)
 
-(defn safe-jre-kill []
-  (when @jre-connection
-    (.pause (.-stdin ^js @jre-connection))
-    (.kill ^js @jre-connection)
-    (reset! jre-connection nil)))
-
 (defn boot-jre! [system-wide? resolve reject]
-  (when-not @jre-connection
+  (when-not @globals/jre-connection
     (let [jvm-opts ["-Xms512M"
                     "-Xmx4G"
                     "-XX:+CMSConcurrentMTEnabled"
@@ -77,23 +70,25 @@
                       (clj->js (into jvm-opts ["-jar"
                                                (path/join js/__dirname "panaeolus.jar")
                                                "nrepl"
-                                               (str nrepl-port)]))
+                                               (str globals/nrepl-port)]))
                       process-options)
                      (jre/spawn #js [(string/join " " jvm-opts)]
                                 "-jar"
-                                #js [(path/join js/__dirname "panaeolus.jar") "nrepl" (str nrepl-port)]
+                                #js [(path/join js/__dirname "panaeolus.jar") "nrepl"
+                                     (str globals/nrepl-port)]
                                 process-options))]
-      (exit-hook safe-jre-kill)
+      (exit-hook events/safe-jre-kill)
       (.on (.-stdout jre-conn) "data"
            (fn [data] (let [data (.toString data)]
-                        (if (or (= (str "[nrepl:" nrepl-port "]\n") data)
-                                (= (str "[nrepl:" nrepl-port "]\r\n") data))
-                          (js/setTimeout #(resolve #js ["started" nrepl-port]) 100)
-                          (print data))
-                        (swap! log-queue conj data))))
-      (.on (.-stderr jre-conn) "data" (fn [data] (println "error: " (.toString data))))
-      (reset! jre-connection jre-conn)
-      (.on jre-conn "close" #(reset! jre-connection nil)))))
+                        (swap! globals/log-queue conj data)
+                        (when (or (= (str "[nrepl:" globals/nrepl-port "]\n") data)
+                                  (= (str "[nrepl:" globals/nrepl-port "]\r\n") data))
+                          (js/setTimeout #(resolve #js ["started" globals/nrepl-port]) 100)))))
+      (.on (.-stderr jre-conn) "data"
+           (fn [data]
+             (swap! globals/log-queue conj (.toString data))))
+      (reset! globals/jre-connection jre-conn)
+      (.on jre-conn "close" #(reset! globals/jre-connection nil)))))
 
 (defn boot-jre-promise []
   (new js/Promise
@@ -112,34 +107,23 @@
                                    :webPreferences {:nodeIntegration true}
                                    :icon icon-loc})
         splash (initDynamicSplashScreen
+                BrowserWindow
                 (clj->js {:windowOpts main-window-opts
                           :templateUrl splash-html-loc
                           :delay 0
+                          :show false
                           :splashScreenOpts {:height 400
                                              :width 400
+                                             :webPreferences {:nodeIntegration true}
                                              :backgroundColor "black"}}))]
     (reset! main-window (.-main splash))
     (-> (boot-jre-promise) (.then (fn [res] (.loadURL ^js @main-window index-html-loc))))))
 
 (defn main []
-  (when windows?
-    (and (js/require "electron-squirrel-startup") 
-         (do (.quit app) (.exit js/process 0))))
-  (.on ipcMain "get-nrepl-port"
-       (fn [event arg]
-         (.reply ^js event "nrepl" #js ["started" nrepl-port])))
-  (.on ipcMain "dev-reload" (fn [^js event arg]
-                              (.reply event "nrepl" #js ["started" nrepl-port])))
-  (.on ipcMain "poll-logs" (fn [^js event _]
-                             (when-not (empty? @log-queue)
-                               (.reply event "logs-from-backend" (clj->js @log-queue))
-                               (reset! log-queue []))))
-  (.on ipcMain "quit" (fn [_ _]
-                        (try (safe-jre-kill))
-                        (.quit app)))
+  (events/register-events)
   (.disableHardwareAcceleration app)
   (.on app "ready" init-browser)
   (.on app "window-all-closed"
        #(when-not darwin?
-          (safe-jre-kill)
+          (events/safe-jre-kill)
           (.quit app))))

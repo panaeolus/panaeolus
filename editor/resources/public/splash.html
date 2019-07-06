@@ -1,20 +1,25 @@
 <!DOCTYPE html>
-<meta charset="utf-8">
 <html>
-    <head></head>
+  <head>
+    <meta charset="UTF-8">
+  </head>
+  <style>
+    body {background-color: black; color: white;}
+  </style>
     <body>
         <center>
-            <img src="icons/panaeolus_medium.png" width="200" height="200"></img>
+          <img src="icons/panaeolus_medium.png" width="200" height="200"></img>
         </center>
         <center>
-            Loading...<span id="status"></span>
+          Loading...<span id="status"></span>
         </center>
     </body>
     <script>
+      if(require('electron-squirrel-startup')) return;
       // Listen for data from browser process and update splashscreen
-        var ipcRenderer = require("electron").ipcRenderer;
-        ipcRenderer.on("update", function(event, status) {
-            document.getElementById("status").innerText = status;
-        })
+      var ipcRenderer = require("electron").ipcRenderer;
+      ipcRenderer.on("update", function(event, status) {
+          document.getElementById("status").innerText = status;
+      })
     </script>
 </html>

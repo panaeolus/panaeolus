@@ -1,6 +1,7 @@
 (ns panaeolus.jack2.jack-lib
   (:require
    [clojure.java.io :as io]
+   [clojure.java.shell :as shell]
    [clojure.core.async :as async]
    [panaeolus.utils.jna-path :as jna-path])
   (:import
@@ -21,7 +22,9 @@
 (def jack-server-atom (atom nil))
 
 (defn spawn-jackd-windows! []
-  (let [kill-callback (fn [] (println "jackd.exe died"))]
+  (let [kill-callback (fn []
+                        (reset! jack-server-atom nil)
+                        (println "jackd.exe died"))]
     (async/thread
       (let [jackd-file (io/file jna-path/libcsound-cache-path "jackd.exe")
             jackd-loc (.getAbsolutePath jackd-file)
@@ -41,10 +44,39 @@
                    (recur))))
              (catch java.io.IOException e kill-callback nil))))))
 
+(defn- wait-until-jack-windows [ready-chan]
+  (async/go-loop []
+    (if @jack-server-atom
+      (async/>! ready-chan true)
+      (do (async/<! (async/timeout 1000))
+          (recur)))))
+
 (when (= :windows (jna-path/get-os))
   (spawn-jackd-windows!)
   (async/<!! (async/timeout 2000)))
 
+(defn- jack-is-running?
+  "Query the jack ports to see if it's running.
+   This is useful to do before attemting external
+   server connection on Linux, as not to fail silently"
+  []
+  (let [exit-code (:exit (shell/sh "jack_lsp"))]
+    (zero? exit-code)))
+
+(defn- wait-until-jack-connects [ready-chan]
+  (async/go-loop []
+    (if (jack-is-running?)
+      (async/>! ready-chan true)
+      (do (async/<! (async/timeout 1000))
+          (recur)))))
+
+(when (and (= :linux (jna-path/get-os))
+           (not (jack-is-running?)))
+  (println "[pae:jack:not-running]")
+  (let [wait-chan (async/chan 1)]
+    (wait-until-jack-connects wait-chan)
+    (async/<!! wait-chan)
+    (println "[pae:jack:started]")))
 
 (def jack-server ^Jack (Jack/getInstance))
 
