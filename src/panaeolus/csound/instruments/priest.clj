@@ -18,7 +18,5 @@
   :release-time 2
   :config {:zerodbfs 32767})
 
-(panaeolus.globals/playing? priest)
-
 ;; (priest :loop [4 4 4 4] :nn [60 65 67 [52 54 58]] :att [5] :morph [0 1 2 3] :mode [0 1 2] :dur 4 :amp -90)
 ;; (priest :stop)

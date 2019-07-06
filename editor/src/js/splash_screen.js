@@ -63,7 +63,7 @@ exports.initSplashScreen = function (BrowserWindow, config) {
         templateUrl: config.templateUrl,
         splashScreenOpts: config.splashScreenOpts,
     };
-    xConfig.splashScreenOpts.frame = true;
+    xConfig.splashScreenOpts.frame = false;
     xConfig.splashScreenOpts.center = true;
     xConfig.splashScreenOpts.show = false;
     xConfig.windowOpts.show = false;

@@ -33,10 +33,12 @@
    :samples-directory (.getAbsolutePath (io/file home-directory "samples"))
    :bpm               120})
 
-(def ^:private non-reconciled-config
-  (if (.exists ^java.io.File panaeolus-user-config)
+(defn read-config []
+(if (.exists ^java.io.File panaeolus-user-config)
     (edn/read-string (slurp panaeolus-user-config))
     (do (.mkdirs ^java.io.File panaeolus-config-directory) {})))
+
+(def ^:private non-reconciled-config (read-config))
 
 (defn reconciled-config []
   (loop [dc  (keys default-config)
@@ -53,3 +55,11 @@
                nrc)))))
 
 (def config (atom (reconciled-config)))
+
+(defn update-config!
+  "The callback gets passed the current config, the return value is the new value" 
+  [callback]
+  (let [new-config (callback @config)]
+    (spit (.getAbsolutePath ^java.io.File panaeolus-user-config) (zp/zprint-str new-config))
+	(reset! config new-config)))
+	

@@ -21,7 +21,7 @@
 
 (def main-window (atom nil))
 
-(def nrepl-connection (atom nil))
+(def splash-window (atom nil))
 
 (def windows? (= (.-platform js/process) "win32"))
 
@@ -76,14 +76,28 @@
                                 "-jar"
                                 #js [(path/join js/__dirname "panaeolus.jar") "nrepl"
                                      (str globals/nrepl-port)]
-                                process-options))]
+                                process-options))
+		  collecting-selection? (atom false)]
       (exit-hook events/safe-jre-kill)
+	  (when-let [splash-screen ^js @splash-window]
+	    (.send (.-webContents splash-screen) "update" "jre/clojure"))
       (.on (.-stdout jre-conn) "data"
            (fn [data] (let [data (.toString data)]
+		                (when js/goog.DEBUG (println data))
+						(when @collecting-selection?
+						  (doseq [line (string/split-lines data)]
+						    (when (.startsWith "Choose" line)
+						      (reset! collecting-selection? false)
+						      (.send (.-webContents ^js @splash-window) "select" "done"))
+						    (when-let [match (re-find #"\s>\s[0-9]+\s(.*)$" line)]
+						      (.send (.-webContents ^js @splash-window) "select" (second match)))))
+						(when (.startsWith data "[pae:jack:choose-interface]")
+						  (when-let [splash-screen ^js @splash-window]
+						    (.send (.-webContents splash-screen) "select" "init")
+							(reset! collecting-selection? true))) 
                         (swap! globals/log-queue conj data)
-                        (when (or (= (str "[nrepl:" globals/nrepl-port "]\n") data)
-                                  (= (str "[nrepl:" globals/nrepl-port "]\r\n") data))
-                          (js/setTimeout #(resolve #js ["started" globals/nrepl-port]) 100)))))
+                        (when (.startsWith data (str "[nrepl:" globals/nrepl-port "]"))
+                          (js/setTimeout #(do (.end (.-stdin ^js @globals/jre-connection)) (resolve #js ["started" globals/nrepl-port])) 100)))))
       (.on (.-stderr jre-conn) "data"
            (fn [data]
              (swap! globals/log-queue conj (.toString data))))
@@ -117,6 +131,7 @@
                                              :webPreferences {:nodeIntegration true}
                                              :backgroundColor "black"}}))]
     (reset! main-window (.-main splash))
+	(reset! splash-window (.-splashScreen splash))
     (-> (boot-jre-promise) (.then (fn [res] (.loadURL ^js @main-window index-html-loc))))))
 
 (defn main []
