@@ -28,7 +28,6 @@
     "shadow-cljs": "^2.8.37"
   },
   "dependencies": {
-    "@trodi/electron-splashscreen": "^0.3.4",
     "ace-builds": "^1.4.4",
     "ajv": "6.10.0",
     "async-exit-hook": "^2.0.1",
@@ -38,11 +37,13 @@
     "create-react-class": "^15.6.3",
     "electron-squirrel-startup": "^1.0.0",
     "env-paths": "^2.2.0",
+    "hotkeys-js": "^3.6.11",
     "node-jre": "git://github.com/panaeolus/node-jre.git#39ba5184d5e880dc5c0e10fdd07127ccd9df53fb",
     "react": "^16.8.6",
     "react-ace": "^6.5.0",
     "react-dom": "^16.8.6",
     "react-highlight": "^0.12.0",
+    "react-hot-keys": "^2.0.0-beta.2",
     "react-split-pane": "^0.1.87",
     "react-virtualized": "^9.21.1",
     "uri-js": "^4.2.2",
@@ -61,7 +62,7 @@
       "!shell.nix"
     ],
     "appId": "panaeolus",
-	"asar": false,
+    "asar": false,
     "dmg": {
       "contents": [
         {
@@ -82,9 +83,9 @@
         "deb"
       ]
     },
-	"squirrelWindows": {
-	  "iconUrl": "https://raw.githubusercontent.com/panaeolus/panaeolus/e0ac656afb61447dc7a2a83a2ab42b73ce28683d/editor/resources/public/icons/panaeolus.ico"
-	},
+    "squirrelWindows": {
+      "iconUrl": "https://raw.githubusercontent.com/panaeolus/panaeolus/e0ac656afb61447dc7a2a83a2ab42b73ce28683d/editor/resources/public/icons/panaeolus.ico"
+    },
     "win": {
       "target": "squirrel",
       "icon": "resources/public/icons/panaeolus.ico"

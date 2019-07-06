@@ -127,15 +127,15 @@
         release-channel (when-not isFx? (debounce debounce-channel release-time client-name))]
     (run! #(set-option @csnd %)
           ["-iadc:null" "-odac:null"
-           (str "--messagelevel=" (or (:csound-messagelevel config) (:csound-messagelevel @config/config)))
-           (str "-B " (or (:hardwarebufsamps config) (:hardwarebufsamps @config/config)))
-           (str "-b " (or (:iobufsamps config) (:iobufsamps @config/config)))
+           (str "--messagelevel=" (or (:messagelevel config) (get-in @config/config [:csound :messagelevel])))
+           (str "-B " (or (:hardwarebufsamps config) (get-in @config/config [:csound :hardwarebufsamps])))
+           (str "-b " (or (:iobufsamps config) (get-in @config/config [:csound :iobufsamps])))
            (str "--nchnls=" outputs)
            (str "--nchnls_i=" inputs)
            (str "--0dbfs=" (or (:zerodbfs config) 1))
            "-+rtaudio=jack"
            (str "--sample-rate=" (or (:sample-rate config) (:sample-rate @config/config)))
-           (str "--ksmps=" (or (:ksmps config) (:ksmps @config/config)))
+           (str "--ksmps=" (or (:ksmps config) (get-in @config/config [:csound :ksmps])))
            (str "-+jack_client=" client-name)])
     (start @csnd)
     (.setMessageCallback ^Csound @csnd message-callback)

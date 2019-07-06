@@ -2,6 +2,7 @@
   (:gen-class)
   (:require
    ;; non-immigrants
+   clojure.core.async
    nrepl.server
    panaeolus.csound.csound-jna
    panaeolus.csound.pattern-control
@@ -87,6 +88,7 @@
 		                  (nrepl.server/stop-server nrepl-server))
 		                (when-let [jack-server @panaeolus.jack2.jack-lib/jack-server-atom]
 						  (.destroy ^java.lang.ProcessImpl jack-server)
+						  (panaeolus.jack2.jack-lib/kill-jackd-windows!)
 						  (println "killing jackd..")))))
 
 (defn -main [& args]
@@ -97,8 +99,11 @@
         (flush)
         (print (-> (read-line) read-string eval))
         (recur))
-      (do (reset! nrepl-server-atom (nrepl.server/start-server :bind "127.0.0.1" :port (Integer/parseInt (or (second args) 4445))))
-	      (println (format "[nrepl:%s]" (second args))))
+      (let [no-exit-chan (clojure.core.async/chan 1)]
+	      (reset! nrepl-server-atom (nrepl.server/start-server :bind "127.0.0.1" :port (Integer/parseInt (or (second args) 4445))))
+	      (println (format "[nrepl:%s]" (second args)))
+		  (clojure.core.async/<!! no-exit-chan)
+		  ) ;; dont exit!
       #_(if (or __is_windows__ (and (not (empty? args)) (= "nrepl" (first args))))
           (
            #_(loop []
