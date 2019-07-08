@@ -20,9 +20,6 @@
         0 0 90px #d3d3d3,
         0 0 100px #d3d3d3,
         0 0 150px #d3d3d3;
-    -webkit-animation-name: flash-animation;
-    -webkit-animation-duration: 0.3s;
-
     animation-name: flash-animation;
     animation-duration: 0.3s;
 }
@@ -32,18 +29,15 @@
     z-index: 9999999;
     position: absolute;
     text-shadow:
-        0 0 5px #7F073F,
-        0 0 10px #7F073F,
-        0 0 20px #7F073F,
-        0 0 40px #7F073F,
-        0 0 80px #7F073F,
-        0 0 90px #7F073F,
-        0 0 100px #7F073F,
-        0 0 150px #7F073F;
-    -webkit-animation-name: flash-animation;
-    -webkit-animation-duration: 0.3s;
-
-    animation-name: flash-animation;
+        0 0 5px red,
+        0 0 10px red,
+        0 0 20px red,
+        0 0 40px red,
+        0 0 80px red,
+        0 0 90px red,
+        0 0 100px red,
+        0 0 150px red;
+    animation-name: flash-error-animation;
     animation-duration: 0.3s;
 }
 
@@ -61,23 +55,23 @@
         0 0 90px #262626,
         0 0 100px #262626,
         0 0 150px #262626;
-    -webkit-animation-name: flash-animation;
-    -webkit-animation-duration: 0.3s;
 
     animation-name: flash-animation;
     animation-duration: 0.3s;
     background-color: #262626;
 }
 
-@-webkit-keyframes flash-animation {
-    from { background: #d3d3d3; }
-    to   { background: default; }
-}
-
 @keyframes flash-animation {
     from { background: #d3d3d3; }
     to   { background: default; }
 }
+
+
+@keyframes flash-error-animation {
+    from { background: red; }
+    to   { background: default; }
+}
+
 
 html, body {
     margin: 0;
@@ -94,18 +88,21 @@ html, body {
     left: 0;
 }
 
-#ace {
-    min-height: 98.5vh;
+#brace-editor {
+    /* height: 100%!important; */
+    min-height: 100%;
     width: 100%!important;
 }
 
 .Pane1 {
     overflow: hidden;
+    overflow-y: scroll;
     z-index: 2!important;
 }
 
 .Pane2 {
     background-color: #000000;
+    padding-top: 24px;
 }
 
 #shadow-layer {
@@ -146,24 +143,29 @@ html, body {
     height: 100%;
 }
 
-#log-area p,pre,code {
+.clojure {
     /* display:table-cell; */
     position: relative;
     overflow: hidden!important;
     bottom: 0;
-    height: 30px;
-    line-height: 30px;
-    width: 100%;
-    left: 12px;
+    line-height: 16px;
+    padding: 0 12px!important;
     font-size: 16px;
     margin: 0!important;
-    padding: 0!important;
 }
 
-#log-area pre {
+.Pane2 {
+    overflow-y: scroll;
+    overflow-x: hidden;
+    width: 100vw;
+    bottom: 24px;
+}
+
+.Pane2 > pre {
+    overflow: initial;
+    /* height: 100%; */
     align-self: flex-end;
 }
-
 
 
 /* #log-area  { */
@@ -181,8 +183,35 @@ html, body {
     display: none !important;
 }
 
-.powerline {
+#echo-buffer {
     z-index: 9999999;
+    width: 100%;
+    position: relative;
+    min-height: 24px;
+    line-height: 24px;
+    bottom: 0;
+    color: white;
+    font-family: "Space Mono", Mono;
+    font-size: 14px;
+    background-color: black;
+}
+
+/* #echo-buffer pre { */
+/*     margin: 0!important; */
+/*     padding: 0!important; */
+/*     word-break: break-all; */
+/*     word-wrap: break-word; */
+/* } */
+
+#echo-buffer code {
+    margin: 0!important;
+    padding: 0!important;
+    word-break: break-all;
+    word-wrap: break-word;
+}
+
+.powerline {
+    z-index: 9999998;
     font-family: "Space Mono", Mono;
     list-style: none;
     padding: 0;
@@ -204,16 +233,19 @@ html, body {
     -webkit-flex-wrap: nowrap;
     -ms-flex-wrap: nowrap;
     flex-wrap: nowrap;
-    height: 1.5em;
-    line-height: 1.5em;
+    width: 100%;
+    min-height: 24px;
+    /* height: 1.5em; */
+    line-height: 24px;
     /* center bg-color */
     background-color: #1a1a1a;
-    position: fixed;
+    position: relative;
     bottom: 0;
-    left: 0;
-    right: 0;
+    /* left: 0; */
+    /* right: 0; */
     margin: 0;
 }
+
 .powerline a {
     text-decoration: none;
 }
@@ -259,6 +291,7 @@ html, body {
     border-top: 0.8em solid transparent;
     border-bottom: 0.8em solid transparent;
     border-left: 0.8em solid;
+    background-color: yellow;
 }
 .powerline .right .endsection {
     position: relative;
@@ -279,7 +312,7 @@ html, body {
     background-color: #e74c3c;
 }
 .powerline .left div:first-child+.endsection {
-    border-left-color: #e74c3c;
+    /* border-left-color: #e74c3c; */
     background-color: #2a2a2a;
 }
 .powerline .left div:first-child a {
@@ -315,10 +348,10 @@ html, body {
 }
 .powerline .right div:nth-child(2)+.endsection {
     background-color: #2a2a2a;
-    border-right-color: #e74c3c;
+    border-right-color: #1a1a1a;
 }
 .powerline .right div:nth-child(2)+.endsection+div {
-    background-color: #e74c3c;
+    background-color: #1a1a1a;
 }
 .powerline .right div:nth-child(2)+.endsection+div a {
     color: #f8f8f8;
@@ -386,111 +419,6 @@ html, body {
 .Resizer.disabled:hover {
     border-color: transparent;
 }
-
-/* REACT VIRTUALIZED */
-
-/* Collection default theme */
-
-.ReactVirtualized__Collection {
-}
-
-.ReactVirtualized__Collection__innerScrollContainer {
-}
-
-/* Grid default theme */
-
-.ReactVirtualized__Grid {
-}
-
-.ReactVirtualized__Grid__innerScrollContainer {
-    display: flex;
-    flex-flow: row wrap;
-    align-content: flex-end;
-}
-
-/* Table default theme */
-
-.ReactVirtualized__Table {
-}
-
-.ReactVirtualized__Table__Grid {
-}
-
-.ReactVirtualized__Table__headerRow {
-    font-weight: 700;
-    text-transform: uppercase;
-    display: -webkit-box;
-    display: -ms-flexbox;
-    display: flex;
-    -webkit-box-orient: horizontal;
-    -webkit-box-direction: normal;
-    -ms-flex-direction: row;
-    flex-direction: row;
-    -webkit-box-align: center;
-    -ms-flex-align: center;
-    align-items: center;
-}
-.ReactVirtualized__Table__row {
-    display: -webkit-box;
-    display: -ms-flexbox;
-    display: flex;
-    -webkit-box-orient: horizontal;
-    -webkit-box-direction: normal;
-    -ms-flex-direction: row;
-    flex-direction: row;
-    -webkit-box-align: center;
-    -ms-flex-align: center;
-    align-items: center;
-}
-
-.ReactVirtualized__Table__headerTruncatedText {
-    display: inline-block;
-    max-width: 100%;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    overflow: hidden;
-}
-
-.ReactVirtualized__Table__headerColumn,
-.ReactVirtualized__Table__rowColumn {
-    margin-right: 10px;
-    min-width: 0px;
-}
-.ReactVirtualized__Table__rowColumn {
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.ReactVirtualized__Table__headerColumn:first-of-type,
-.ReactVirtualized__Table__rowColumn:first-of-type {
-    margin-left: 10px;
-}
-.ReactVirtualized__Table__sortableHeaderColumn {
-    cursor: pointer;
-}
-
-.ReactVirtualized__Table__sortableHeaderIconContainer {
-    display: -webkit-box;
-    display: -ms-flexbox;
-    display: flex;
-    -webkit-box-align: center;
-    -ms-flex-align: center;
-    align-items: center;
-}
-.ReactVirtualized__Table__sortableHeaderIcon {
-    -webkit-box-flex: 0;
-    -ms-flex: 0 0 24px;
-    flex: 0 0 24px;
-    height: 1em;
-    width: 1em;
-    fill: currentColor;
-}
-
-/* List default theme */
-
-.ReactVirtualized__List {
-}
-
 
 ::-webkit-scrollbar {
     width: 12px;

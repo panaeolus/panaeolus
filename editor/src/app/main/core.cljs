@@ -42,6 +42,51 @@
 
 (.setApplicationMenu Menu nil)
 
+(defn boot-clojure-dev []
+  (child-process/spawn
+   "clojure"
+   (clj->js ["-m" "panaeolus.all" "nrepl" (str globals/nrepl-port)])
+   (clj->js {:cwd (path/dirname (path/dirname js/__dirname))})))
+
+(def collecting-selection? (atom false))
+
+(def startup-phase (atom :electron))
+
+(defn process-stdout [resolve]
+  (fn [data]
+    (let [data (.toString data)
+          lines (string/split-lines data)]
+      (js/console.log data)
+      (doseq [line lines]
+        ;; windows accumilate devices for device selection
+        (when @startup-phase
+          (when-let [splash-screen ^js @splash-window]
+            (case @startup-phase
+              :electron (.send (.-webContents splash-screen) "update" "Booting Java Runtime..."))))
+        (cond @collecting-selection?
+              (do (when (.startsWith "Choose" line)
+                    (reset! collecting-selection? false)
+                    (.send (.-webContents ^js @splash-window) "select" "done"))
+                  (when-let [match (re-find #"\s>\s[0-9]+\s(.*)$" line)]
+                    (.send (.-webContents ^js @splash-window) "select" (second match))))
+              ;; windows promte device selection
+              (.startsWith line "[pae:jack:choose-interface]")
+              (when-let [splash-screen ^js @splash-window]
+                (.send (.-webContents splash-screen) "select" "init")
+                (reset! collecting-selection? true))
+              ;; Jack not running
+              (.startsWith data "[pae:jack:not-running]")
+              (when-let [splash-screen ^js @splash-window]
+                (if windows?
+                  (.send (.-webContents splash-screen) "select" "init")
+                  (.send (.-webContents splash-screen) "update" "Jack isn't running, please start a jack server!")))
+              ;; Nrepl connection established
+              (.startsWith data (str "[nrepl:" globals/nrepl-port "]"))
+              (do (reset! startup-phase nil)
+                  (js/setTimeout #(do (.end (.-stdin ^js @globals/jre-connection))
+                                      (resolve #js ["started" globals/nrepl-port])) 100))
+              :default (swap! globals/log-queue conj data))))))
+
 (defn boot-jre! [system-wide? resolve reject]
   (when-not @globals/jre-connection
     (let [jvm-opts ["-Xms512M"
@@ -64,43 +109,28 @@
                            :default (path/join panaeolus-cache-dir
                                                "csound-6.13" "csound"
                                                "plugins64-6.0"))}}
-          jre-conn (if system-wide?
-                     (child-process/spawn
-                      "java"
-                      (clj->js (into jvm-opts ["-jar"
-                                               (path/join js/__dirname "panaeolus.jar")
-                                               "nrepl"
-                                               (str globals/nrepl-port)]))
-                      process-options)
-                     (jre/spawn #js [(string/join " " jvm-opts)]
-                                "-jar"
-                                #js [(path/join js/__dirname "panaeolus.jar") "nrepl"
-                                     (str globals/nrepl-port)]
-                                process-options))
-		  collecting-selection? (atom false)]
+          jre-conn (if (and js/goog.DEBUG (= (.-platform js/process) "linux"))
+                     (boot-clojure-dev)
+                     (if system-wide?
+                       (child-process/spawn
+                        "java"
+                        (clj->js (into jvm-opts ["-jar"
+                                                 (path/join js/__dirname "panaeolus.jar")
+                                                 "nrepl"
+                                                 (str globals/nrepl-port)]))
+                        process-options)
+                       (jre/spawn #js [(string/join " " jvm-opts)]
+                                  "-jar"
+                                  #js [(path/join js/__dirname "panaeolus.jar") "nrepl"
+                                       (str globals/nrepl-port)]
+                                  process-options)))]
       (exit-hook events/safe-jre-kill)
-	  (when-let [splash-screen ^js @splash-window]
-	    (.send (.-webContents splash-screen) "update" "jre/clojure"))
-      (.on (.-stdout jre-conn) "data"
-           (fn [data] (let [data (.toString data)]
-		                (when js/goog.DEBUG (println data))
-						(when @collecting-selection?
-						  (doseq [line (string/split-lines data)]
-						    (when (.startsWith "Choose" line)
-						      (reset! collecting-selection? false)
-						      (.send (.-webContents ^js @splash-window) "select" "done"))
-						    (when-let [match (re-find #"\s>\s[0-9]+\s(.*)$" line)]
-						      (.send (.-webContents ^js @splash-window) "select" (second match)))))
-						(when (.startsWith data "[pae:jack:choose-interface]")
-						  (when-let [splash-screen ^js @splash-window]
-						    (.send (.-webContents splash-screen) "select" "init")
-							(reset! collecting-selection? true))) 
-                        (swap! globals/log-queue conj data)
-                        (when (.startsWith data (str "[nrepl:" globals/nrepl-port "]"))
-                          (js/setTimeout #(do (.end (.-stdin ^js @globals/jre-connection)) (resolve #js ["started" globals/nrepl-port])) 100)))))
+      (.on (.-stdout jre-conn) "data" (process-stdout resolve))
       (.on (.-stderr jre-conn) "data"
            (fn [data]
-             (swap! globals/log-queue conj (.toString data))))
+             (let [data (.toString data)]
+               (println data)
+               (swap! globals/log-queue conj data))))
       (reset! globals/jre-connection jre-conn)
       (.on jre-conn "close" #(reset! globals/jre-connection nil)))))
 

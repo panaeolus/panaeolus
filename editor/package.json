@@ -23,13 +23,13 @@
   "devDependencies": {
     "electron": "5.0.6",
     "electron-builder": "^20.44.4",
-    "electron-builder-squirrel-windows": "^21.0.6",
-    "electron-packager": "^13.1.1",
+    "electron-builder-squirrel-windows": "^21.0.11",
+    "electron-packager": "^14.0.1",
     "shadow-cljs": "^2.8.37"
   },
   "dependencies": {
-    "ace-builds": "^1.4.4",
-    "ajv": "6.10.0",
+    "ace-builds": "^1.4.5",
+    "ajv": "6.10.1",
     "async-exit-hook": "^2.0.1",
     "bencode": "^2.0.1",
     "brace": "^0.11.1",
@@ -39,8 +39,9 @@
     "env-paths": "^2.2.0",
     "hotkeys-js": "^3.6.11",
     "node-jre": "git://github.com/panaeolus/node-jre.git#39ba5184d5e880dc5c0e10fdd07127ccd9df53fb",
+    "paredit.js": "^0.3.6",
     "react": "^16.8.6",
-    "react-ace": "^6.5.0",
+    "react-ace": "^7.0.2",
     "react-dom": "^16.8.6",
     "react-highlight": "^0.12.0",
     "react-hot-keys": "^2.0.0-beta.2",

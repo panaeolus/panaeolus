@@ -71,14 +71,16 @@ function sexpAtPoint(inputStr, cursorPos) {
 	            stack.push(expression[i]);
 	        } else {
                     if (stack.length === 0) {
-	                console.log("Warning: unbalanced parenthesis!\n")
-                        // return false;
+	                console.log("Warning: unbalanced parenthesis!\n");
+                        app.renderer.globals.global_logger("Warning: unbalanced parenthesis!");
+                        return false;
                     }
 	            if (stack.length === 1) {
                         sexpEnd = i + 1;
                     }
                     if (!matches(stack[stack.length - 1], expression[i])) {
-	                console.log("Warning: unbalanced parenthesis!\n")
+	                console.log("Warning: unbalanced parenthesis!\n");
+                        app.renderer.globals.global_logger("Warning: unbalanced parenthesis!");
                         // return false;
                     }
                     stack.pop();
@@ -88,7 +90,8 @@ function sexpAtPoint(inputStr, cursorPos) {
     }
 
     if (stack.length != 0) {
-        console.log("Warning: unbalanced parenthesis!\n")
+        console.log("Warning: unbalanced parenthesis!\n",);
+        app.renderer.globals.global_logger("Warning: unbalanced parenthesis!");
     }
 
     if ((cursorPos >= sexpBegin) &&

@@ -13,6 +13,7 @@
                      :output-dir "resources/public/js"
                      :asset-path "js"
                      :modules {:renderer {:entries [app.renderer.core]}}
+                     :exports {:global-logger app.renderer.globals/global_logger}
                      :compiler-options {:infer-externs :auto}
                      :devtools {:before-load app.renderer.core/stop
                                 :after-load app.renderer.core/reload!

@@ -2,11 +2,11 @@
 <html>
   <head>
     <meta charset="UTF-8">
-	<link rel="stylesheet" href="css/slimselect.min.css">
+    <link rel="stylesheet" href="css/slimselect.min.css">
   </head>
   <style>
     body {background-color: black; color: white; overflow: hidden;}
-	    button {
+    button {
         /*placement for code pen*/
         margin: 10% 30%;
         /*Button Text Style*/
@@ -28,8 +28,8 @@
         padding: 15px 10px 14px;
         cursor: pointer;
         width: auto;
-            }
-button:after {
+    }
+    button:after {
         /*Make a:after be as big as button*/
         position: absolute;
         width: 100%;
@@ -47,85 +47,86 @@ button:after {
         -webkit-transition: all 0.5s;
         -moz-transition: all 0.5s;
         -o-transition: all 0.5s;
-        
-         }
-button:hover {
-          top:2px;
-          left:2px;
-            }
- botton:hover:after   {
-         top: -2px;
-         left: -2px;
-            }
+    }
+    button:hover {
+        top:2px;
+        left:2px;
+    }
+    botton:hover:after   {
+        top: -2px;
+        left: -2px;
+    }
   </style>
-    <body>
-        <center>
-          <img src="icons/panaeolus_medium.png" width="200"></img>
-        </center>
-		<center id="dropdown-container"  style="display: none;margin-top: -36px;">
-		  <h3 style="user-select: none;">Select your audio-output device and press connect!</h3>
-		  <select id="dropdown"></select>
-		  <button onclick="connect()";>Connect</button>
-		</center>
-        <center id="status-container">
-          Loading...<span id="status"></span>
-        </center>
-    </body>
-	<script src="js/slimselect.min.js"></script>
-    <script>
-	  const { app } = require('electron');
-      if(require('electron-squirrel-startup')) app.quit();
-      // Listen for data from browser process and update splashscreen
-      var ipcRenderer = require("electron").ipcRenderer;
-	  
-	  const statusContainerElem = document.getElementById("status-container");
-	  
-	  const statusElem = document.getElementById("status");
-	  
-      ipcRenderer.on("update", function(event, status) {
-          statusElem.innerText = status;
-      })
-	  
-	  const dropdownContainerElem = document.getElementById("dropdown-container");
-	  
-	  const dropdownElem = document.getElementById("dropdown");
-	  
-	  var selection = []
-	  
-	  var slimSelectObj = null;
-	  
-	  ipcRenderer.on("select", function(event, status) {
-	    if (status === "init") {
-		  while (dropdownElem.hasChildNodes()) {
-            dropdownElem.removeChild(dropdownElem.lastChild);
-          }
-		  slimSelectObj = null;
-		  selection = [];
-		  replyEvent = null;
-		  return;
-		}
-		
-		if (status === "done") {
-	       slimSelectObj = new SlimSelect({
-             select: '#dropdown',
-			 showSearch: false,
-			 data: selection,
-          })
-		  statusContainerElem.style.display = 'none';
-		  dropdownContainerElem.style.display = 'inherit';
-		  replyEvent = event;
-		return;
-		}
-		
-		selection.push({text: status, value: selection.length});
-		  
-      })
-	  
-	  const connect = (e) => {
-	    statusContainerElem.style.display = 'inherit';
-		dropdownContainerElem.style.display = 'none';
-		const selected = slimSelectObj.selected();
-		ipcRenderer.send('jre:stdin', selected === "(auto)" ? 0 : selected);
-	  }
-    </script>
+  <body>
+    <center>
+      <img src="icons/panaeolus_medium.png" width="200"></img>
+    </center>
+    <center id="dropdown-container"  style="display: none;margin-top: -36px;">
+      <h3 style="user-select: none;">Select your audio-output device and press connect!</h3>
+      <select id="dropdown"></select>
+      <button onclick="connect()";>Connect</button>
+    </center>
+    <center id="status-container">
+      <span id="status">Booting Electron...</span>
+    </center>
+  </body>
+  <script src="js/slimselect.min.js"></script>
+  <script>
+    const { app } = require('electron');
+
+    if(require('electron-squirrel-startup')) app.quit();
+
+    var ipcRenderer = require("electron").ipcRenderer;
+
+    const statusContainerElem = document.getElementById("status-container");
+
+    const statusElem = document.getElementById("status");
+
+    ipcRenderer.on("update", function(event, status) {
+        statusElem.innerText = status;
+    })
+
+
+    const dropdownContainerElem = document.getElementById("dropdown-container");
+
+    const dropdownElem = document.getElementById("dropdown");
+
+    var selection = []
+
+    var slimSelectObj = null;
+
+    ipcRenderer.on("select", function(event, status) {
+	if (status === "init") {
+	    while (dropdownElem.hasChildNodes()) {
+                dropdownElem.removeChild(dropdownElem.lastChild);
+            }
+	    slimSelectObj = null;
+	    selection = [];
+	    replyEvent = null;
+	    return;
+	}
+
+	if (status === "done") {
+	    slimSelectObj = new SlimSelect({
+                select: '#dropdown',
+		showSearch: false,
+		data: selection,
+            })
+	    statusContainerElem.style.display = 'none';
+	    dropdownContainerElem.style.display = 'inherit';
+	    replyEvent = event;
+	    return;
+	}
+
+	selection.push({text: status, value: selection.length});
+
+    })
+
+    const connect = (e) => {
+	statusContainerElem.style.display = 'inherit';
+	dropdownContainerElem.style.display = 'none';
+	const selected = slimSelectObj.selected();
+	ipcRenderer.send('jre:stdin', selected === "(auto)" ? 0 : selected);
+    }
+  </script>
 </html>

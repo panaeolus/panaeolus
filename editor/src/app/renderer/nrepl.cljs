@@ -27,9 +27,10 @@
   (.on @nrepl-connection "data"
        (fn [data]
          (let [decoded-data (bencode/decode data)]
-           (if-not (exists? (.-status decoded-data)) ;; status indicates a failure?
-             (if-not (exists? (.-value decoded-data))
-               (if (exists? (.-out decoded-data))
+           ;; (js/console.log (or (not (.-status decoded-data)) (not (.-err decoded-data))) "STATUS" (.-err decoded-data) (and (.-err decoded-data) (.toString (.-err decoded-data))))
+           (if (not (.-err decoded-data))
+             (do
+               (when (.-out decoded-data)
                  (let [stdout (.toString (.-out decoded-data))
                        needs-buffering? (.endsWith "\n" stdout)
                        stdout-chopped (.split stdout "\n")
@@ -42,22 +43,27 @@
                                             (.slice stdout-chopped 0 -1))
                                         stdout-chopped)]
                    (doseq [out stdout-chopped]
-                     (swap! log-atom conj out)))
-                 (swap! log-atom conj (.toString (.-err decoded-data))))
-               (let [return-value (.toString (.-value decoded-data))
+                     (swap! log-atom conj out))))
+               (let [return-value (.toString (or (.-value decoded-data) "nil"))
                      id (.toString (.-id decoded-data))]
                  (when-let [callback (get-in @app-state [:nrepl-callbacks id])]
-                   (callback return-value false)
-                   (swap! app-state update-in [:nrepl-callbacks] dissoc id))))
+                   (swap! app-state update-in [:nrepl-callbacks] dissoc id)
+                   (callback return-value false))))
              (let [id (.toString (.-id decoded-data))
-                   status (.-status (bencode/decode data))
-                   status1 (.toString (aget status 0))
-                   status2 (when (< 1 (.-length status))
-                             (.toString (aget status 1)))
-                   status3 (when (< 2 (.-length status))
-                             (.toString (aget status 2)))]
-               (when-let [callback (get-in @app-state [:nrepl-callbacks id])]
-                 (callback "error" true)
-                 (swap! app-state update-in [:nrepl-callbacks] dissoc id))
-               (when-not (= "done" status1)
-                 (js/console.error  "REPL FAILURE: " status1 status2 status3))))))))
+                   status (.-status decoded-data)
+                   ;; status1 (and status (.toString (aget status 0)))
+                   ;; status2 (and status
+                   ;;              (when (< 1 (.-length status))
+                   ;;                (.toString (aget status 1))))
+                   ;; status3 (and status
+                   ;;              (when (< 2 (.-length status))
+                   ;;                (.toString (aget status 2))))
+                   ]
+               (cond
+                 (.-err decoded-data)
+                 (when-let [callback (get-in @app-state [:nrepl-callbacks id])]
+                   (swap! app-state update-in [:nrepl-callbacks] dissoc id)
+                   (callback (.toString (.-err decoded-data)) true))
+                 :default (when-let [callback (get-in @app-state [:nrepl-callbacks id])]
+                            (swap! app-state update-in [:nrepl-callbacks] dissoc id)
+                            (callback "error" true)))))))))

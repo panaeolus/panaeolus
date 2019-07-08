@@ -1,7 +1,8 @@
 (ns app.main.config
   (:require  ["fs" :as fs]
              ["os" :as os]
-             ["path" :as path]))
+             ["path" :as path]
+             [cljs.reader :as reader]))
 
 (def panaeolus-config-dir (path/join (.homedir os) ".panaeolus"))
 
@@ -11,4 +12,6 @@
   (when-not (fs/existsSync panaeolus-config-loc)
     (js/mkdirSync panaeolus-config-dir #js {:recursive true})
     (fs/writeFileSync panaeolus-config-loc "{}"))
-  (fs/readFileSync panaeolus-config-loc))
+  (try (reader/read-string
+        (.toString (fs/readFileSync panaeolus-config-loc)))
+       (catch :default e :error)))

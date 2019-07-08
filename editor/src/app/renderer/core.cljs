@@ -1,8 +1,8 @@
 (ns app.renderer.core
-  (:require [app.renderer.config]
+  (:require [app.renderer.config :as config]
             [app.renderer.contextmenu :refer [contextmenu]]
             [app.renderer.editor]
-            [app.renderer.globals :refer [app-state log-atom]]
+            [app.renderer.globals :refer [app-state log-atom +version+] :as globals]
             [app.renderer.keybindings :as keybindings]
             [app.renderer.nrepl :refer [nrepl-handler
                                         nrepl-connect!
@@ -11,15 +11,11 @@
             [reagent.core :as reagent :refer [atom]]
             ["react" :refer [createRef]]
             ["react-highlight" :default Highlight]
+            ["react-ace" :default AceEditor]
             ["ace-builds" :as ace-editor]
-            ["brace/index" :as brace]
+            ["brace/mode/clojure"]
             ["/js/nrepl-client" :as nrepl-client]
-            ["/js/ace_paredit" :as ace-paredit]
-            ["/js/ace_ext_keys" :as ace-keys]
-            ["/js/ace_improved" :as ace-improved]
             ["react-split-pane" :as SplitPane]
-            ["react-virtualized/dist/commonjs/AutoSizer" :refer (AutoSizer)]
-            ["react-virtualized/dist/commonjs/List" :refer (List)]
             ["net" :as net]
             [clojure.core.async :as async]
             [clojure.string :as string :refer [split-lines]]))
@@ -34,32 +30,20 @@
 
 (def cwd (.cwd process))
 
-#_(defn nrepl-handler [msg callback]
-    (.eval @nrepl-connection
-           (str (clojure.string/escape msg {"\\" "\\\\"}) "\n")
-           (fn [res err]
-             (prn "RESPONSE" res "error" err)
-             (callback {:stdout res :stderr err}))))
-
-#_(defonce eval-response-handler
-    (.on (.-ipcRenderer electron) "response"
-         (fn [resp] (when-let [response-chan (get @async-channels (:id resp))]
-                      (async/go (async/>! response-chan resp))))))
-
 
 #_(defn register-public-symbols []
     (nrepl-handler "(ns-publics 'panaeolus.all)\n" (str (gensym))
                    (fn [public-symbols]
                      #_(.apply (.-push (.-$keywordList (.-$highlightRules (.-$mode (.getSession (:ace-ref @state))))))
                                (.-$keywordList (.-$highlightRules (.-$mode (.getSession (:ace-ref @state)))))
-                               (->> (filter #(< -0 (.indexOf % "panaeolus.all"))
+                               (->> (filter #(< -1 (.indexOf % "panaeolus.all"))
                                             (clojure.string/split public-symbols " "))
                                     (map #(.replace % "#'panaeolus.all/" ""))
                                     clj->js))
                      ;; var mode = session.$mode
                      ;; mode.$highlightRules.addRules({...})
                      ;; mode.$tokenizer = new Tokenizer(mode.$highlightRules.getRules());
-                     ;; session.bgTokenizer.setTokenizer(mode.$tokenizer);
+                     ;; session.bgTokenizer.seTokenizer(mode.$tokenizer);
                      (.setKeywords ^js (.-$highlightRules ^js (.-$mode ^js (.getSession ^js (:ace-ref @state)))) #js {"keyword" "hlolli|sig"})
                      ;; (js/console.log (.-$highlightRules (.-$mode (.getSession (:ace-ref @state)))))
                      (.resetCaches (.getSession (:ace-ref @state)))
@@ -86,48 +70,52 @@
                  (fn [_] #_(js/setTimeout register-public-symbols 1000))))
 
 (defn nrepl-initialize [port]
-  (do
+  (when-not @nrepl-connection
+    (swap! app-state assoc :nrepl-port port)
     (reset! nrepl-connection (new (.-Socket (.require js/window "net"))))
     (nrepl-connect! port)
     (nrepl-register-receiver)
     (initialize-namespace)))
 
-(def nrepl-status-handler
-  (.on (.-ipcRenderer electron) "nrepl"
-       (fn [event resp]
-         (case (aget resp 0)
-           "started" (nrepl-initialize (js/parseInt (aget resp 1)))
-           nil))))
+(defn nrepl-status-handler-init []
+  (when-not @nrepl-connection
+    (.on (.-ipcRenderer electron) "nrepl"
+         (fn [event resp]
+           (case (aget resp 0)
+             "started" (nrepl-initialize (js/parseInt (aget resp 1)))
+             nil)))))
 
 (def backend-log
   (.on (.-ipcRenderer electron) "logs-from-backend"
        (fn [_ resp]
          (swap! log-atom into (js->clj resp)))))
 
-
-;; "FireCode-Medium"  "Space Mono"
 (defn powerline []
-  [:ul {:className "powerline"}
-   [:li {:className "left"}
-    [:div
-     [:a {:href "#"} "1777 "]
-     [:a {:href "#"} "*live*"]]
-    [:div {:className "endsection"}]
-    [:div [:a {:href "#"} "Clojure"]]
-    [:div {:className "shrinkable"} [:a {:href "#"} "Panaeolus version 0.4.0-alpha"]]
-    [:div {:className "endsection"}]]
-   [:div {:className "center"}
-    [:a {:href "#"} " 8e4c32f32ec869fe521fb4d3c0a69406830b4178"]]
-   [:li {:className "right"}
-    [:div {:className "endsection"}]
-    [:div [:a {:href "#"}
-           (let [current-row (str (:current-row @app-state))
-                 current-col (str (:current-column @app-state))
-                 empty-str-row (apply str (repeat (max 0(- 4 (count current-row))) " "))
-                 empty-str-col (apply str (repeat (max 0(- 3 (count current-col))) " "))]
-             (str "" empty-str-row current-row ":" empty-str-col current-col))]]
-    [:div {:className "endsection"}]
-    [:div [:a {:href "#"} "Top"]]]])
+  (reagent/create-class
+   {:render
+    (fn [this]
+      (let [nrepl-port (:nrepl-port @app-state)]
+        [:ul {:className "powerline"}
+         [:li {:className "left"}
+          [:div {:style {:background-color "inherit"}}
+           [:a {:href "#"} (str nrepl-port " ")]
+           [:a {:href "#"} (if nrepl-port "*nrepl*" "*disconnected*")]]
+          [:div {:className "endsection"}]
+          [:div [:a {:href "#"} "Clojure"]]
+          [:div {:className "shrinkable"} [:a {:href "#"} (str "Panaeolus " +version+)]]
+          [:div {:className "endsection" :style {:background-color "inherit"}}]]
+         [:div {:className "center"}
+          [:a {:href "#"} " untitled"]]
+         [:li {:className "right"}
+          [:div {:className "endsection"}]
+          [:div [:a {:href "#"}
+                 (let [current-row (str (:current-row @app-state))
+                       current-col (str (:current-column @app-state))
+                       empty-str-row (apply str (repeat (max 0(- 4 (count current-row))) " "))
+                       empty-str-col (apply str (repeat (max 0(- 3 (count current-col))) " "))]
+                   (str "" empty-str-row current-row ":" empty-str-col current-col))]]
+          [:div {:className "endsection"}]
+          [:div [:a {:href "#"} (str (get-in @app-state [:config :bpm]) "BPM")]]]]))}))
 
 (defn get-nrepl-port []
   (.send (.-ipcRenderer electron) "get-nrepl-port" nil))
@@ -140,106 +128,113 @@
   nil)
 
 
+#_(defn log-row-renderer [^js env]
+    (reagent/as-element
+     [:> Highlight {:class-name "clojure"
+                    :key (.-key env)
+                    :style (.-style env)}
+      (nth @log-atom (.-index env))]))
 
-;;   <List
-;;     width={300}
-;;     height={300}
-;;     rowCount={list.length}
-;;     rowHeight={20}
-;;     rowRenderer={rowRenderer}
-;;   />,
-
-
-;; function rowRenderer ({
-;;   key,         // Unique key within array of rows
-;;   index,       // Index of row within collection
-;;   isScrolling, // The List is currently being scrolled
-;;   isVisible,   // This row is visible within the List (eg it is not an overscanned row)
-;;   style        // Style object to be applied to row (to position it)
-;; }) {
-;;   return (
-;;     <div
-;;       key={key}
-;;       style={style}
-;;     >
-;;       {list[index]}
-;;     </div>
-;;   )
-;; }
-
-
-(defn log-row-renderer [^js env]
-  (reagent/as-element
-   [:> Highlight {:class-name "clojure"
-                  :key (.-key env)
-                  :style (.-style env)}
-    (nth @log-atom (.-index env))]))
-
-(defn logger-component-list [height width]
-  [:> List {:rowCount (count @log-atom)
-            :id "log-area"
-            :scrollToAlignment "start"
-            :scrollToIndex (dec (count @log-atom))
-            :height (or height 0)
-            :width (or width 0)
-            :row-height 30
-            :row-renderer log-row-renderer}] )
+#_(defn logger-component-list [height width]
+    [:> List {:rowCount (count @log-atom)
+              :id "log-area"
+              :scrollToAlignment "start"
+              :scrollToIndex (dec (count @log-atom))
+              :height (or height 0)
+              :width (or width 0)
+              :row-height 30
+              :row-renderer log-row-renderer}] )
 
 (defn logger-component []
-  [:> AutoSizer
-   (fn [^js size]
-     (reagent/as-element
-      [logger-component-list (.-height size) (.-width size)]))])
+  (reagent/create-class
+   {:component-will-update
+    (fn [this]
+      (let [logger-container (js/document.getElementsByClassName "Pane2")]
+        (when-not (zero? (.-length logger-container))
+          (let [logger-container (aget logger-container 0)
+                scroll-pos (max (or (.-scrollTop logger-container)) (.-clientHeight logger-container))
+                scroll-height (or (.-scrollHeight logger-container))]
+            ;; only scroll to bottom if the scroll position is at the bottom
+            (when (< (- scroll-height scroll-pos) 300)
+              (js/setTimeout #(set! (.-scrollTop logger-container)
+                                    (.-scrollHeight logger-container)) 1))))))
+    :component-did-mount
+    (fn [this]
+      (let [logger-container (js/document.getElementsByClassName "Pane2")]
+        (when-not (zero? (.-length logger-container))
+          (let [logger-container (aget logger-container 0)
+                scroll-height (.-scrollHeight logger-container)]
+            (set! (.-scrollTop logger-container) scroll-height)))))
+    :render
+    (fn [this]
+      (let [_ @log-atom]
+        (into [:> Highlight
+               {:class-name "clojure"
+                :style {:height "100%"}
+                :id "log-area"}]
+              (map #(str % "\n") @log-atom))))}))
+
+(defn echo-buffer []
+  [:div {:id "echo-buffer"}
+   [:code (str (:echo-buffer @app-state))]])
 
 (defn root-component []
-  (let [log-poller    (js/setInterval #(.send (.-ipcRenderer electron) "poll-logs" nil) 1000)]
+  (let [log-poller (atom nil)]
     (reagent/create-class
      {:componentWillUnmount
       (fn []
+        (swap! app-state assoc :ace-ref nil :react-ace-ref nil)
         (set! js/window.oncontextmenu nil)
-        (js/clearInterval log-poller))
+        (when-let [log-poller-val @log-poller]
+          (js/clearInterval log-poller-val)
+          (reset! log-poller nil)))
       :componentDidMount
       (fn [this]
+        (set! js/window.oncontextmenu contextmenu)
+        (reset! log-poller (js/setInterval #(.send (.-ipcRenderer electron) "poll-logs" nil) 1000))
+        (reset! globals/AceRange (.-Range (.acequire js/ace "ace/range")))
+        (nrepl-status-handler-init)
         (get-nrepl-port)
-        (let [ace-ref (.edit ace-editor "ace")
-              editor-session (.getSession ace-ref)]
-          (keybindings/bind-keys! ace-editor ace-ref)
-          (.on (.-commands ace-ref) "exec" on-edit-handler)
-          (.set (.-config js/ace) "basePath" "./ace")
-          (.require ace-editor "ace/mode/clojure"
-                    (fn [] (.setMode editor-session "ace/mode/clojure")))
-          (ace-keys (.-define js/ace))
-          (ace-improved (.-define js/ace))
-          (.require ace-editor "ace/ext/keys"
-                    (fn []
-                      (.require ace-editor "ace/improved"
-                                (fn [] (ace-paredit (.-define js/ace))))))
-          #_(.loadModule (.-config js/ace) "ace/mode/clojure"
-                         (fn [^js clojure-mode]
-                           (.loadModule (.-config js/ace) "ace/mode/dynamic"
-                                        (fn [^js highlight-rules]
-                                          (let [dynamic-mode (new (.-Mode clojure-mode))]
-                                            (set! ^js (.-HighlightRules dynamic-mode) (.-DynHighlightRules highlight-rules))
-                                            (.setMode editor-session dynamic-mode))))))
-          (.require ace-editor "ace/ext/lang/paredit")
-          (.require ace-editor "ace/ext/language_tools"
-                    (fn []
-                      #_(.setOption ace-ref "enableSnippets" true)
-                      (.setOption ace-ref "enableLiveAutocompletion" true)
-                      (.setOption ace-ref "enableBasicAutocompletion" true)))
-          (.setTheme ace-ref "ace/theme/cyberpunk")
-          (.setOption ace-ref "displayIndentGuides" false)
-          (.setFontSize ace-ref 23)
-          (.setShowPrintMargin ace-ref false)
-          (set! js/window.oncontextmenu contextmenu)
-          (swap! app-state assoc :ace-ref ace-ref)
-          (.focus ace-ref)))
+        (-> (config/get-config)
+            (.then (fn [config]
+                     (let [ace-ref (:ace-ref @app-state)
+                           editor-session ^js (.getSession ace-ref)]
+                       (swap! app-state assoc :config config)
+                       (.set (.-config js/ace) "basePath" "./ace")
+                       (.setOption ace-ref "displayIndentGuides" false)
+                       (.setFontSize ace-ref 23)
+                       (.setShowPrintMargin ace-ref false)
+                       (.focus ace-ref))))))
       :reagent-render
       (fn []
-        [:div [:> SplitPane {:split "horizontal" :min-size "95%" :default-size "80%"}
-               [:div {:id "ace"}]
-               [logger-component]]
-         [powerline]])})))
+        [:div {:style {:position "relative" :height "100vh"}}
+         [:> SplitPane {:split "horizontal" :min-size "95%" :default-size "80%"}
+          [:> AceEditor {:ref (fn [^js ref]
+                                (when (and ref (.-editor ref) (not (:ace-ref @app-state)))
+                                  (swap! app-state assoc :react-ace-ref ref :ace-ref (.-editor ref))))
+                         :markers (reduce (fn [^js i v] (.push i v) i) #js [] (vals (:markers @app-state)))
+                         :mode "clojure"
+                         :theme "cyberpunk"
+                         :commands (cond-> keybindings/global-commands
+                                     js/goog.DEBUG
+                                     (into keybindings/dev-commands)
+                                     (get-in @app-state [:config :paredit])
+                                     (into keybindings/paredit-mode))
+                         :keyboardHandler (get-in @app-state [:config :editor :keyboard-handler])
+                         :value (:editor-value @app-state)
+                         :on-cursor-change (fn [selection ^js event]
+                                             (swap! app-state assoc :echo-buffer ""))
+                         :on-change (fn [val ^js event]
+                                      (swap! app-state assoc :editor-value val))}]
+          [logger-component]]
+         [:div {:style {:position "absolute"
+                        :min-height (if (empty? (:echo-buffer @app-state)) "24px" "48px")
+                        :bottom 0 :width "100%"
+                        :display "flex" :align-items "flex-end" :flex-direction "column"
+                        :justify-content "start"}}
+          [powerline]
+          (when-not (empty? (:echo-buffer @app-state))
+            [echo-buffer])]])})))
 
 (defn reload! []
   (.send (.-ipcRenderer electron) "dev-reload"))
@@ -252,33 +247,3 @@
    (js/document.getElementById "app-container")))
 
 (start!)
-
-
-
-;; marker-fn (fn [html marker-layer session config]
-;;             ;; (str " ;; => " res)
-;;             (let [dom-node (aget (.-childNodes (.-element marker-layer)) 1)
-;;                   _ (js/console.log dom-node)
-;;                   class-name (and dom-node (.-className dom-node))]
-;;               (when (and class-name (.includes class-name id))
-;;                 (when @react-node (reagent/unmount-component-at-node dom-node))
-;;                 (reset! react-node
-;;                         (reagent/render
-;;                          (let [class (reagent/create-class
-;;                                       {:component-will-unmount (fn [] (prn "UNMO" res))
-;;                                        :component-will-mount (fn [] (prn "MOUNT" res))
-;;                                        :render
-;;                                        (fn [] [:p {:style {:margin 0 :padding 0 :margin-left "12px"}} (do (prn "RENDER" res) (str " ;; => " res))])})]
-;;                            [class])
-;;                          dom-node))
-;;                 (js/setTimeout #(let [session (.getSession ace-ref)
-;;                                       string-builder #js []
-;;                                       start (.createAnchor (.-doc (.getSession ace-ref)) (.-start range))
-;;                                       end (.createAnchor (.-doc (.getSession ace-ref)) (.-end range))]
-;;                                   (set! (.-start range) start)
-;;                                   (set! (.-end range) end)
-;;                                   (.drawSingleLineMarker marker-layer string-builder range id config)
-;;                                   ) 0)))
-;;             ;; (js/console.log html marker-layer session config)
-;;             ;; (js/console.log (ace-editor/getMarkerHTML html marker-layer session config range "inlineEval"))
-;;             )
