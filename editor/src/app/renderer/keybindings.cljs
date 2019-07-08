@@ -2,7 +2,10 @@
   (:require [app.renderer.editor :as editor]
             [app.renderer.globals :refer [app-state]]
             [reagent.core :as reagent :refer [atom]]
-            ["/js/applyPareditChanges" :as applyPareditChanges]
+            ["/js/applyPareditChanges" :refer (applyPareditChanges
+                                               clojureSexpMovement
+                                               newlineAndIndent
+                                               pareditIndent)]
             ["vex-js" :as vex]
             ["paredit.js" :as paredit-js]))
 
@@ -16,13 +19,11 @@
 
 (def global-commands
   [{:name "execute"
-    :bindKey {:win "ctrl+enter"
-              :mac "ctrl+enter"}
+    :bindKey "ctrl+enter|Ctrl+Alt+x"
     :exec editor/evaluate-outer-sexp
     :readOnly true}
    {:name "devtools"
-    :bindKey {:win "F12"
-              :mac "F12"}
+    :bindKey "F12"
     :exec #(.toggleDevTools (.getCurrentWebContents (.-remote electron)))}
    {:name "quit"
     :bindKey {:win "ctrl+q" :mac "Cmd+q"}
@@ -48,11 +49,11 @@
                      true)
        :ast ast
        :source curr-val
-       :parent-sexps (.containingSexpsAt (.-walk paredit-js) ast pos-index (.-hasChildren (.-walk paredit-js)))})))
+       :parent-sexps (.containingSexpsAt (.-walk paredit-js) ast pos-index
+                                         (.-hasChildren (.-walk paredit-js)))})))
 
 (defn paredit-delete [backward?]
   (fn [^js editor ^js args]
-    (js/console.log "DEL")
     (let [data (prepare-paredit editor args)]
       (when data
         (let [end-index (if
@@ -68,14 +69,132 @@
                                      args)]
             (applyPareditChanges editor (.-changes result) (.-newIndex result) false)))))))
 
+(defn paredit-open-list [open close]
+  (fn [^js editor ^js args]
+    (let [data (prepare-paredit editor args)]
+      (if-not data
+        (.insert editor open)
+        (do (when (not= (:sel-end data) (:sel-start data))
+              (set! (.-endIdx args) (:sel-end data)))
+            (set! (.-open args) open)
+            (set! (.-close args) close)
+            (when-let [result (.openList paredit-js/editor
+                                         (:ast data)
+                                         (:soure data)
+                                         (if (.-endIdx args) (:sel-start data) (:pos data))
+                                         args)]
+              (applyPareditChanges editor (.-changes result) (.-newIndex result) true)))))))
+
+(defn paredit-close-list [open close]
+  (fn [^js editor ^js args]
+    (let [data (prepare-paredit editor args)]
+      (set! (.-open args) open)
+      (set! (.-close args) close)
+      (when (or (not (:ast data))
+                js/paredit.freeEdits
+                (not (empty? (:errors (:ast data))))
+                (not (clojureSexpMovement editor "closeList" args)))
+        (applyPareditChanges editor #js [ #js ["insert" (:pos data) (.-close args)]]
+                             (+ (:pos data) (.-length (.-close args))))))))
+
+(defn paredit-splice-sexp [^js editor ^js args]
+  (when-let [data (prepare-paredit editor args)]
+    (when-let [result (.spliceSexp
+                       paredit-js/editor
+                       (:ast data)
+                       (:source data)
+                       (:pos data)
+                       args)]
+      (applyPareditChanges editor (.-changes result) (.-newIndex result) false))))
+
+(defn paredit-splice-sexp-kill [backward?]
+  (fn [^js editor ^js args]
+    (when-let [data (prepare-paredit editor args)]
+      (set! (.-backward args) backward?)
+      (when-let [result (.spliceSexpKill
+                         paredit-js/editor
+                         (:ast data)
+                         (:source data)
+                         (:pos data)
+                         args)]
+        (applyPareditChanges editor (.-changes result) (.-newIndex result) false)))))
+
+(defn paredit-forward-sexp [^js editor ^js args]
+  (clojureSexpMovement editor "forwardSexp" args))
+
+(defn paredit-backward-sexp [^js editor ^js args]
+  (clojureSexpMovement editor "backwardSexp" args))
+
+(defn paredit-forward-down-sexp [^js editor ^js args]
+  (clojureSexpMovement editor "forwardDownSexp" args))
+
+(defn paredit-backward-up-sexp [^js editor ^js args]
+  (clojureSexpMovement editor "backwardUpSexp" args))
+
 (def paredit-mode
-  [{:name "backspace"
-    :bindKey "backspace|F1"
+  [{:name "forward-sexp"
+    :bindKey "Ctrl-Right"
+    :scrollIntoView "center"
+    :readOnly true
+    :exec paredit-forward-sexp}
+   {:name "backward-sexp"
+    :bindKey "Ctrl-Left"
+    :scrollIntoView "center"
+    :readOnly true
+    :exec paredit-forward-sexp}
+   {:name "forward-down-sexp"
+    :bindKey "Ctrl-Down"
+    :scrollIntoView "center"
+    :readOnly true
+    :exec paredit-forward-down-sexp}
+   {:name "backward-up-sexp"
+    :bindKey "Ctrl-Up"
+    :scrollIntoView "center"
+    :readOnly true
+    :exec paredit-backward-up-sexp}
+   {:name "paredit-splice-sexp"
+    :bindKey "Alt+s|Alt+Shift+S"
+    :exec paredit-splice-sexp}
+   {:name "paredit-splice-sexp-kill-backwards"
+    :bindKey "Alt+Up|Alt+Shift+Up"
+    :exec (paredit-splice-sexp-kill true)}
+   {:name "paredit-splice-sexp-kill-forwards"
+    :bindKey "Alt+Down|Alt+Shift+Down"
+    :exec (paredit-splice-sexp-kill false)}
+   {:name "indent"
+    :bindKey "Tab"
+    :exec pareditIndent}
+   {:name "Enter"
+    :bindKey "Enter"
+    :exec newlineAndIndent}
+   {:name "backspace"
+    :bindKey "backspace"
     :exec (paredit-delete true)}
    {:name "del"
     :bindKey {:win "Ctrl+d"
               :mac "Ctrl+d"}
-    :exec (paredit-delete false)}])
+    :exec (paredit-delete false)}
+   {:name "("
+    :bindKey "("
+    :exec (paredit-open-list "(" ")")}
+   {:name "["
+    :bindKey "["
+    :exec (paredit-open-list "[" "]")}
+   {:name "{"
+    :bindKey "{"
+    :exec (paredit-open-list "{" "}")}
+   {:name "\""
+    :bindKey "\""
+    :exec (paredit-open-list "\"" "\"")}
+   {:name ")"
+    :bindKey ")"
+    :exec (paredit-close-list "(" ")")}
+   {:name "]"
+    :bindKey "]"
+    :exec (paredit-close-list "[" "]")}
+   {:name "}"
+    :bindKey "}"
+    :exec (paredit-close-list "{" "}")}])
 
 #_(defn init-paredit-mode [^js editor]
     (let [current-bindings (-> editor
@@ -90,7 +209,12 @@
     :exec #(.reload js/location)
     :readOnly true}])
 
-;; (def all-commands)
+(def commands
+  (cond-> global-commands
+    js/goog.DEBUG
+    (into dev-commands)
+    (get-in @app-state [:config :editor :paredit])
+    (into paredit-mode)))
 
 #_(defn bind-keys! [^js ace-editor ^js ace-ref]
     (.addCommands (.-commands ace-ref)

@@ -1,10 +1,53 @@
 var emacs = typeof ace !== 'undefined' ? ace.acequire("ace/keyboard/emacs") : null;
 
+const prepareForSourceTransform = function(ed, args) {
+    // helper to gather the typically needed data
+    var selRange = ed.getSelectionRange(),
+        posIdx = ed.session.doc.positionToIndex(ed.getCursorPosition()),
+        ast = ed.session.$ast;
+    ast && ed.pushEmacsMark && ed.pushEmacsMark(ed.getCursorPosition());
+    return {
+        pos: posIdx,
+        selStart: ed.session.doc.positionToIndex(selRange.start),
+        selEnd: ed.session.doc.positionToIndex(selRange.end),
+        isSelecting: !!ed.session.$emacsMark || (args && !!args.shifted),
+        ast: ast,
+        source: ed.getValue(),
+        parentSexps: ast && paredit.walk.containingSexpsAt(ast, posIdx, paredit.walk.hasChildren)
+    }
+};
+
+const indentFn = function(ed, args) {
+    // paredit.ace.indent(ed);
+    args = args || {};
+    var data = prepareForSourceTransform(ed,args);
+    if (!data.ast) return;
+    var from = args.from, to = args.to;
+    if (typeof from !== 'number')
+        from = ed.session.doc.positionToIndex(ed.getSelectionRange().start);
+    if (typeof to !== 'number')
+        to = ed.session.doc.positionToIndex(ed.getSelectionRange().end);
+    let indent2 = paredit.editor.indentRange(data.ast, ed.getValue(), from, to);
+    applyPareditChanges(ed, indent2.changes,
+                        indent2.changes.newIndex, false);
+};
+
+const newlineAndIndent = function(ed, args) {
+    var data = prepareForSourceTransform(ed);
+    if (!data.ast) return;
+    var src = data.source.slice(0,data.pos) + "\n" + data.source.slice(data.pos),
+        newPos = {row: ed.getCursorPosition().row+1,column:0},
+        ast = paredit.parse(src, {addSourceForLeafs: true}),
+        indent = paredit.editor.indentRange(ast, src, data.pos+1, data.pos+1);
+    applyPareditChanges(ed,
+                        [['insert', data.pos, "\n"]].concat(indent.changes), indent.newIndex)
+}
+
 function undoStackSize(ed) {
     return ed.session.getUndoManager().$undoStack.length;
 }
 
-module.exports = function applyPareditChanges(ed, changes, newIndex, indent) {
+const applyPareditChanges = function(ed, changes, newIndex, indent) {
     if(!emacs) {
         emacs = typeof ace !== 'undefined' ? ace.acequire("ace/keyboard/emacs") : null;
     }
@@ -42,10 +85,28 @@ module.exports = function applyPareditChanges(ed, changes, newIndex, indent) {
                           indent.start : changes[0][1],
             indentEnd = typeof indent === "object" ?
                         indent.end : changes[changes.length-1][1];
-        ace.ext.lang.paredit.CodeNavigator.indent(ed,
-                                                  {from: indentStart, to: indentEnd})
+        indentFn(ed, {from: indentStart, to: indentEnd})
         if (undoStackSize(ed) - nUndos >= 2)
             mergeLast2Undos(ed);
     }
 
 }
+
+const clojureSexpMovement = function(ed, method, args) {
+    var data = prepareForSourceTransform(ed,args);
+    if (!data.ast || !data.ast.type === 'toplevel') return;
+    var moveToIdx = paredit.navigator[method](data.ast, data.pos);
+    if (moveToIdx === undefined) return false;
+    var moveToPos = ed.session.doc.indexToPosition(moveToIdx),
+        method = (data.isSelecting ? 'select' : 'moveCursor') + 'ToPosition';
+    ed.selection[method](moveToPos);
+    ed.renderer.scrollCursorIntoView();
+    return true;
+};
+
+module.exports = {
+    applyPareditChanges: applyPareditChanges,
+    clojureSexpMovement: clojureSexpMovement,
+    newlineAndIndent: newlineAndIndent,
+    pareditIndent: indentFn,
+};

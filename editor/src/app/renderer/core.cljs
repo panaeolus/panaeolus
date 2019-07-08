@@ -215,11 +215,7 @@
                          :markers (reduce (fn [^js i v] (.push i v) i) #js [] (vals (:markers @app-state)))
                          :mode "clojure"
                          :theme "cyberpunk"
-                         :commands (cond-> keybindings/global-commands
-                                     js/goog.DEBUG
-                                     (into keybindings/dev-commands)
-                                     (get-in @app-state [:config :paredit])
-                                     (into keybindings/paredit-mode))
+                         :commands keybindings/commands
                          :keyboardHandler (get-in @app-state [:config :editor :keyboard-handler])
                          :value (:editor-value @app-state)
                          :on-cursor-change (fn [selection ^js event]
