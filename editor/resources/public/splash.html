@@ -74,8 +74,6 @@
   <script>
     const { app } = require('electron');
 
-    if(require('electron-squirrel-startup')) app.quit();
-
     var ipcRenderer = require("electron").ipcRenderer;
 
     const statusContainerElem = document.getElementById("status-container");

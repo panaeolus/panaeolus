@@ -83,6 +83,7 @@
               ;; Nrepl connection established
               (.startsWith data (str "[nrepl:" globals/nrepl-port "]"))
               (do (reset! startup-phase nil)
+			      (.removeAllListeners ^js @splash-window "window-all-closed")
                   (js/setTimeout #(do (.end (.-stdin ^js @globals/jre-connection))
                                       (resolve #js ["started" globals/nrepl-port])) 100))
               :default (swap! globals/log-queue conj data))))))
@@ -160,15 +161,26 @@
                                              :width 400
                                              :webPreferences {:nodeIntegration true}
                                              :backgroundColor "black"}}))]
+	(.on (.-main splash) "window-all-closed" 
+	  #(when-not darwin?
+          (events/safe-jre-kill)
+          (.quit app)))
+    (.on (.-splashScreen splash) "window-all-closed" 
+	  #(when-not darwin?
+          (events/safe-jre-kill)
+          (.quit app)))
     (reset! main-window (.-main splash))
 	(reset! splash-window (.-splashScreen splash))
     (-> (boot-jre-promise) (.then (fn [res] (.loadURL ^js @main-window index-html-loc))))))
 
 (defn main []
-  (events/register-events)
-  (.disableHardwareAcceleration app)
-  (.on app "ready" init-browser)
-  (.on app "window-all-closed"
-       #(when-not darwin?
-          (events/safe-jre-kill)
-          (.quit app))))
+    (events/register-events)
+    (.disableHardwareAcceleration app)
+    (.on app "ready" init-browser)
+	(.on app "before-quit" (fn [] (.removeAllListeners ^js @main-window "close")
+	                               (events/safe-jre-kill)
+                                  (.close @main-window)))
+    (.on app "window-all-closed"
+         #(when-not darwin?
+            (events/safe-jre-kill)
+            (.quit app))))

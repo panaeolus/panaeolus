@@ -35,7 +35,6 @@
     "brace": "^0.11.1",
     "command-exists": "^1.2.8",
     "create-react-class": "^15.6.3",
-    "electron-squirrel-startup": "^1.0.0",
     "env-paths": "^2.2.0",
     "hotkeys-js": "^3.6.11",
     "node-jre": "git://github.com/panaeolus/node-jre.git#39ba5184d5e880dc5c0e10fdd07127ccd9df53fb",
@@ -62,7 +61,8 @@
       "!yarn.lock",
       "!shell.nix"
     ],
-    "appId": "panaeolus",
+    "appId": "panaeolus.editor",
+	"productName": "Panaeolus Editor",
     "asar": false,
     "dmg": {
       "contents": [
@@ -84,11 +84,16 @@
         "deb"
       ]
     },
-    "squirrelWindows": {
-      "iconUrl": "https://raw.githubusercontent.com/panaeolus/panaeolus/e0ac656afb61447dc7a2a83a2ab42b73ce28683d/editor/resources/public/icons/panaeolus.ico"
+	"nsis": {
+      "deleteAppDataOnUninstall": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "PanaeolusEditor",
+      "artifactName": "PanaeolusEditor.Setup.${version}.${ext}",
+	  "runAfterFinish": false
     },
     "win": {
-      "target": "squirrel",
+      "target": "nsis",
       "icon": "resources/public/icons/panaeolus.ico"
     }
   }

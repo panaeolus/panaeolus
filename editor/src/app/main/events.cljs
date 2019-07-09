@@ -1,9 +1,16 @@
 (ns app.main.events
   (:require [app.main.globals :as globals]
             [app.main.config :as config]
+			["child_process" :as child-process]
             ["electron" :refer [app ipcMain]]))
 
+
+(defn windows-postinstall-kill []
+  (js/setTimeout #(child-process/spawn "cmd.exe" #js ["/c" "taskkill" "/F" "/IM" "PanaeolusEditor.exe"]) 100))
+
 (defn safe-jre-kill []
+  (when (= (.-platform js/process) "win32")
+   (child-process/spawn "cmd.exe" #js ["/c" "taskkill" "/F" "/IM" "jackd.exe"]))
   (when @globals/jre-connection
     (.pause (.-stdin ^js @globals/jre-connection))
     (.kill ^js @globals/jre-connection)
@@ -22,5 +29,6 @@
                                (.reply event "logs-from-backend" (clj->js @globals/log-queue))
                                (reset! globals/log-queue []))))
   (.on ipcMain "quit" (fn [_ _]
+                        (println "QUIT!")
                         (safe-jre-kill)
                         (.quit app))))
