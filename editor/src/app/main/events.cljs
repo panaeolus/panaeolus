@@ -24,10 +24,10 @@
                               (.reply event "nrepl" #js ["started" globals/nrepl-port])))
   (.on ipcMain "jre:stdin" (fn [^js event arg] (.write (.-stdin ^js @globals/jre-connection) (str arg "\n"))))
   (.on ipcMain "config:get" (fn [^js event arg] (.reply event "config:get" (clj->js (config/read-config)))))
-  (.on ipcMain "poll-logs" (fn [^js event _]
-                             (when-not (empty? @globals/log-queue)
-                               (.reply event "logs-from-backend" (clj->js @globals/log-queue))
-                               (reset! globals/log-queue []))))
+  (.on ipcMain "poll:state" (fn [^js event _]
+                              (when-not (empty? @globals/log-queue)
+                                (.reply event "logs-from-backend" (clj->js @globals/log-queue))
+                                (reset! globals/log-queue []))))
   (.on ipcMain "quit" (fn [_ _]
                         (println "QUIT!")
                         (safe-jre-kill)

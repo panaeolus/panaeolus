@@ -1,5 +1,6 @@
 (ns panaeolus.csound.macros
   (:require clojure.string
+            [panaeolus.globals :as globals]
             [panaeolus.csound.csound-jna :as csound-jna]
             [panaeolus.config :as config]
             [panaeolus.utils.utils :as utils]
@@ -136,9 +137,11 @@
                             (slurp (io/resource (:orc-internal-filepath env)))))
         num-outs (or num-outs 2)
         release-time (or release-time 2)
-        config (or config {})]
+        config (or config {})
+        hashed-instr-name (utils/hash-jack-client-to-32 instr-name)]
+    (swap! globals/loaded-instr-symbols assoc hashed-instr-name instr-name)
     (pat-ctl/csound-pattern-control
-     (utils/hash-jack-client-to-32 instr-name)
+     hashed-instr-name
      instr-number
      orc-string
      instr-form

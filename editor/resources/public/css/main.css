@@ -8,6 +8,18 @@
     src: url(../fonts/SpaceMono-Regular.ttf) format("truetype");
 }
 
+.instr-active {
+    z-index: 9999999;
+    position: absolute;
+    background-color: rgba(10,40,12,0.9);
+}
+
+.instr-inactive {
+    z-index: 9999999;
+    position: absolute;
+    background-color: rgba(40,1,12,0.9);
+}
+
 .flashEval {
     z-index: 9999999;
     position: absolute;

@@ -4,6 +4,7 @@
             [app.renderer.editor]
             [app.renderer.eldoc :as eldoc]
             [app.renderer.globals :refer [app-state log-atom +version+] :as globals]
+            [app.renderer.highlighters :as highlighters]
             [app.renderer.keybindings :as keybindings]
             [app.renderer.nrepl :refer [nrepl-handler
                                         nrepl-connect!
@@ -31,41 +32,6 @@
 (def process (js/require "process"))
 
 (def cwd (.cwd process))
-
-
-#_(defn register-public-symbols []
-    (nrepl-handler "(ns-publics 'panaeolus.all)\n" (str (gensym))
-                   (fn [public-symbols]
-                     #_(.apply (.-push (.-$keywordList (.-$highlightRules (.-$mode (.getSession (:ace-ref @state))))))
-                               (.-$keywordList (.-$highlightRules (.-$mode (.getSession (:ace-ref @state)))))
-                               (->> (filter #(< -1 (.indexOf % "panaeolus.all"))
-                                            (clojure.string/split public-symbols " "))
-                                    (map #(.replace % "#'panaeolus.all/" ""))
-                                    clj->js))
-                     ;; var mode = session.$mode
-                     ;; mode.$highlightRules.addRules({...})
-                     ;; mode.$tokenizer = new Tokenizer(mode.$highlightRules.getRules());
-                     ;; session.bgTokenizer.seTokenizer(mode.$tokenizer);
-                     (.setKeywords ^js (.-$highlightRules ^js (.-$mode ^js (.getSession ^js (:ace-ref @state)))) #js {"keyword" "hlolli|sig"})
-                     ;; (js/console.log (.-$highlightRules (.-$mode (.getSession (:ace-ref @state)))))
-                     (.resetCaches (.getSession (:ace-ref @state)))
-                     (.start (.-bgTokenizer (.getSession (:ace-ref @state))) 0)
-                     (.start (.-bgTokenizer (.getSession (:ace-ref @state))) 100)
-                     (.start (.-bgTokenizer (.getSession (:ace-ref @state))) 1000)
-                     (.start (.-bgTokenizer (.getSession (:ace-ref @state))) 3000)
-                     (.start (.-bgTokenizer (.getSession (:ace-ref @state))) 6000)
-                     ;; (js/console.log (.-bgTokenizer (.getSession (:ace-ref @state))))
-                     ;; editor.session.bgTokenizer.start(0)
-                     #_(let [session (.getSession (:ace-ref @state))
-                             mode (.-$mode session)
-                             newTokenizer (new (.-Tokenizer (.require js/ace "ace/tokenizer")) (.getRules (.-$highlightRules mode)))]
-                         (js/console.log (.getRules (.-$highlightRules mode)))
-                         (.setTokenizer (.-bgTokenizer session) newTokenizer)
-                         )
-                     ;; editor.session.bgTokenizer.start(0);
-                     #_(.start (.-bgTokenizer (.getSession (:ace-ref @state))) 0)
-                     ;; (js/console.log (.-$keywordList (.-$highlightRules (.-$mode (.getSession (:ace-ref @state))))) )
-                     )))
 
 (defn initialize-namespace []
   (nrepl-handler "(use 'panaeolus.all)(in-ns 'panaeolus.all)\n" (str (gensym))
@@ -187,59 +153,65 @@
     (-> (config/get-config)
         (.then (fn [config]
                  (let [editor-session ^js (.getSession ace-ref)]
-                   (swap! app-state assoc :config config)
                    (.set (.-config js/ace) "basePath" "./ace")
-                   (.setOption ace-ref "displayIndentGuides" false)
-                   (.setFontSize ace-ref 23)
-                   (.setShowPrintMargin ace-ref false)
+                   (swap! app-state assoc :config config)
                    (.focus ace-ref)
-                   (js/console.log ace-ref)
                    (doseq [command (keybindings/get-commands)]
                      (.addCommand (.-commands ace-ref) (clj->js command)))))))))
 
 (defn root-component []
-  (let [log-poller (atom nil)]
+  (let [state-poller (atom nil)]
     (reagent/create-class
-     {:componentDidUpdate (fn [] (set-config (:ace-ref @app-state)))
+     {;;:componentDidUpdate (fn [] (set-config (:ace-ref @app-state)))
       :componentWillUnmount
       (fn []
         (swap! app-state assoc :ace-ref nil :react-ace-ref nil)
         (set! js/window.oncontextmenu nil)
-        (when-let [log-poller-val @log-poller]
-          (js/clearInterval log-poller-val)
-          (reset! log-poller nil)))
+        (when-let [state-poller-val @state-poller]
+          (js/clearInterval state-poller-val)
+          (reset! state-poller nil)))
       :componentDidMount
       (fn [this]
         (set! js/window.oncontextmenu contextmenu)
-        (reset! log-poller (js/setInterval #(.send (.-ipcRenderer electron) "poll-logs" nil) 1000))
+        (reset! state-poller (js/setInterval
+                              (fn []
+                                (highlighters/get-active-instruments)
+                                (.send (.-ipcRenderer electron) "poll:state" nil)) 1000))
         (reset! globals/AceRange (.-Range (.acequire js/ace "ace/range")))
         (nrepl-status-handler-init)
         (get-nrepl-port)
-        (set-config (:ace-ref @app-state)))
-      :reagent-render
+        (set-config (:ace-ref @app-state))
+        (js/setTimeout highlighters/get-all-instruments 100))
+      :render
       (fn []
         [:div {:style {:position "relative" :height "100vh"}}
          [:> SplitPane {:split "horizontal" :min-size "95%" :default-size "80%"}
-          [:> AceEditor {:ref (fn [^js ref]
-                                (when (and ref (.-editor ref))
-                                  (let [ace-ref (.-editor ref)]
-                                    (set! (.-$blockScrolling ace-ref) ##Inf) ; block annoying message
-                                    (swap! app-state assoc :react-ace-ref ref :ace-ref ace-ref))))
-                         :markers (reduce (fn [^js i v] (.push i v) i) #js [] (vals (:markers @app-state)))
-                         :mode "clojure"
-                         :theme "cyberpunk"
-                         :commands (keybindings/get-commands)
-                         :keyboardHandler (get-in @app-state [:config :editor :keyboard-handler])
-                         :value (:editor-value @app-state)
-                         :on-cursor-change (fn [selection ^js event]
-                                             (swap! app-state assoc :echo-buffer "")
-                                             (eldoc/eldoc-calc))
-                         :on-change (fn [val ^js event]
-                                      (swap! app-state assoc :editor-value val))
-                         :editor-props {:$blockScrolling ##Inf}
-                         :set-options {:enableBasicAutocompletion true
-                                       :enableLiveAutocompletion true
-                                       }}]
+          [:> AceEditor
+           {:ref (fn [^js ref]
+                   (when (and ref (.-editor ref))
+                     (let [ace-ref (.-editor ref)]
+                       (swap! app-state assoc :react-ace-ref ref :ace-ref ace-ref)
+                       (set! (.-$blockScrolling ace-ref) ##Inf))))
+            :markers (reduce (fn [^js i v] (.push i v) i) #js []
+                             (into (:highlighters @app-state)
+                                   (vals (:markers @app-state))))
+            :mode "clojure"
+            :theme "cyberpunk"
+            :commands (keybindings/get-commands)
+            :keyboardHandler (get-in @app-state [:config :editor :keyboard-handler])
+            :value (:editor-value @app-state)
+            :on-cursor-change (fn [selection ^js event]
+                                (swap! app-state assoc :echo-buffer "")
+                                (eldoc/eldoc-calc))
+            :on-change (fn [val ^js event]
+                         (swap! app-state assoc :editor-value val :highlighters [])
+                         (highlighters/highlight val))
+            :editor-props {:$blockScrolling ##Inf}
+            :set-options {:enableBasicAutocompletion true
+                          :enableLiveAutocompletion true
+                          :displayIndentGuides false
+                          :showPrintMargin false
+                          :fontSize 23}}]
           [logger-component]]
          [:div {:style {:position "absolute"
                         :min-height (if (empty? (:echo-buffer @app-state)) "24px" "48px")

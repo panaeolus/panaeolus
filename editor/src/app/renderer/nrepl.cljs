@@ -27,7 +27,6 @@
   (.on @nrepl-connection "data"
        (fn [data]
          (let [decoded-data (bencode/decode data)]
-           ;; (js/console.log (or (not (.-status decoded-data)) (not (.-err decoded-data))) "STATUS" (.-err decoded-data) (and (.-err decoded-data) (.toString (.-err decoded-data))))
            (if (not (.-err decoded-data))
              (do
                (when (.-out decoded-data)
@@ -50,15 +49,7 @@
                    (swap! app-state update-in [:nrepl-callbacks] dissoc id)
                    (callback return-value false))))
              (let [id (.toString (.-id decoded-data))
-                   status (.-status decoded-data)
-                   ;; status1 (and status (.toString (aget status 0)))
-                   ;; status2 (and status
-                   ;;              (when (< 1 (.-length status))
-                   ;;                (.toString (aget status 1))))
-                   ;; status3 (and status
-                   ;;              (when (< 2 (.-length status))
-                   ;;                (.toString (aget status 2))))
-                   ]
+                   status (.-status decoded-data)]
                (cond
                  (.-err decoded-data)
                  (when-let [callback (get-in @app-state [:nrepl-callbacks id])]

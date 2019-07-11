@@ -11,6 +11,7 @@
    clojure.tools.namespace.file
    nrepl.server
    panaeolus.config
+   panaeolus.globals
    panaeolus.csound.csound-jna
    panaeolus.csound.pattern-control
    ;; immigrants
@@ -123,7 +124,9 @@
         (print (-> (read-line) read-string eval))
         (recur))
       (let [no-exit-chan (clojure.core.async/chan 1)]
-        (reset! nrepl-server-atom (nrepl.server/start-server :bind "127.0.0.1" :port (Integer/parseInt (or (second args) 4445))))
+        (reset! nrepl-server-atom (nrepl.server/start-server
+                                   :bind "127.0.0.1"
+                                   :port (Integer/parseInt (or (second args) 4445))))
         (println (format "[nrepl:%s]" (second args)))
         (clojure.core.async/<!! no-exit-chan)
         ) ;; dont exit!

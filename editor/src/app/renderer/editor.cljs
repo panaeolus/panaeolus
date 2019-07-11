@@ -5,10 +5,10 @@
             ["/js/sexpAtPoint" :as sexp-at-point]))
 
 (defn marker-range [{:keys [start-row start-col end-row end-col
-                            class-name type]}]
+                            class-name type symbol]}]
   #js {"startRow" start-row "startCol" start-col
        "endRow" end-row "endCol" end-col
-       "className" class-name "type" type})
+       "className" class-name "type" type "symbol" (or symbol "")})
 
 (defn flash-region [ace-ref sexp-positions error?]
   (when (and ace-ref (exists? (.-startIndex sexp-positions)))

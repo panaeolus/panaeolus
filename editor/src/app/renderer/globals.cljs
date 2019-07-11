@@ -5,6 +5,7 @@
 (def +version+ (app.macros/version))
 
 (def app-state (atom {:ace-ref nil :nrepl-callbacks {} :markers {}
+                      :highlighters []
                       :nrepl-port nil :editor-value "" :echo-buffer ""}))
 
 (defn ^:export get_ace_ref []
