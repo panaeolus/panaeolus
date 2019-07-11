@@ -5,8 +5,8 @@
 
 (defn sample-directory->csound [directory-path]
   (let [dir-contents (sort
-                      (mapv #(.getPath %)
-                            (remove #(.isDirectory %)
+                      (mapv #(.getPath ^java.io.File %)
+                            (remove #(.isDirectory ^java.io.File %)
                                     (file-seq (io/file directory-path)))))]
     (map-indexed #(str "gi_ ftgen " (inc %1) ",0,0,1,\"" %2 "\",0,0,0") dir-contents)))
 

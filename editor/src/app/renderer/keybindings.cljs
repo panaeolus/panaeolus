@@ -54,6 +54,10 @@
 
 (defn paredit-delete [backward?]
   (fn [^js editor ^js args]
+    #_(js/console.log  (-> editor
+                           (.-keyBinding)
+                           (.-$defaultHandler)
+                           (.-commandKeyBinding)))
     (let [data (prepare-paredit editor args)]
       (when data
         (let [end-index (if
@@ -120,9 +124,11 @@
         (applyPareditChanges editor (.-changes result) (.-newIndex result) false)))))
 
 (defn paredit-forward-sexp [^js editor ^js args]
+  ;; (js/console.log "FORWARD")
   (clojureSexpMovement editor "forwardSexp" args))
 
 (defn paredit-backward-sexp [^js editor ^js args]
+  ;; (js/console.log "BACKWARD")
   (clojureSexpMovement editor "backwardSexp" args))
 
 (defn paredit-forward-down-sexp [^js editor ^js args]
@@ -132,26 +138,39 @@
   (clojureSexpMovement editor "backwardUpSexp" args))
 
 (def paredit-mode
-  [{:name "forward-sexp"
-    :bindKey "Ctrl-Right"
-    :scrollIntoView "center"
-    :readOnly true
-    :exec paredit-forward-sexp}
-   {:name "backward-sexp"
-    :bindKey "Ctrl-Left"
-    :scrollIntoView "center"
-    :readOnly true
-    :exec paredit-forward-sexp}
-   {:name "forward-down-sexp"
-    :bindKey "Ctrl-Down"
-    :scrollIntoView "center"
-    :readOnly true
-    :exec paredit-forward-down-sexp}
-   {:name "backward-up-sexp"
-    :bindKey "Ctrl-Up"
-    :scrollIntoView "center"
-    :readOnly true
-    :exec paredit-backward-up-sexp}
+  [
+   ;; {:name "paredit-forward-sexp"
+   ;;  :bindKey "Ctrl+Right"
+   ;;  :readOnly true
+   ;;  :exec paredit-forward-sexp}
+   ;; {:name "gotolineend"
+   ;;  :bindKey "End"
+   ;;  :readOnly true
+   ;;  :exec paredit-forward-sexp}
+   ;; {:name "gotowordleft"
+   ;;  :bindKey "Ctrl+Left"
+   ;;  :readOnly true
+   ;;  :exec paredit-backward-sexp}
+   ;; {:name "gotolinestart"
+   ;;  :bindKey "Home"
+   ;;  :readOnly true
+   ;;  :exec paredit-backward-sexp}
+   ;; {:name "scrolldown"
+   ;;  :bindKey "Ctrl+Down"
+   ;;  :readOnly true
+   ;;  :exec paredit-forward-down-sexp}
+   ;; {:name "gotopagedown"
+   ;;  :bindKey "PageDown"
+   ;;  :readOnly true
+   ;;  :exec paredit-forward-down-sexp}
+   ;; {:name "scrollup"
+   ;;  :bindKey "Ctrl+Up"
+   ;;  :readOnly true
+   ;;  :exec paredit-backward-up-sexp}
+   ;; {:name "gotopageup"
+   ;;  :bindKey "PageUp"
+   ;;  :readOnly true
+   ;;  :exec paredit-backward-up-sexp}
    {:name "paredit-splice-sexp"
     :bindKey "Alt+s|Alt+Shift+S"
     :exec paredit-splice-sexp}
@@ -196,6 +215,8 @@
     :bindKey "}"
     :exec (paredit-close-list "{" "}")}])
 
+;; (def paredit-lite-mode)
+
 #_(defn init-paredit-mode [^js editor]
     (let [current-bindings (-> editor
                                (.-keyBinding)
@@ -209,7 +230,7 @@
     :exec #(.reload js/location)
     :readOnly true}])
 
-(def commands
+(defn get-commands []
   (cond-> global-commands
     js/goog.DEBUG
     (into dev-commands)

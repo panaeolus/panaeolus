@@ -2,6 +2,7 @@
   (:require [app.renderer.config :as config]
             [app.renderer.contextmenu :refer [contextmenu]]
             [app.renderer.editor]
+            [app.renderer.eldoc :as eldoc]
             [app.renderer.globals :refer [app-state log-atom +version+] :as globals]
             [app.renderer.keybindings :as keybindings]
             [app.renderer.nrepl :refer [nrepl-handler
@@ -13,7 +14,8 @@
             ["react-highlight" :default Highlight]
             ["react-ace" :default AceEditor]
             ["ace-builds" :as ace-editor]
-            ["brace/mode/clojure"]
+            ["/js/clojureMode"]
+            ["brace/ext/language_tools"]
             ["/js/nrepl-client" :as nrepl-client]
             ["react-split-pane" :as SplitPane]
             ["net" :as net]
@@ -178,10 +180,28 @@
   [:div {:id "echo-buffer"}
    [:code (str (:echo-buffer @app-state))]])
 
+(defn set-config
+  "apply when ref changes"
+  [ace-ref]
+  (when ace-ref
+    (-> (config/get-config)
+        (.then (fn [config]
+                 (let [editor-session ^js (.getSession ace-ref)]
+                   (swap! app-state assoc :config config)
+                   (.set (.-config js/ace) "basePath" "./ace")
+                   (.setOption ace-ref "displayIndentGuides" false)
+                   (.setFontSize ace-ref 23)
+                   (.setShowPrintMargin ace-ref false)
+                   (.focus ace-ref)
+                   (js/console.log ace-ref)
+                   (doseq [command (keybindings/get-commands)]
+                     (.addCommand (.-commands ace-ref) (clj->js command)))))))))
+
 (defn root-component []
   (let [log-poller (atom nil)]
     (reagent/create-class
-     {:componentWillUnmount
+     {:componentDidUpdate (fn [] (set-config (:ace-ref @app-state)))
+      :componentWillUnmount
       (fn []
         (swap! app-state assoc :ace-ref nil :react-ace-ref nil)
         (set! js/window.oncontextmenu nil)
@@ -195,33 +215,31 @@
         (reset! globals/AceRange (.-Range (.acequire js/ace "ace/range")))
         (nrepl-status-handler-init)
         (get-nrepl-port)
-        (-> (config/get-config)
-            (.then (fn [config]
-                     (let [ace-ref (:ace-ref @app-state)
-                           editor-session ^js (.getSession ace-ref)]
-                       (swap! app-state assoc :config config)
-                       (.set (.-config js/ace) "basePath" "./ace")
-                       (.setOption ace-ref "displayIndentGuides" false)
-                       (.setFontSize ace-ref 23)
-                       (.setShowPrintMargin ace-ref false)
-                       (.focus ace-ref))))))
+        (set-config (:ace-ref @app-state)))
       :reagent-render
       (fn []
         [:div {:style {:position "relative" :height "100vh"}}
          [:> SplitPane {:split "horizontal" :min-size "95%" :default-size "80%"}
           [:> AceEditor {:ref (fn [^js ref]
-                                (when (and ref (.-editor ref) (not (:ace-ref @app-state)))
-                                  (swap! app-state assoc :react-ace-ref ref :ace-ref (.-editor ref))))
+                                (when (and ref (.-editor ref))
+                                  (let [ace-ref (.-editor ref)]
+                                    (set! (.-$blockScrolling ace-ref) ##Inf) ; block annoying message
+                                    (swap! app-state assoc :react-ace-ref ref :ace-ref ace-ref))))
                          :markers (reduce (fn [^js i v] (.push i v) i) #js [] (vals (:markers @app-state)))
                          :mode "clojure"
                          :theme "cyberpunk"
-                         :commands keybindings/commands
+                         :commands (keybindings/get-commands)
                          :keyboardHandler (get-in @app-state [:config :editor :keyboard-handler])
                          :value (:editor-value @app-state)
                          :on-cursor-change (fn [selection ^js event]
-                                             (swap! app-state assoc :echo-buffer ""))
+                                             (swap! app-state assoc :echo-buffer "")
+                                             (eldoc/eldoc-calc))
                          :on-change (fn [val ^js event]
-                                      (swap! app-state assoc :editor-value val))}]
+                                      (swap! app-state assoc :editor-value val))
+                         :editor-props {:$blockScrolling ##Inf}
+                         :set-options {:enableBasicAutocompletion true
+                                       :enableLiveAutocompletion true
+                                       }}]
           [logger-component]]
          [:div {:style {:position "absolute"
                         :min-height (if (empty? (:echo-buffer @app-state)) "24px" "48px")

@@ -7,6 +7,9 @@
 (def app-state (atom {:ace-ref nil :nrepl-callbacks {} :markers {}
                       :nrepl-port nil :editor-value "" :echo-buffer ""}))
 
+(defn ^:export get_ace_ref []
+  (get @app-state :ace-ref))
+
 (def log-atom (atom []))
 
 (defn ^:export global_logger [log]

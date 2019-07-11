@@ -1,9 +1,16 @@
-(ns panaeolus.all
+(ns
+    ^{:doc "This namespace is the entry point into Panaeolus,
+            with the goal of recursively making all public symbols
+            global to the namespace which requires this file.
+            Therefore full-ns is prefered over aliases in this namespace."}
+    panaeolus.all
   (:gen-class)
   (:require
    ;; non-immigrants
    clojure.core.async
+   clojure.tools.namespace.file
    nrepl.server
+   panaeolus.config
    panaeolus.csound.csound-jna
    panaeolus.csound.pattern-control
    ;; immigrants
@@ -74,6 +81,22 @@
  'panaeolus.csound.instruments.wobble
  )
 
+(defn read-from-file-with-trusted-contents [filename]
+  (with-open [r (java.io.PushbackReader.
+                 (clojure.java.io/reader filename))]
+    (binding [*read-eval* false]
+      (read r))))
+
+;; Load preloads
+(when-not (or *compile-files* (System/getenv "COMPILING_PANAEOLUS"))
+  (doseq [file (:preloads @panaeolus.config/config)]
+    (let [ns-form (clojure.tools.namespace.file/read-file-ns-decl file)
+          ns-decl (if-not ns-form
+                    (throw (Exception. (str "Namespace decleration missing in file: " file)))
+                    (second ns-form))]
+      (load-file file)
+      (immigrate ns-decl))))
+
 #_(defmacro require-rebel-readline [args]
     (when-not `__is_windows__
       `(do
@@ -82,14 +105,14 @@
 
 (def nrepl-server-atom (atom nil))
 
-(.addShutdownHook (Runtime/getRuntime) 
+(.addShutdownHook (Runtime/getRuntime)
 		  (Thread. #(do (when-let [nrepl-server @nrepl-server-atom]
 		                  (println "killing nrepl server..")
 		                  (nrepl.server/stop-server nrepl-server))
 		                (when-let [jack-server @panaeolus.jack2.jack-lib/jack-server-atom]
-						  (.destroy ^java.lang.ProcessImpl jack-server)
-						  (panaeolus.jack2.jack-lib/kill-jackd-windows!)
-						  (println "killing jackd..")))))
+                                  (.destroy ^java.lang.ProcessImpl jack-server)
+                                  (panaeolus.jack2.jack-lib/kill-jackd-windows!)
+                                  (println "killing jackd..")))))
 
 (defn -main [& args]
   (if (or *compile-files* (System/getenv "COMPILING_PANAEOLUS"))
@@ -100,10 +123,10 @@
         (print (-> (read-line) read-string eval))
         (recur))
       (let [no-exit-chan (clojure.core.async/chan 1)]
-	      (reset! nrepl-server-atom (nrepl.server/start-server :bind "127.0.0.1" :port (Integer/parseInt (or (second args) 4445))))
-	      (println (format "[nrepl:%s]" (second args)))
-		  (clojure.core.async/<!! no-exit-chan)
-		  ) ;; dont exit!
+        (reset! nrepl-server-atom (nrepl.server/start-server :bind "127.0.0.1" :port (Integer/parseInt (or (second args) 4445))))
+        (println (format "[nrepl:%s]" (second args)))
+        (clojure.core.async/<!! no-exit-chan)
+        ) ;; dont exit!
       #_(if (or __is_windows__ (and (not (empty? args)) (= "nrepl" (first args))))
           (
            #_(loop []
