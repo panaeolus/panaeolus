@@ -38,6 +38,7 @@
    panaeolus.csound.instruments.taffy
    panaeolus.csound.instruments.wobble)
   (:import [clojure.lang Var]
+           [com.sun.jna CallbackReference$DefaultCallbackProxy]
            [org.objectweb.asm Type]))
 
 (def __is_windows__ (re-find #"[Ww]indows" (System/getProperty "os.name")))

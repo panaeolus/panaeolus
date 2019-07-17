@@ -106,7 +106,7 @@
                :env #js {:OPCODE6DIR64
                          (cond
                            darwin? (path/join panaeolus-cache-dir "csound-6.13" "Opcodes64")
-                           windows? (path/join (string/replace panaeolus-cache-dir "\\Local\\" "\\Roaming\\") "csound-6.13")
+                           windows? (path/join panaeolus-cache-dir "csound-6.13")
                            :default (path/join panaeolus-cache-dir
                                                "csound-6.13" "csound"
                                                "plugins64-6.0"))}}
@@ -161,11 +161,11 @@
                                              :width 400
                                              :webPreferences {:nodeIntegration true}
                                              :backgroundColor "black"}}))]
-	(.on (.-main splash) "window-all-closed" 
+	(.on (.-main splash) "window-all-closed"
 	  #(when-not darwin?
           (events/safe-jre-kill)
           (.quit app)))
-    (.on (.-splashScreen splash) "window-all-closed" 
+    (.on (.-splashScreen splash) "window-all-closed"
 	  #(when-not darwin?
           (events/safe-jre-kill)
           (.quit app)))
