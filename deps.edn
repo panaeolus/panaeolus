@@ -33,6 +33,7 @@
            ;; $env:COMPILING_PANAEOLUS = '1'; clojure -A:jar -m build
            ;; cp target/panaeolus-0.4.0-SNAPSHOT.jar editor/resources/panaeolus.jar
            :jar {:extra-paths ["scripts"]
+                 :extra-deps {net.lingala.zip4j/zip4j {:mvn/version "1.2.5"}}
                  :jvm-opts ["-Dclojure.compile.warn-on-reflection=true"]}
            :test {:extra-deps {lambdaisland/kaocha {:mvn/version "0.0-418"}
                                kaocha-noyoda {:mvn/version "2019-06-03"}}

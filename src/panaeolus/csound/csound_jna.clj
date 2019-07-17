@@ -127,7 +127,7 @@
         release-channel (when-not isFx? (debounce debounce-channel release-time client-name))]
     (run! #(set-option @csnd %)
           ["-iadc:null" "-odac:null"
-           (str "--messagelevel=" (or (:messagelevel config) (get-in @config/config [:csound :messagelevel])))
+           (str "--messagelevel=" (or (:messagelevel config) (get-in @config/config [:csound :messagelevel]) 0))
            (str "-B " (or (:hardwarebufsamps config) (get-in @config/config [:csound :hardwarebufsamps])))
            (str "-b " (or (:iobufsamps config) (get-in @config/config [:csound :iobufsamps])))
            (str "--nchnls=" outputs)

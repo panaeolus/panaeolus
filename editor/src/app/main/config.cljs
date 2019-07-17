@@ -11,7 +11,7 @@
 (defn read-config []
   (when-not (fs/existsSync panaeolus-config-loc)
     (js/mkdirSync panaeolus-config-dir #js {:recursive true})
-    (fs/writeFileSync panaeolus-config-loc "{}"))
+    #_(fs/writeFileSync panaeolus-config-loc "{}"))
   (try (reader/read-string
         (.toString (fs/readFileSync panaeolus-config-loc)))
        (catch :default e :error)))

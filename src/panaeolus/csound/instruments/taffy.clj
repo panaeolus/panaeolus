@@ -8,14 +8,20 @@
   [{:name :dur :default 1}
    {:name :nn :default 48}
    {:name :amp :default -12}
-   {:name :div :default 2}
-   {:name :depth :default 0.1}
+   {:name :type :default 0}
+   {:name :wobble :default 1}
    {:name :lpf :default 1000}
-   {:name :res :default 0.5}]
-  :instr-number 3
+   ;; {:name :div :default 2}
+   ;; {:name :depth :default 0.1}
+
+   ;; {:name :res :default 0.5}
+   ;; {:name :type :default 0}
+   ]
+  :instr-number 8
   :num-outs 2
   :release-time 2.5
   )
 
-;; (taffy :loop [1 1 1 1] :nn 50 :dur [1 0.5] :div [0.1 2000 1200] :lpf 12000  :res 0.1 :depth 1)
+;; (taffy :loop 4 :nn [48] :dur 4 :type [0 3] :wobble [[1 4]] :lpf 1600)
+
 ;; (taffy :stop)

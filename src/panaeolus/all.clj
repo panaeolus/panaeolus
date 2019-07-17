@@ -16,6 +16,7 @@
    panaeolus.csound.pattern-control
    ;; immigrants
    panaeolus.csound.macros
+   panaeolus.csound.samplers
    panaeolus.metronome
    panaeolus.chords
    panaeolus.pitches
@@ -60,6 +61,7 @@
 
 (immigrate
  'panaeolus.csound.macros
+ 'panaeolus.csound.samplers
  'panaeolus.metronome
  'panaeolus.chords
  'panaeolus.pitches
