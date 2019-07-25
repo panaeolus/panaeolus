@@ -1,0 +1,57 @@
+= Panaeolus User's Guide
+:author: Hlöðver Sigurðsson
+:revdate: June 29, 2018
+:revnumber: 1.0.1
+:lang: en
+:encoding: UTF-8
+:doctype: book
+:source-highlighter: coderay
+:source-language: clojure
+:toc: left
+:toclevels: 3
+:sectlinks:
+:sectanchors:
+:leveloffset: 1
+:sectnums:
+:scriptsdir: js
+:overtone-version: 0.10.3
+:imagesdir: media/docs_img
+:imagesoutdir: media/docs_img
+
+ifdef::env-github[]
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::[]
+
+++++
+<link rel="stylesheet"  href="http://cdnjs.cloudflare.com/ajax/libs/font-awesome/3.1.0/css/font-awesome.min.css">
+++++
+
+:icons: font
+
+ifdef::env-github[]
+toc::[]
+endif::[]
+
+= Introduction
+
+`Panaeolus` is a library with an editor that enables straightforward real-time pattern making with Csound.
+
+
+= PanaeolusEditor Installation
+
+== Windows
+
+You may need to install:
+
+- Visual C++ redistributeable https://aka.ms/vs/16/release/vc_redist.x64.exe
+
+== MacOs
+
+You're going to need jack audio connection kit, but as of this writing DO NOT install it from the package manager Brew.
+
+Copy the jack2 binary from here: http://jackaudio.org/downloads/
+
