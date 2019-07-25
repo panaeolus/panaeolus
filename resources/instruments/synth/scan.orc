@@ -1,5 +1,19 @@
+giSCANinit ftgen 0, 0, 128, 7, 0, 64, 1, 64, 0
+giSCANmass ftgen 0, 0, 128, -7,  1, 128, 1
+giSCANspring ftgen   0, 0, 16384, -23, "resources/tables/string-128"
+giSCANspring1 ftgen   0, 0, 16384, -23, "resources/tables/circularstring-128"
+giSCANspring2 ftgen   0, 0, 16384, -23, "resources/tables/cylinder-128"
+giSCANspring3 ftgen   0, 0, 16384, -23, "resources/tables/grid-128"
+giSCANspring4 ftgen   0, 0, 16384, -23, "resources/tables/torus-128"
+giSCANcenter ftgen   0, 0, 128, -7, 0, 64,  6,  64, 0
+giSCANdamp ftgen  0, 0, 128, -7, 1, 128, .0001
+giSCANvel ftgen  0, 0, 128, -7, .02, 128, 0
+giSCANtra1 ftgen  0, 0, 128,	-5,	.001,	32,	64,	64,	96,	32
+giSCANtra2 ftgen  0,  0, 128, -7, 0, 128, 128
+
 instr 1
-  iamp = ampdb(p4)
+  ifreq = cpsmidinn(p4)
+  iamp = ampdb(p5)
   irate = p6
   ilpf	= p7
   ireso = p8
@@ -13,10 +27,10 @@ instr 1
   ilforate2 = p12
   itype = p13
   klfo	lfo ilfoamp,ilforate,2
-  kfreq = p5+klfo ;controllo midi
+  kfreq = ifreq+klfo ;controllo midi
 
-  ifnvel	=	giSCANvel
-  ifnmass	=	giSCANmass
+  ifnvel = giSCANvel
+  ifnmass = giSCANmass
   if itype == 1 then
     ifnstif = giSCANspring1
   elseif itype == 2 then
@@ -54,6 +68,6 @@ instr 1
     acL = acL * kenv
   else
     acL linenr acL,0.01,p3,0.1
-  endif 
+  endif
   outs	acL, acL
 endin

@@ -31,10 +31,13 @@
    ;; built-in instruments
    panaeolus.csound.instruments.fmpluck
    panaeolus.csound.instruments.hammer
+   panaeolus.csound.instruments.lush
    panaeolus.csound.instruments.metallic-casio
    panaeolus.csound.instruments.pluck
    panaeolus.csound.instruments.priest
+   panaeolus.csound.instruments.scan
    panaeolus.csound.instruments.sruti
+   panaeolus.csound.instruments.squine
    panaeolus.csound.instruments.taffy
    panaeolus.csound.instruments.wobble)
   (:import [clojure.lang Var]
@@ -77,10 +80,13 @@
  ;; built-in instruments
  'panaeolus.csound.instruments.fmpluck
  'panaeolus.csound.instruments.hammer
+ 'panaeolus.csound.instruments.lush
  'panaeolus.csound.instruments.metallic-casio
  'panaeolus.csound.instruments.pluck
  'panaeolus.csound.instruments.priest
+ 'panaeolus.csound.instruments.scan
  'panaeolus.csound.instruments.sruti
+ 'panaeolus.csound.instruments.squine
  'panaeolus.csound.instruments.taffy
  'panaeolus.csound.instruments.wobble
  )

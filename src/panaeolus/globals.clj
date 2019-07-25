@@ -20,7 +20,8 @@
               (keys @pattern-registry)) false))
 
 (async/go-loop []
-  (async/<! (async/timeout 1000))
+  (async/<! (async/timeout 5000))
+  #_(println (keys @pattern-registry))
   (loop [syms (keys @pattern-registry)
          active []]
     (if (empty? syms)

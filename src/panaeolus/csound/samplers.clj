@@ -23,7 +23,7 @@
   isample = (p6 %% %s) + 1
   ilen nsamp isample
   isr ftsr isample
-  p3 = ((ilen/isr)*(1/ifreq))
+  ;; p3 = ((ilen/isr)*(1/ifreq))
   ichannels = ftchnls(isample)
 
   imode = p7 ;; 1 or 2
@@ -31,13 +31,13 @@
   iwidth = p9
   iwidth = ilen * min:i(islice, 1)
   ia = (ilen * islice) %% ilen
-  ib = ((ilen * islice) + (iwidth * islice)) %% ilen
+  ib = ((ilen * islice) * iwidth) %% ilen
 
   if (ichannels == 1) then
-    aL loscil iamp, ifreq, isample, 1, imode, ia, ib
+    aL loscilx iamp, ifreq, isample, 4, 1, 0, imode, ia, ib
     aR = aL
   elseif (ichannels == 2) then
-    aL, aR loscil iamp, ifreq, isample, 1, imode, ia, ib
+    aL, aR loscilx iamp, ifreq, isample, 4, 1, 0, imode, ia, ib
   else
     aM = 0
     a1 = 0
