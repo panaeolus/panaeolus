@@ -12,7 +12,7 @@
 
 (set! *warn-on-reflection* true)
 
-(defonce ^:private __WINDOWS_NATIVE_DEPS__
+(def ^:private __WINDOWS_NATIVE_DEPS__
   (when (= :windows (jna-path/get-os))
     (jna/load-library "libstdc++-6")
     (jna/load-library "libgcc_s_seh-1")
@@ -20,6 +20,14 @@
     (jna/load-library "rtjack")
     (.SetEnvironmentVariable Kernel32/INSTANCE
                              "OPCODE6DIR64" jna-path/libcsound-cache-path)))
+
+(def ^:private __MAC_NATIVE_DEPS__
+  (when (= :mac (jna-path/get-os))
+    (jna/load-library "ogg.0")
+    (jna/load-library "vorbis.0")
+    (jna/load-library "vorbisenc.2")
+    (jna/load-library "FLAC.8")
+    (jna/load-library "sndfile.1")))
 
 (defn debounce
   "https://gist.github.com/scttnlsn/9744501"
@@ -136,7 +144,8 @@
            "-+rtaudio=jack"
            (str "--sample-rate=" (or (:sample-rate config) (:sample-rate @config/config)))
            (str "--ksmps=" (or (:ksmps config) (get-in @config/config [:csound :ksmps])))
-           (str "-+jack_client=" client-name)])
+           (str "-+jack_client=" client-name)
+	   (str "--env:OPCODE6DIR64+=" jna-path/libcsound-cache-path)])
     (start @csnd)
     (.setMessageCallback ^Csound @csnd message-callback)
     {:instance csnd
