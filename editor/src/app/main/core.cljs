@@ -135,15 +135,22 @@
       (reset! globals/jre-connection jre-conn)
       (.on jre-conn "close" #(reset! globals/jre-connection nil)))))
 
+(defn java-exists? []
+  (if darwin?
+    (if (and (fs/existsSync "/usr/bin/java")
+             (fs/existsSync "/Library/Java/JavaVirtualMachines"))
+      true false)
+    ((.-sync command-exists) "java")))
+
 (defn boot-jre-promise []
   (new js/Promise
        (fn [resolve reject]
-         (if-not ((.-sync command-exists) "java")
+         (if (java-exists?)
+	   (boot-jre! true resolve reject)
            (do (jre/setJreDir (path/join panaeolus-cache-dir jre/jreDirName))
-               (if (fs/existsSync (path/join panaeolus-cache-dir jre/jreDirName))
+               (if (fs/existsSync (path/join panaeolus-cache-dir jre/jreDirName "java"))
                  (boot-jre! false resolve reject)
-                 (jre/install (fn [result] (boot-jre! false resolve reject)))))
-           (boot-jre! true resolve reject)))))
+                 (jre/install (fn [result] (boot-jre! false resolve reject)))))))))
 
 (defn init-browser []
   (let [main-window-opts (clj->js {:width 800
