@@ -7,7 +7,7 @@
             [clojure.string :as string]
             [clojure.tools.deps.alpha.reader :as deps-reader]))
 
-(def +version+ "0.4.0-SNAPSHOT")
+(def +version+ (string/trim (slurp "VERSION")))
 
 (defn -main []
   (clean/clean "target")
