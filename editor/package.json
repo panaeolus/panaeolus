@@ -62,7 +62,7 @@
       "!shell.nix"
     ],
     "appId": "panaeolus.editor",
-	"productName": "Panaeolus Editor",
+	"productName": "PanaeolusEditor",
     "asar": false,
     "dmg": {
       "contents": [
