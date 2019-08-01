@@ -30,8 +30,8 @@
                              :sha "e70c0653bde0dd7393923f9179ad44797ff9da0a"}
                      org.fxmisc.richtext/richtextfx {:mvn/version "0.10.0"}
                      org.fxmisc.flowless/flowless {:mvn/version "0.6.1"}}}
-           ;; COMPILING_PANAEOLUS=1 clojure -A:jar -R:jar -m compile-jar
-           ;; $env:COMPILING_PANAEOLUS = '1'; clojure -A:jar -m build
+           ;; COMPILING_PANAEOLUS=1 clojure -A:jar -R:jar -m build2
+           ;; $env:COMPILING_PANAEOLUS = '1'; clojure -A:jar -m build2
            ;; cp target/panaeolus-0.4.0-SNAPSHOT.jar editor/resources/panaeolus.jar
            :jar {:extra-paths ["scripts"]
                  :extra-deps {net.lingala.zip4j/zip4j {:mvn/version "1.2.5"}}

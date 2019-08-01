@@ -43,11 +43,15 @@
   (->> [ld-library-path current-jna-path]
        (string/join ":")))
 
+(def ^:private windows-jna-library-path
+  (->> [(System/getenv "PATH") current-jna-path libcsound-cache-path]
+       (string/join ";")))
+
 (def ^:private __SET_JNA_PATH__
   (case (get-os)
     :linux   (System/setProperty "jna.library.path" linux-jna-library-path)
     :mac     (System/setProperty "jna.library.path" mac-jna-library-path)
-    :windows (System/setProperty "jna.library.path" (string/replace current-jna-path #":" ";"))))
+    :windows (System/setProperty "jna.library.path" windows-jna-library-path)))
 
 ;; JNI Path for CsoundJNI
 
