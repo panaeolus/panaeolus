@@ -103,7 +103,9 @@
           process-options
           #js {:encoding "utf8"
                :cwd (str js/__dirname)
-               :env #js {:OPCODE6DIR64
+               :env #js {:APPDATA (.-APPDATA (.-env js/process))
+                         :LOCALAPPDATA (.-LOCALAPPDATA (.-env js/process))
+                         :OPCODE6DIR64
                          (cond
                            darwin? (path/join panaeolus-cache-dir "csound-6.13" "Opcodes64")
                            windows? (path/join panaeolus-cache-dir "csound-6.13")
