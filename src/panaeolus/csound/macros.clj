@@ -74,7 +74,7 @@
                                 (slurp (clojure.java.io/resource (:orc-internal-filepath env)))))
             fx-form (or fx-form [])
             num-outs (or num-outs 2)
-            fx-name (utils/hash-jack-client-to-32 (str (name fx-name) "#" chain-index))
+            fx-name (utils/hash-jack-client-to-32 (str host-pattern-name "/" (name fx-name) "#" chain-index))
             loops-self? (= :loop (first args))
             release-time (or release-time 2)
             instance-config (or instance-config {})]

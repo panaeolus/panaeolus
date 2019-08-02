@@ -15,3 +15,22 @@ opcode Vibrato,aa,aaiiij
   delayw asig
   xout adel,adel
 endop
+
+instr 1
+  ain1, ain2 ins
+  a1, a2 Vibrato (ain1+ain2)/1.3, gkfreq, gkdiff
+  afader init 0
+  if (p3 < 0) then
+    afader expseg 0.001, 0.1, 1, 99999999, 1
+  else
+    afader expseg 1, p3, 0.001
+  endif
+  outs a1*afader, a2*afader
+endin
+schedule(1, 0, -1)
+
+instr 2
+  gkportTime = p3
+  gkcent = p4
+  gkdiff = p5
+endin

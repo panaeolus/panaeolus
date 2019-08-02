@@ -13,8 +13,7 @@
   else
     kenv linseg	1, p3 - .05, 1, .05, 0 ;; Fade out on release
   endif
-
-  outs (aFL+0.5*ain1)*kenv, (aFR+0.5*ain2)*kenv
+  outs (aFL*1.5)*kenv, (aFR*1.5)*kenv
   clear aFL, aFR
 endin
 "

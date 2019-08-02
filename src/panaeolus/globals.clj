@@ -21,11 +21,11 @@
 
 (async/go-loop []
   (async/<! (async/timeout 5000))
-  #_(println (keys @pattern-registry))
-  (loop [syms (keys @pattern-registry)
-         active []]
-    (if (empty? syms)
-      (reset! active-instr-symbols active)
-      (recur (rest syms)
-             (conj active (get @loaded-instr-symbols (first syms))))))
+  (println (keys @pattern-registry))
+  #_(loop [syms (keys @pattern-registry)
+           active []]
+      (if (empty? syms)
+        (reset! active-instr-symbols active)
+        (recur (rest syms)
+               (conj active (get @loaded-instr-symbols (first syms))))))
   (recur))
