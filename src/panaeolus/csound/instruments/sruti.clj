@@ -55,4 +55,5 @@ endin"
                 {:name :risset :default 1}]
   :instr-number 1
   :num-outs 2
-  :release-time 3)
+  :release-time 3
+  :config {:ksmps 256})

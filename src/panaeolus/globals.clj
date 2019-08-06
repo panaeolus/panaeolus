@@ -1,5 +1,6 @@
 (ns panaeolus.globals
   (:require [expound.alpha :as expound]
+            [panaeolus.config :as config]
             [clojure.core.async :as async]
             [clojure.spec.alpha :as s]))
 
@@ -21,7 +22,8 @@
 
 (async/go-loop []
   (async/<! (async/timeout 5000))
-  #_(println (keys @pattern-registry))
+  (when (get-in @config/config [:printer :active-instruments?] nil)
+    (println (keys @pattern-registry)))
   (loop [syms (keys @pattern-registry)
          active []]
     (if (empty? syms)
