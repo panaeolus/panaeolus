@@ -6,6 +6,7 @@
    [panaeolus.sequence-parser :as sequence-parser]
    [panaeolus.csound.csound-jna :as csound-jna]
    [panaeolus.jack2.jack-lib :as jack]
+   [panaeolus.jack2.jack-routing :as jack-routing]
    [panaeolus.utils.utils :as utils]
    [overtone.ableton-link :as link]
    [clojure.data :refer [diff]]
@@ -35,30 +36,23 @@
    already exits, then ensure that the connections
    match up."
   [instrument-instance fx-instances]
-  (let [linear-graph (cons instrument-instance fx-instances)]
+  (let [linear-graph (cons
+                      instrument-instance
+                      (conj fx-instances @jack-routing/master-client))]
     (loop [graph linear-graph]
-      (when-not (empty? graph)
-        (let [graph-node (first graph)
-              next-node (second graph)]
-          (if (or (not next-node) (empty? next-node))
-            (dotimes [output-index (count (:jack-ports-out graph-node))]
-              (let [out-port (nth (:jack-ports-out graph-node) output-index)
-                    out-port-name (jack/get-port-name out-port)
-                    system-out-base (get-in @config/config [:jack :system-out])
-                    system-port-name (str system-out-base (inc output-index))]
-                (jack/connect (:jack-client instrument-instance)
-                              out-port-name
-                              system-port-name)))
-            (let [next-ports (:jack-ports-in next-node)]
-              (dotimes [output-index (count (:jack-ports-out graph-node))]
-                (let [out-port (nth (:jack-ports-out graph-node) output-index)
-                      out-port-name (jack/get-port-name out-port)
-                      in-port (nth next-ports output-index)
-                      in-port-name (jack/get-port-name in-port)]
-                  (jack/connect (:jack-client instrument-instance)
-                                out-port-name
-                                in-port-name)))
-              (recur (rest graph)))))))))
+      (let [graph-node (first graph)
+            next-node (second graph)]
+        (when next-node
+         (let [next-ports (:jack-ports-in next-node)]
+           (dotimes [output-index (count (:jack-ports-out graph-node))]
+             (let [out-port (nth (:jack-ports-out graph-node) output-index)
+                   out-port-name (jack/get-port-name out-port)
+                   in-port (nth next-ports output-index)
+                   in-port-name (jack/get-port-name in-port)]
+               (jack/connect (:jack-client instrument-instance)
+                             out-port-name
+                             in-port-name) ))
+           (recur (rest graph))))))))
 
 (defn csound-make-instance
   [{:keys [i-name instr-form instr-number release-time
@@ -137,25 +131,18 @@
         (fx-reroute-diffs old-fx-instances new-fx-instances)
         killable-instances (filter #(contains? killable (:client-name %)) old-fx-instances)]
     (doseq [{:keys [stop]} killable-instances] (stop))
-    (loop [graph (cons instrument-instance new-fx-instances)]
+    (loop [graph (cons instrument-instance
+                       (conj new-fx-instances
+                             @jack-routing/master-client))]
       (let [graph-node (first graph)
             next-node (second graph)
             survivable? (and graph-node
                              (or (contains? survivable (:client-name graph-node))
                                  (= (:client-name graph-node)
-                                    (:client-name instrument-instance))))
-            spawnable? (and graph-node
-                            (contains? spawnable (:client-name graph-node)))]
-        (if (or (not next-node) (empty? next-node))
-          (do (when survivable? (disconnect-all-outputs graph-node))
-           (dotimes [output-index (count (:jack-ports-out graph-node))]
-             (let [out-port (nth (:jack-ports-out graph-node) output-index)
-                   out-port-name (jack/get-port-name out-port)
-                   system-out-base (get-in @config/config [:jack :system-out])
-                   system-port-name (str system-out-base (inc output-index))]
-               (jack/connect (:jack-client instrument-instance)
-                             out-port-name
-                             system-port-name))))
+                                    (:client-name instrument-instance))
+                                 #_(= (:client-name graph-node)
+                                      (:client-name @jack-routing/master-client))))]
+        (when graph-node
           (let [next-ports (:jack-ports-in next-node)]
             (when survivable? (disconnect-all-outputs graph-node))
             (dotimes [output-index (count (:jack-ports-out graph-node))]

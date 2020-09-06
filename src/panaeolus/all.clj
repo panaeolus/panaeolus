@@ -123,7 +123,7 @@
 
 (def nrepl-server-atom (atom nil))
 
-(.addShutdownHook
+#_(.addShutdownHook
   (Runtime/getRuntime)
   (Thread.
     #(do

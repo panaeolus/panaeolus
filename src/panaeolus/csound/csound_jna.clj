@@ -154,6 +154,18 @@
         (if (< x Float/MIN_VALUE) Float/MIN_VALUE
             (float x))))
 
+(defn handle-messages [csnd requested-client-name]
+  (let [msg-cnt (or (CsoundLib/csoundGetMessageCnt csnd) 0)]
+    (when (< 0 msg-cnt)
+     (loop [msg-cnt msg-cnt
+            out ""]
+       (if (zero? msg-cnt)
+         (when-not (< -1 (.indexOf out "rtevent")) (println out))
+         (let [head (CsoundLib/csoundGetFirstMessage csnd)]
+           (CsoundLib/csoundPopFirstMessage csnd)
+           (recur (dec msg-cnt)
+                  (str out head))))))))
+
 (def __nogc_callbacks__ (atom #{}))
 
 (defn spawn-csound-client
@@ -206,6 +218,7 @@
                                                 ^"[F" memcpy-buffer-outputs
                                                 (int (* idx nframes))
                                                 (int nframes))))
+                                    (handle-messages @csnd requested-client-name)
                                     0)
                                   (recur (perform-ksmps @csnd)
                                          (long (+ w-index ksmps-rate))
@@ -222,10 +235,11 @@
         ;;                 (^void invoke [_ ^ByteByReference clientName ^int register ^Pointer arg]
         ;;                  (if (zero? register)
         ;;                    (reset! status :running))))
-        ;; message-callback (reify
-        ;;                    MessageCallback
-        ;;                    (invoke [this inst attr msg] (print msg)))
+        ;; message-callback (reify MessageCallback
+        ;;                    (^void invoke [_ ^int attr ^String msg ^Pointer args]
+        ;;                     (print msg)))
         ]
+    (CsoundLib/csoundCreateMessageBuffer @csnd -1)
     (run!
      #(set-option @csnd %)
      ["-odac" "-iadc" "-+rtaudio=null" "-+rtmidi=null" "--daemon" ;; "-m0"
@@ -255,8 +269,8 @@
      :client-name client-name
      :start (fn []
               (when @csnd
-               (jack/activate-thread @jack-client)
-               (reset! status :running)))
+                (jack/activate-thread @jack-client)
+                (reset! status :running)))
      :stop (fn []
              (reset! status :stop)
              (async/go
@@ -268,9 +282,11 @@
                  (reset! jack-client nil))
                (async/<! (async/timeout 100))
                (when @csnd
-                (stop @csnd)
-                (cleanup @csnd)
-                (reset! csnd nil))
+                 (handle-messages @csnd requested-client-name)
+                 (stop @csnd)
+                 (CsoundLib/csoundDestroyMessageBuffer @csnd)
+                 (cleanup @csnd)
+                 (reset! csnd nil))
                ;; (swap! __nogc_callbacks__ disj message-callback)
                )
              )
@@ -279,11 +295,11 @@
                (apply (input-msg-cb csnd) args)))
      :compile (fn [orc]
                 (when @csnd
-                 (let [result (compile-orc @csnd orc)]
-                   (when-not (zero? result)
-                     (binding [*out* *err*]
-                       (println "csound error: failed to evaluate orchestra for"
-                                requested-client-name))))))}))
+                  (let [result (compile-orc @csnd orc)]
+                    (when-not (zero? result)
+                      (binding [*out* *err*]
+                        (println "csound error: failed to evaluate orchestra for"
+                                 requested-client-name))))))}))
 
 (comment
   (def qtest
