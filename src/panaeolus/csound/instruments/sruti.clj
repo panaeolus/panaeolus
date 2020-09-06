@@ -8,6 +8,7 @@ giDrone ftgen 0, 0, 256, 9,  1,1,0,   1.732050807568877,.5773502691896259,0,   2
 
 
 instr 1
+
 gkampSruti = ampdb(p5)/9
 gkbaseSruti = cpsmidinn(p4)
 

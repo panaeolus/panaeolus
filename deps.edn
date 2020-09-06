@@ -1,50 +1,80 @@
-{:mvn/repos {"central" {:url "https://repo1.maven.org/maven2/"}
-             "clojars" {:url "https://repo.clojars.org/"}
-             "bintray" {:url "http://jcenter.bintray.com"}}
-
- :paths ["src" "resources" "./deps.edn"]
-
- :deps  {badigeon/badigeon            {:git/url "https://github.com/EwenG/badigeon.git" :sha "5718cd5d10e41228717fe2fe145470b9b85fa281"}
-         com.google.inject/guice      {:mvn/version "4.2.2"}
-         com.kunstmusik/CsoundJNA     {:mvn/version "1.0.1"}
-         expound                      {:mvn/version "0.7.2"}
-         instaparse                   {:mvn/version "1.4.9"}
-         net.java.dev.jna/jna         {:mvn/version "5.3.1"}
-         nrepl                        {:mvn/version "0.6.0"}
-         org.clojure/clojure          {:mvn/version "1.10.0"}
-         org.clojure/core.async       {:git/url "https://github.com/clojure/core.async.git" :sha "300d6e16e4b1537b8b58240faa3156d3b763afd8"}
-         org.clojure/tools.namespace  {:mvn/version "0.3.0"}
-         org.jaudiolibs/jnajack       {:mvn/version "1.3.0"}
-         overtone/ableton-link        {:mvn/version "1.0.0-beta11"}
-         panaeolus/libcsound64        {:git/url "https://github.com/panaeolus/libcsound64.git"
-                                       :sha "b87e9ba283bfde08bcfd2332ecece8937d2fad9d"}
-         rksm/subprocess              {:mvn/version "0.1.3"}
-         techascent/tech.jna          {:mvn/version "3.18"}
-         zprint                       {:mvn/version "0.4.16"}}
-
- :aliases {:nrepl {:extra-deps {cider/cider-nrepl {:mvn/version "0.22.0-SNAPSHOT"}}
-                   :main-opts ["-m nrepl.cmdline --middleware [cider.nrepl/cider-middleware]"
-                               "-Xms2G" "-Xmx5G"]}
-           :editor {:extra-deps
-                    { cljfx {:git/url "https://github.com/cljfx/cljfx"
-                             :sha "e70c0653bde0dd7393923f9179ad44797ff9da0a"}
-                     org.fxmisc.richtext/richtextfx {:mvn/version "0.10.0"}
-                     org.fxmisc.flowless/flowless {:mvn/version "0.6.1"}}}
-           ;; COMPILING_PANAEOLUS=1 clojure -A:jar -R:jar -m build2
-           ;; $env:COMPILING_PANAEOLUS = '1'; clojure -A:jar -m build2
-           ;; cp target/panaeolus-0.4.0-SNAPSHOT.jar editor/resources/panaeolus.jar
-           :jar {:extra-paths ["scripts"]
-                 :extra-deps {net.lingala.zip4j/zip4j {:mvn/version "1.2.5"}}
-                 :jvm-opts ["-Dclojure.compile.warn-on-reflection=true"]}
-           :test {:extra-deps {lambdaisland/kaocha {:mvn/version "0.0-418"}
-                               kaocha-noyoda {:mvn/version "2019-06-03"}}
-                  :extra-paths ["test"]}
-           :jna-debug {:jvm-opts ["-Djna.debug_load=true"]}
-           :native-image {:main-opts ["-m clj.native-image panaeolus.all"
-                                      "-Dclojure.compiler.direct-linking=true"
-                                      "--no-server"
-                                      "--report-unsupported-elements-at-runtime"]
-                          :extra-deps
-                          {clj.native-image
-                           {:git/url "https://github.com/taylorwood/clj.native-image.git"
-                            :sha "498baa963e914fd817dbf33ea251729efd0c8f95"}}}}}
+;; javac -classpath "src/java:csoundjni.CsoundJNI"
+;; src/java/csoundjni/CsoundApi.java
+{:mvn/repos
+   {"bintray" {:url "http://jcenter.bintray.com"}
+    "central" {:url "https://repo1.maven.org/maven2/"}
+    "clojars" {:url "https://repo.clojars.org/"}}
+ :paths
+   ["src" "resources" ;; "nix" "src/java"
+   ]
+ :deps
+   {badigeon/badigeon
+      {:git/url "https://github.com/EwenG/badigeon.git"
+       :sha "26f548a7c31dd95f6b213c2f2b1095fa6083d31a"}
+    com.google.inject/guice {:mvn/version "4.2.3"}
+    com.kunstmusik/CsoundJNA {:mvn/version "1.0.2"}
+    expound {:mvn/version "0.8.5"}
+    instaparse {:mvn/version "1.4.10"}
+    net.java.dev.jna/jna {:mvn/version "5.6.0"}
+    nrepl {:mvn/version "0.8.0"}
+    org.clojure/clojure {:mvn/version "1.10.1"}
+    org.clojure/core.async
+      {:git/url "https://github.com/clojure/core.async.git"
+       :sha "472340f947789513775d2dde5a478ea1ab03d333"}
+    org.clojure/tools.namespace {:mvn/version "1.0.0"}
+    org.clojure/java.classpath {:mvn/version "0.2.3"}
+    cider/cider-nrepl {:mvn/version "0.25.3"}
+    ;; cider/orchard {:mvn/version "0.5.0"}
+    org.jaudiolibs/jnajack {:mvn/version "1.4.0"}
+    overtone/ableton-link {:mvn/version "1.0.0-beta11"}
+    ;; panaeolus/libcsound64
+    ;;   {:git/url "https://github.com/panaeolus/libcsound64.git"
+    ;;    :sha "b87e9ba283bfde08bcfd2332ecece8937d2fad9d"}
+    rksm/subprocess {:mvn/version "0.1.3"}
+    techascent/tech.jna {:mvn/version "3.24"}
+    zprint {:mvn/version "0.4.16"}
+    }
+ :aliases
+   {:nrepl
+      {:main-opts
+         ["-m nrepl.cmdline middleware '[cider.nrepl/cider-middleware]"]}}
+ #_{:xxx
+      {:jvm-opts
+         ["-Djava.library.path=src/java/csoundjni"
+          "-Dclojure.main.report=stderr"
+          ;; "-XX:+EnableJVMCI" "-XX:+UseJVMCICompiler"
+          ;; "-H:+PrintClassInitialization"
+         ]
+       :main-opts ["-m xxx"]}}
+ ;; :aliases {:nrepl {:extra-deps {cider/cider-nrepl {:mvn/version
+ ;; "0.22.0-SNAPSHOT"}}
+ ;;                   :main-opts ["-m nrepl.cmdline --middleware
+ ;;                   [cider.nrepl/cider-middleware]"
+ ;;                               "-Xms2G" "-Xmx5G"]}
+ ;;           :editor {:extra-deps
+ ;;                    { cljfx {:git/url "https://github.com/cljfx/cljfx"
+ ;;                             :sha "e70c0653bde0dd7393923f9179ad44797ff9da0a"}
+ ;;                     org.fxmisc.richtext/richtextfx {:mvn/version "0.10.0"}
+ ;;                     org.fxmisc.flowless/flowless {:mvn/version "0.6.1"}}}
+ ;;           ;; COMPILING_PANAEOLUS=1 clojure -A:jar -R:jar -m build2
+ ;;           ;; $env:COMPILING_PANAEOLUS = '1'; clojure -A:jar -m build2
+ ;;           ;; cp target/panaeolus-0.4.0-SNAPSHOT.jar
+ ;;           editor/resources/panaeolus.jar
+ ;;           :jar {:extra-paths ["scripts"]
+ ;;                 :extra-deps {net.lingala.zip4j/zip4j {:mvn/version "1.2.5"}}
+ ;;                 :jvm-opts ["-Dclojure.compile.warn-on-reflection=true"]}
+ ;;           :test {:extra-deps {lambdaisland/kaocha {:mvn/version "0.0-418"}
+ ;;                               kaocha-noyoda {:mvn/version "2019-06-03"}}
+ ;;                  :extra-paths ["test"]}
+ ;;           :jna-debug {:jvm-opts ["-Djna.debug_load=true"]}
+ ;;           :native-image {:main-opts ["-m clj.native-image panaeolus.all"
+ ;;                                      "-Dclojure.compiler.direct-linking=true"
+ ;;                                      "--no-server"
+ ;;                                      "--report-unsupported-elements-at-runtime"]
+ ;;                          :extra-deps
+ ;;                          {clj.native-image
+ ;;                           {:git/url
+ ;;                           "https://github.com/taylorwood/clj.native-image.git"
+ ;;                            :sha
+ ;;                            "498baa963e914fd817dbf33ea251729efd0c8f95"}}}}
+ }

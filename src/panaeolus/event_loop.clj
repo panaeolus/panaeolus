@@ -57,77 +57,61 @@
                                (if (empty? at)
                                  last-tick (last at)))))))))))
 
-#_(defn --replace-args-in-fx [old-fx new-fx]
-    (reduce (fn [init old-k]
-              (if (contains? new-fx old-k)
-                (assoc init old-k (assoc (get old-fx old-k) 1 (nth (get new-fx old-k) 1)))
-                init))
-            old-fx
-            (keys old-fx)))
 
-(defn csound-event-loop-thread [get-current-state]
-  (let [{:keys [i-name
-                event-queue-fn
-                instrument-instance
-                args
-                fx-instances
-                isFx?]} (get-current-state)]
-    (go-loop [[queue mod-div queue-end] (event-queue-fn)
-              instrument-instance instrument-instance
-              args args
-              fx-instances fx-instances
-              needs-reroute? false
+(defn get-next-callback
+  [wait-chn queue mod-div queue-end index a-index local-state]
+  (fn []
+    (let [next-timestamp (first queue)
+          timestamp-after-next (if (< 1 (count queue)) (second queue) queue-end)
+          fx-instances (:fx-instances @local-state)
+          send-event (get-in @local-state [:instrument-instance :send])
+          args-processed (resolve-arg-indicies
+                          (:args @local-state)
+                          index
+                          a-index
+                          next-timestamp
+                          timestamp-after-next)]
+      (when-not (empty? fx-instances)
+        (run! (fn [inst]
+                (apply (:send inst)
+                       (resolve-arg-indicies (:args inst) index a-index next-timestamp timestamp-after-next)))
+              (filter :input-msg-cb fx-instances)))
+      (if (some sequential? args-processed)
+        (run! #(apply send-event %)
+              (expand-nested-vectors-to-multiarg args-processed))
+        (apply send-event args-processed))
+      (put! wait-chn true))))
+
+(defn event-loop-instrument [get-current-state]
+  (let [local-state (atom (get-current-state))]
+    (go-loop [[queue mod-div queue-end]
+              (beats-to-queue
+               (link/get-beat)
+               (:beats @local-state))
               index 0
               a-index 0]
       (if-let [next-timestamp (first queue)]
-        (let [wait-chn (chan)
-              ;; STEP 2, run the callback from step1 just before new cycle
-              needs-reroute? (if (and (fn? needs-reroute?) (= 0 index))
-                               (do (swap! globals/pattern-registry assoc-in [i-name :needs-reroute?] false)
-                                   (needs-reroute?)
-                                   false)
-                               needs-reroute?)]
+        (let [wait-chn (chan 1)]
           (link/at next-timestamp
-                   (fn []
-                     (let [timestamp-after-next (if (< 1 (count queue))
-                                                  (second queue)
-                                                  queue-end)
-                           args-processed (resolve-arg-indicies args index a-index next-timestamp timestamp-after-next)]
-                       (when-not (empty? fx-instances)
-                         (run! (fn [inst]
-                                 (apply (:send inst)
-                                        (resolve-arg-indicies (:args inst) index a-index next-timestamp timestamp-after-next)))
-                               (remove :loop-self? fx-instances)))
-                       (if (some sequential? args-processed)
-                         (run! #(apply (:send instrument-instance) %)
-                               (expand-nested-vectors-to-multiarg args-processed))
-                         (apply (:send instrument-instance)
-                                (resolve-arg-indicies args index a-index next-timestamp timestamp-after-next)))
-                       (put! wait-chn true))))
+                   (get-next-callback
+                    wait-chn
+                    queue
+                    mod-div
+                    queue-end
+                    index
+                    a-index
+                    local-state))
           (<! wait-chn)
           (recur [(rest queue) mod-div queue-end]
-                 instrument-instance
-                 args
-                 fx-instances
-                 needs-reroute?
                  (inc index)
                  (inc a-index)))
-        (when-let [event-form (get-current-state)]
-          ;; STEP 1, provide old and new fx-instances to a closure
-          (let [needs-reroute?
-                (if (:needs-reroute? event-form)
-                  (let [stage2 ((:needs-reroute? event-form) (:instrument-instance event-form)
-                                fx-instances (:fx-instances event-form))]
-                    stage2)
-                  needs-reroute?)]
-            (let [{:keys [event-queue-fn instrument-instance
-                          args fx-instances]} event-form
-                  [queue new-mod-div queue-end] (event-queue-fn mod-div)]
-              (recur [queue new-mod-div queue-end]
-                     instrument-instance
-                     args
-                     fx-instances
-                     needs-reroute?
-                     0
-                     a-index
-                     ))))))))
+        (when-let [next-state (get-current-state)]
+          (reset! local-state next-state)
+          (recur (beats-to-queue queue-end (:beats next-state))
+                 0
+                 a-index))))))
+
+(comment
+  (beats-to-queue 609.0 [0.25 0.25 0.25 0.25])
+  (beats-to-queue 1836.25 [0.25 0.25 0.25 0.25] )
+  )

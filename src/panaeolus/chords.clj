@@ -18,7 +18,6 @@
    :I+ [0 4 8] :I+6 [4 8 12] :I+46 [8 12 16] :I+7 [0 4 8 11] :I+56 [4 8 11 12] :I+34 [8 11 12 16] :I+24 [11 12 16 20]
    :I+b7 [0 4 8 10] :I+b56 [4 8 10 12] :I+b34 [8 10 12 16] :I+b24 [10 12 16 20]})
 
-
 (defn chord-midi [root mode chord]
   (let [chord             (if (vector? chord) chord [chord])
         str-fn            (map name chord)
@@ -47,13 +46,11 @@
                                  (mapv #(+ (+ (get grunntonar-oct x) (get flat-sharp-lookup x)) %) (get str-resolve x))))]
     utkoma))
 
-
 (defn chordname-scalename [chord]
   (let [chord (if (vector? chord) chord [chord])
         str-fn    (map name chord)
         str-rmv-num (map #(clojure.string/replace % #"\d+|\+|m|M|\°|b\d|[sus]" "") str-fn)]
     str-rmv-num))
-
 
 (defn chord [root mode chord]
   (let [chord             (if (vector? chord) chord [chord])
@@ -82,7 +79,6 @@
         utkoma            (vec (for [x (range (count grunntonar-oct))]
                                  (mapv #(midi->freq (+ (+ (get grunntonar-oct x) (get flat-sharp-lookup x)) %)) (get str-resolve x))))]
     utkoma))
-
 
 (defn hljómaskali
   "chord-scales"

@@ -49,7 +49,7 @@
           (fn [idx x]
             (when (pred x)
               idx))
-          coll))  )
+          coll)))
 
 (defn process-arguments
   "Process the given arguments so that
@@ -105,12 +105,13 @@
                    (conj out-args (first orig) (first args)))))))))
 
 (defn hash-jack-client-to-32 [original-name]
-  (let [hash (str (.hashCode ^java.lang.String original-name))
+  (let [hash (clojure.string/replace
+              (str (.hashCode ^java.lang.String original-name)) "-" "")
         [ns & rest] (string/split original-name #"/")
         simple-name (apply str rest)]
-    (str "pae/" (subs hash 0 (min 12 (count hash)))
+    (str "pae/" (subs hash 0 (min 10 (count hash)))
          "/"
-         (subs simple-name 0 (min 15 (count simple-name))))))
+         (subs simple-name 0 (min 13 (count simple-name))))))
 
 (defn deep-merge [& maps]
   (apply merge-with (fn [& args]

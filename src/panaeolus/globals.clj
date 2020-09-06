@@ -20,7 +20,7 @@
   `(or (some  #(= % (:inst (meta (var ~instrument))))
               (keys @pattern-registry)) false))
 
-(async/go-loop []
+#_(async/go-loop []
   (async/<! (async/timeout 5000))
   (when (get-in @config/config [:printer :active-instruments?] nil)
     (println (keys @pattern-registry)))

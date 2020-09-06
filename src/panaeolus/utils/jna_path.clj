@@ -4,9 +4,8 @@
    [clojure.string :as string]
    [clojure.edn :as edn]
    [clojure.java.io :as io]
-   [clojure.tools.deps.alpha.reader :as deps-reader]
    [clojure.walk :as walk]
-   [panaeolus.libcsound64 :as libcsound64]))
+   #_[panaeolus.libcsound64 :as libcsound64]))
 
 (set! *warn-on-reflection* true)
 
@@ -25,9 +24,8 @@
       (re-find #"[Ll]inux" os)   :linux
       (re-find #"[Mm]ac" os)     :mac)))
 
-
 (def libcsound-cache-path
-  (let [cache-path (libcsound64/cache-csound!)]
+  #_(let [cache-path (libcsound64/cache-csound!)]
     (System/setProperty "jna.library.path" cache-path)
     cache-path))
 

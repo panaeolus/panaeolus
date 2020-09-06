@@ -1,48 +1,53 @@
 (ns
-    ^{:doc "This namespace is the entry point into Panaeolus,
+  ^{:doc
+      "This namespace is the entry point into Panaeolus,
             with the goal of recursively making all public symbols
             global to the namespace which requires this file.
             Therefore full-ns is prefered over aliases in this namespace."}
-    panaeolus.all
+  panaeolus.all
   (:gen-class)
   (:require
-   ;; non-immigrants
-   clojure.core.async
-   clojure.tools.namespace.file
-   nrepl.server
-   panaeolus.config
-   panaeolus.globals
-   panaeolus.csound.csound-jna
-   panaeolus.csound.pattern-control
-   ;; immigrants
-   panaeolus.csound.macros
-   panaeolus.csound.samplers
-   panaeolus.metronome
-   panaeolus.chords
-   panaeolus.pitches
-   panaeolus.functions
-   ;; built-in fx
-   panaeolus.csound.fx.binauralize
-   panaeolus.csound.fx.dubflang
-   panaeolus.csound.fx.exciter
-   panaeolus.csound.fx.flanger
-   panaeolus.csound.fx.reverbsc
-   panaeolus.csound.fx.shred
-   ;; built-in instruments
-   panaeolus.csound.instruments.fmpluck
-   panaeolus.csound.instruments.hammer
-   panaeolus.csound.instruments.lush
-   panaeolus.csound.instruments.metallic-casio
-   panaeolus.csound.instruments.pluck
-   panaeolus.csound.instruments.priest
-   panaeolus.csound.instruments.scan
-   panaeolus.csound.instruments.sruti
-   panaeolus.csound.instruments.squine
-   panaeolus.csound.instruments.taffy
-   panaeolus.csound.instruments.wobble)
-  (:import [clojure.lang Var]
-           [com.sun.jna CallbackReference$DefaultCallbackProxy]
-           [org.objectweb.asm Type]))
+    ;; non-immigrants
+    clojure.core.async
+    clojure.tools.namespace.file
+    nrepl.server
+    panaeolus.config
+    panaeolus.globals
+    panaeolus.csound.csound-jna
+    panaeolus.csound.pattern-control
+    ;; immigrants
+    panaeolus.csound.macros
+    panaeolus.csound.samplers
+    panaeolus.metronome
+    panaeolus.chords
+    panaeolus.pitches
+    panaeolus.functions
+    ;; built-in fx
+    panaeolus.csound.fx.binauralize
+    panaeolus.csound.fx.dubflang
+    panaeolus.csound.fx.exciter
+    panaeolus.csound.fx.flanger
+    panaeolus.csound.fx.reverbsc
+    panaeolus.csound.fx.shred
+    ;; built-in instruments
+    panaeolus.csound.instruments.fmpluck
+    panaeolus.csound.instruments.hammer
+    panaeolus.csound.instruments.lush
+    panaeolus.csound.instruments.metallic-casio
+    panaeolus.csound.instruments.pluck
+    panaeolus.csound.instruments.priest
+    panaeolus.csound.instruments.scan
+    panaeolus.csound.instruments.sruti
+    panaeolus.csound.instruments.squine
+    panaeolus.csound.instruments.taffy
+    panaeolus.csound.instruments.wobble
+    ;; CUSTOM (REMOVEME)
+    panaeolus.csound.fx.weirdverb
+    panaeolus.csound.instruments.soundcheck)
+  (:import
+    [clojure.lang Var]
+    [com.sun.jna CallbackReference$DefaultCallbackProxy]
+    [org.objectweb.asm Type]))
 
 (def __is_windows__ (re-find #"[Ww]indows" (System/getProperty "os.name")))
 
@@ -58,56 +63,59 @@
     (doseq [[sym var] (ns-publics ns)]
       (let [sym (with-meta sym (assoc (meta var) :orig-ns ns))]
         (if (.isBound ^Var var)
-          (intern *ns* sym (if (fn? (var-get var))
-                             var
-                             (var-get var)))
+          (intern *ns* sym (if (fn? (var-get var)) var (var-get var)))
           (intern *ns* sym))))))
 
 (immigrate
- 'panaeolus.csound.macros
- 'panaeolus.csound.samplers
- 'panaeolus.metronome
- 'panaeolus.chords
- 'panaeolus.pitches
- 'panaeolus.functions
- ;; built-in fx
- 'panaeolus.csound.fx.binauralize
- 'panaeolus.csound.fx.dubflang
- 'panaeolus.csound.fx.exciter
- 'panaeolus.csound.fx.flanger
- 'panaeolus.csound.fx.reverbsc
- 'panaeolus.csound.fx.shred
- ;; built-in instruments
- 'panaeolus.csound.instruments.fmpluck
- 'panaeolus.csound.instruments.hammer
- 'panaeolus.csound.instruments.lush
- 'panaeolus.csound.instruments.metallic-casio
- 'panaeolus.csound.instruments.pluck
- 'panaeolus.csound.instruments.priest
- 'panaeolus.csound.instruments.scan
- 'panaeolus.csound.instruments.sruti
- 'panaeolus.csound.instruments.squine
- 'panaeolus.csound.instruments.taffy
- 'panaeolus.csound.instruments.wobble
- )
+  'panaeolus.csound.macros
+  'panaeolus.csound.samplers
+  'panaeolus.metronome
+  'panaeolus.chords
+  'panaeolus.pitches
+  'panaeolus.functions
+  ;; built-in fx
+  'panaeolus.csound.fx.binauralize
+  'panaeolus.csound.fx.dubflang
+  'panaeolus.csound.fx.exciter
+  'panaeolus.csound.fx.flanger
+  'panaeolus.csound.fx.reverbsc
+  'panaeolus.csound.fx.shred
+  ;; built-in instruments
+  'panaeolus.csound.instruments.fmpluck
+  'panaeolus.csound.instruments.hammer
+  'panaeolus.csound.instruments.lush
+  'panaeolus.csound.instruments.metallic-casio
+  'panaeolus.csound.instruments.pluck
+  'panaeolus.csound.instruments.priest
+  'panaeolus.csound.instruments.scan
+  'panaeolus.csound.instruments.sruti
+  'panaeolus.csound.instruments.squine
+  'panaeolus.csound.instruments.taffy
+  'panaeolus.csound.instruments.wobble
+  ;; CUSTOM (DELETEME)
+  'panaeolus.csound.instruments.soundcheck
+  'panaeolus.csound.fx.weirdverb)
 
-(defn read-from-file-with-trusted-contents [filename]
-  (with-open [r (java.io.PushbackReader.
-                 (clojure.java.io/reader filename))]
-    (binding [*read-eval* false]
-      (read r))))
+(defn read-from-file-with-trusted-contents
+  [filename]
+  (with-open [r (java.io.PushbackReader. (clojure.java.io/reader filename))]
+    (binding [*read-eval* false] (read r))))
 
 ;; Load preloads
 (when-not (or *compile-files* (System/getenv "COMPILING_PANAEOLUS"))
   (doseq [file (:preloads @panaeolus.config/config)]
     (let [ns-form (clojure.tools.namespace.file/read-file-ns-decl file)
-          ns-decl (if-not ns-form
-                    (throw (Exception. (str "Namespace decleration missing in file: " file)))
-                    (second ns-form))]
+          ns-decl
+            (if-not ns-form
+              (throw
+                (Exception.
+                  (str "Namespace decleration missing in file: " file)))
+              (second ns-form))]
       (load-file file)
       (immigrate ns-decl))))
 
-#_(defmacro require-rebel-readline [args]
+#_(defmacro require-rebel-readline
+    [args]
     (when-not `__is_windows__
       `(do
          (require 'rebel-readline.clojure.main)
@@ -115,34 +123,49 @@
 
 (def nrepl-server-atom (atom nil))
 
-(.addShutdownHook (Runtime/getRuntime)
-		  (Thread. #(do (when-let [nrepl-server @nrepl-server-atom]
-		                  (println "killing nrepl server..")
-		                  (nrepl.server/stop-server nrepl-server))
-		                (when-let [jack-server @panaeolus.jack2.jack-lib/jack-server-atom]
-                                  (.destroy ^java.lang.ProcessImpl jack-server)
-                                  (panaeolus.jack2.jack-lib/kill-jackd-windows!)
-                                  (println "killing jackd..")))))
+(.addShutdownHook
+  (Runtime/getRuntime)
+  (Thread.
+    #(do
+        (when-let [nrepl-server @nrepl-server-atom]
+          (println "killing nrepl server..")
+          (nrepl.server/stop-server nrepl-server))
+        (when-let [jack-server @panaeolus.jack2.jack-lib/jack-server-atom]
+          (.destroy ^java.lang.ProcessImpl jack-server)
+          (panaeolus.jack2.jack-lib/kill-jackd-windows!)
+          (println "killing jackd..")))))
 
-(defn -main [& args]
+(def =dur (fn [{:keys [dur]}] dur))
+
+(defn -main
+  [& args]
   (if (or *compile-files* (System/getenv "COMPILING_PANAEOLUS"))
     (System/exit 0)
     (if (and (not (empty? args)) (= "stdin" (first args)))
       (loop []
         (flush)
-        (print (-> (read-line) read-string eval))
+        (print
+          (->
+            (read-line)
+            read-string
+            eval))
         (recur))
       (let [no-exit-chan (clojure.core.async/chan 1)]
-        (reset! nrepl-server-atom (nrepl.server/start-server
-                                   :bind "127.0.0.1"
-                                   :port (Integer/parseInt (or (second args) 4445))))
+        (reset!
+          nrepl-server-atom
+          (nrepl.server/start-server
+            :bind "127.0.0.1"
+            :port (Integer/parseInt (or (second args) 4445))))
         (println (format "[nrepl:%s]" (second args)))
-        (clojure.core.async/<!! no-exit-chan)
-        ) ;; dont exit!
-      #_(if (or __is_windows__ (and (not (empty? args)) (= "nrepl" (first args))))
-          (
-           #_(loop []
+        (clojure.core.async/<!! no-exit-chan)) ;; dont exit!
+      #_(if
+          (or __is_windows__ (and (not (empty? args)) (= "nrepl" (first args))))
+          (#_(loop []
                (flush)
-               (print (-> (read-line) read-string eval))
+               (print
+                 (->
+                   (read-line)
+                   read-string
+                   eval))
                (recur)))
           (require-rebel-readline args)))))

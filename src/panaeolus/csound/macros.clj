@@ -66,7 +66,7 @@
   [fx-name {:keys [orc-string fx-form ctl-instr num-outs release-time
                    init-hook release-hook instance-config] :as env}]
   (fn [& args]
-    (fn [host-pattern-name chain-index]
+    (fn [host-pattern-name]
       (let [orc-string (or orc-string
                            (and (:orc-filepath env)
                                 (slurp (clojure.java.io/file (:orc-filepath env))))
@@ -74,19 +74,20 @@
                                 (slurp (clojure.java.io/resource (:orc-internal-filepath env)))))
             fx-form (or fx-form [])
             num-outs (or num-outs 2)
-            fx-name (utils/hash-jack-client-to-32 (str host-pattern-name "/" (name fx-name) "#" chain-index))
-            loops-self? (= :loop (first args))
+            fx-name (utils/hash-jack-client-to-32 (str host-pattern-name "/" (name fx-name)))
+            ;; loops-self? (= :loop (first args))
             release-time (or release-time 2)
             instance-config (or instance-config {})]
-        (when loops-self?
-          (apply (pat-ctl/csound-pattern-control
-                  fx-name ctl-instr orc-string fx-form
-                  num-outs release-time
-                  init-hook release-hook instance-config true) args))
-        (apply (pat-ctl/csound-fx-control-data
-                host-pattern-name fx-name ctl-instr
-                orc-string fx-form num-outs release-time
-                init-hook release-hook instance-config loops-self?) args)))))
+        (apply pat-ctl/make-fx-control
+         (-> env
+             (assoc :host-pattern-name host-pattern-name)
+             (assoc :orc-string orc-string)
+             (assoc :fx-name fx-name)
+             (assoc :release-time release-time)
+             (assoc :num-outs num-outs)
+             (assoc :config instance-config)
+             (assoc :isFx? true))
+         args)))))
 
 (s/fdef define-fx
   :args (s/cat :fx-name ::fx-name
@@ -129,27 +130,24 @@
   :ret fn?)
 
 (defn definst*
-  [instr-name {:keys [orc-string instr-form instr-number num-outs release-time config] :as env}]
-  (let [orc-string (or orc-string
+  [instr-name env]
+  (let [orc-string (or (:orc-string env)
                        (and (:orc-filepath env)
                             (slurp (io/file (:orc-filepath env))))
                        (and (:orc-internal-filepath env)
                             (slurp (io/resource (:orc-internal-filepath env)))))
-        num-outs (or num-outs 2)
-        release-time (or release-time 2)
-        config (or config {})
+        num-outs (or (:num-outs env) 2)
+        release-time (or (:release-time env) 2)
+        config (or (:config env) {})
         hashed-instr-name (utils/hash-jack-client-to-32 instr-name)]
-    (swap! globals/loaded-instr-symbols assoc hashed-instr-name instr-name)
-    (pat-ctl/csound-pattern-control
-     hashed-instr-name
-     instr-number
-     orc-string
-     instr-form
-     num-outs
-     release-time
-     nil nil
-     config
-     false)))
+    (pat-ctl/make-pattern-control
+     (-> env
+         (assoc :orc-string orc-string)
+         (assoc :i-name hashed-instr-name)
+         (assoc :release-time release-time)
+         (assoc :num-outs num-outs)
+         (assoc :config config)
+         (assoc :isFx? false)))))
 
 (s/fdef definst
   :args (s/cat :instr-name ::instr-name
