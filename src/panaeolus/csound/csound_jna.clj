@@ -177,11 +177,11 @@
         status (atom :init)
         audio-callback (reify JackLibrary$JackProcessCallback
                          (^int invoke [_ ^int nframes]
-                          (loop [status (perform-ksmps @csnd)
+                          (loop [return (perform-ksmps @csnd)
                                  w-index  0
                                  jack-input-pointers (mapv #(jack/get-buffer % nframes) jack-ports-in)
                                  memcpy-buffer-outputs (float-array (* nframes outputs))]
-                            (if (zero? status)
+                            (if (zero? return)
                               (let [spin  ^Pointer (get-spin ^Pointer @csnd)
                                     spout ^Pointer (get-spout ^Pointer @csnd)]
                                 (dotimes [sampl ksmps-rate]
@@ -211,10 +211,13 @@
                                          (long (+ w-index ksmps-rate))
                                          jack-input-pointers
                                          memcpy-buffer-outputs)))
-                              (do (binding [*out* *err*]
+                              (do
+                                (when (= @status :running)
+                                  (reset! csnd nil)
+                                  (binding [*out* *err*]
                                     (println "FATAL:" requested-client-name
-                                             "crashed <:S"))
-                                  -1)))))
+                                             "crashed <:S")))
+                                -1)))))
         ;; client-reg-cb (reify JackLibrary$JackClientRegistrationCallback
         ;;                 (^void invoke [_ ^ByteByReference clientName ^int register ^Pointer arg]
         ;;                  (if (zero? register)
@@ -251,36 +254,45 @@
      :jack-ports-out jack-ports-out
      :client-name client-name
      :start (fn []
-              (jack/activate-thread @jack-client)
-              (reset! status :running))
+              (when @csnd
+               (jack/activate-thread @jack-client)
+               (reset! status :running)))
      :stop (fn []
              (reset! status :stop)
              (async/go
                (async/<! (async/timeout (* 1000 release-time)))
-               (jack/deactivate-thread @jack-client)
-               (jack/close-client @jack-client)
+               (when @jack-client
+                 (jack/deactivate-thread @jack-client)
+                 (jack/close-client @jack-client)
+                 (swap! __nogc_callbacks__ disj audio-callback)
+                 (reset! jack-client nil))
                (async/<! (async/timeout 100))
-               (stop @csnd)
-               (cleanup @csnd)
-               (swap! __nogc_callbacks__ disj audio-callback)
+               (when @csnd
+                (stop @csnd)
+                (cleanup @csnd)
+                (reset! csnd nil))
                ;; (swap! __nogc_callbacks__ disj message-callback)
                )
              )
      :send (fn [& args]
-             (when (= :running @status)
-               (apply (input-msg-cb csnd) args))),
+             (when (and (= :running @status) @csnd)
+               (apply (input-msg-cb csnd) args)))
      :compile (fn [orc]
-                (let [result (compile-orc @csnd orc)]
-                  (when-not (zero? result)
-                    (binding [*out* *err*]
-                      (println "csound error: failed to evaluate orchestra for"
-                               requested-client-name)))))}))
+                (when @csnd
+                 (let [result (compile-orc @csnd orc)]
+                   (when-not (zero? result)
+                     (binding [*out* *err*]
+                       (println "csound error: failed to evaluate orchestra for"
+                                requested-client-name))))))}))
 
 (comment
   (def qtest
     (spawn-csound-client
-     "quicktest2" 2 2 (:csound @config/config)
-     0 false println))
+     {:requested-client-name "quicktest"
+      :inputs 2 :outputs 2
+      :config (:csound @config/config)
+      :release-time 1
+      :input-msg-cb (fn [])}))
 
   ((:compile qtest) "
 instr 1
@@ -291,6 +303,9 @@ instr 1
 endin
 event_i(\"i\",1,0,100)
 ")
+
+  (def port (first (:jack-ports-out qtest)))
+  (into [] (jack/get-port-connections port ))
 
 
   (def qtest-start

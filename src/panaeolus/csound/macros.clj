@@ -74,7 +74,7 @@
                                 (slurp (clojure.java.io/resource (:orc-internal-filepath env)))))
             fx-form (or fx-form [])
             num-outs (or num-outs 2)
-            fx-name (utils/hash-jack-client-to-32 (str host-pattern-name "/" (name fx-name)))
+            fx-name (utils/jack-client-name-fit [host-pattern-name fx-name])
             ;; loops-self? (= :loop (first args))
             release-time (or release-time 2)
             instance-config (or instance-config {})]
@@ -139,7 +139,7 @@
         num-outs (or (:num-outs env) 2)
         release-time (or (:release-time env) 2)
         config (or (:config env) {})
-        hashed-instr-name (utils/hash-jack-client-to-32 instr-name)]
+        hashed-instr-name (utils/jack-client-name-fit [instr-name])]
     (pat-ctl/make-pattern-control
      (-> env
          (assoc :orc-string orc-string)

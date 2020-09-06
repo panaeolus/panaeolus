@@ -104,14 +104,24 @@
                    (vec (rest (rest orig)))
                    (conj out-args (first orig) (first args)))))))))
 
-(defn hash-jack-client-to-32 [original-name]
+#_(defn hash-jack-client-to-32 [original-name]
   (let [hash (clojure.string/replace
               (str (.hashCode ^java.lang.String original-name)) "-" "")
         [ns & rest] (string/split original-name #"/")
-        simple-name (apply str rest)]
+        simple-name (apply str rest)
+        ]
     (str "pae/" (subs hash 0 (min 10 (count hash)))
          "/"
-         (subs simple-name 0 (min 13 (count simple-name))))))
+         (subs original-name 0 (min 13 (count simple-name))))))
+
+(defn jack-client-name-fit [names]
+  (str "pae/"
+       (string/join "/"
+                    (map #(let [simple-name (apply str (rest (string/split % #"/")))]
+                            (subs simple-name
+                                  0 (min (int (/ 24 (count names)))
+                                         (count simple-name))))
+                         names))))
 
 (defn deep-merge [& maps]
   (apply merge-with (fn [& args]

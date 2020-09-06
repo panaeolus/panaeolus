@@ -65,9 +65,9 @@
            config num-outs orc-string init-hook
            isFx? fx-form ctl-instr]}]
   (let [input-msg-cb (when-not (and isFx? (not ctl-instr))
-                      (csound-jna/input-message-closure
-                       (if isFx? fx-form instr-form)
-                       (if isFx? ctl-instr instr-number)))
+                       (csound-jna/input-message-closure
+                        (if isFx? fx-form instr-form)
+                        (if isFx? ctl-instr instr-number)))
         new-instance (csound-jna/spawn-csound-client
                       {:requested-client-name i-name
                        :inputs (if isFx? num-outs 0)
@@ -110,303 +110,63 @@
     :valid-live-code-pattern valid-live-code-pattern?
     :opt-args (s/* valid-parameters?))))
 
-;; NOTE, you can also get the old-fx-instances
-;; from the csound-instances atom at this point.
-#_(defn csound-reroute-jack
-  [instrument-instance old-fx-instances new-fx-instances]
-  (let [new-fx-instances-names (mapv :client-name new-fx-instances)
-        old-fx-instances-names (mapv :client-name old-fx-instances)
-        [kill-chain _ survivor-chain]
+(defn fx-reroute-diffs
+  [old-fx-instances new-fx-instances]
+  (let [new-fx-instances-names (set (mapv :client-name new-fx-instances))
+        old-fx-instances-names (set (mapv :client-name old-fx-instances))
+        [killable* spawnable* survivable*]
         (diff old-fx-instances-names new-fx-instances-names)
-        kill-chain (remove nil? (or kill-chain []))
-        kill-chain
-        (if (empty? kill-chain)
-          []
-          (->>
-           old-fx-instances
-           (split-at
-            (.indexOf
-             ^clojure.lang.PersistentVector old-fx-instances
-             (first kill-chain)))
-           second
-           vec))
-        survivor-chain (or survivor-chain [])
-        linear-survivor-chain (vec (take-while #(not (nil? %)) survivor-chain))
-        last-survivor (last linear-survivor-chain)
-        linear-new-fx
-        (if-not last-survivor
-          new-fx-instances-names
-          (->
-           (split-at
-            (.indexOf
-             ^clojure.lang.PersistentVector new-fx-instances-names
-             last-survivor)
-            new-fx-instances-names)
-           second
-           vec))]
-    (fn []
-      (doseq [killable-node kill-chain]
-        ;; Take rare case into account where fx with same index
-        ;; exists within a kill chain, example
-        ;; (diff [:src :fx1 :fx2 :fx3 :fx4 :fx5] [:src :fx1 :fx2 :fx6 :fx4
-        ;; :fx5])
-        ;; where :fx5 needs to re-routing but at the same time survive
-        (let [killable-node-survives?
-              (some #(= % killable-node) survivor-chain)]
-          (when killable-node-survives?
-            (doseq [output-port (:outputs killable-node)]
-              (apply jack/disconnect
-                     (:port-name output-port)
-                     (:connected-to-ports output-port)))
-            (doseq [input-port (:inputs killable-node)]
-              (run!
-               #(jack/disconnect % (:port-name input-port))
-               (:connected-from-ports input-port))))
-          (doseq [output-port (:outputs killable-node)]
-            (swap! csound-jna/csound-instances update-in
-                   [(:client-name killable-node) :outputs
-                    (:channel-index output-port)]
-                   assoc
-                   :connected-to-ports []
-                   :connected-to-instances []))
-          (doseq [input-port (:inputs killable-node)]
-            (swap! csound-jna/csound-instances update-in
-                   [(:client-name killable-node) :inputs (:channel-index input-port)]
-                   assoc
-                   :connected-from-ports []
-                   :connected-from-instances []))
-          (when (not killable-node-survives?)
-            (swap! csound-jna/csound-instances assoc-in
-                   [(:client-name killable-node) :scheduled-to-kill?]
-                   true)
-            (async/go
-              (async/<! (async/timeout (:release-time instrument-instance)))
-              (let [killable-node-post-release
-                    (get
-                     @csound-jna/csound-instances
-                     (:client-name killable-node))]
-                (when killable-node-post-release
-                  (if (:scheduled-to-kill? killable-node-post-release)
-                    (do
-                      ((:stop killable-node-post-release))
-                      (swap! csound-jna/csound-instances dissoc
-                             (:client-name killable-node))))
-                  ;; Something has connected itself to this node
-                  ;; while it was in release (very rare case!)
-                  ;; only disconnect non-current connections
-                  (let [;;current-connections (set (jack/query-connection
-                        ;;killable-node-name))
-                        current-inputs
-                        (set
-                         (mapv :port-name
-                               (:inputs killable-node-post-release)))
-                        previous-inputs
-                        (set (mapv :port-name (:inputs killable-node)))
-                        current-outputs
-                        (set
-                         (mapv :port-name
-                               (:outputs killable-node-post-release)))
-                        previous-outputs
-                        (set (mapv :port-name (:outputs killable-node)))]
-                    (doseq [output-port (:outputs killable-node-post-release)]
-                      (when
-                          (and
-                           (contains? previous-outputs (:port-name output-port))
-                           (not
-                            (contains?
-                             current-outputs
-                             (:port-name output-port))))
-                        (apply jack/disconnect
-                               output-port
-                               (or
-                                (jack/query-connection (:port-name output-port))
-                                []))))
-                    (doseq [input-port (:inputs killable-node-post-release)]
-                      (when
-                          (and
-                           (contains? previous-inputs (:port-name input-port))
-                           (not
-                            (contains? current-inputs (:port-name input-port))))
-                        (run!
-                         #(jack/disconnect % input-port)
-                         (or
-                          (jack/query-connection (:port-name input-port))
-                          [])))))))))))
-      (when
-          (or
-           (empty? linear-new-fx)
-           (not= (first old-fx-instances-names) (first new-fx-instances-names)))
-        ;; this means root needs re-routing
-        (if (empty? new-fx-instances) ;; connect to system?
-          (let [current-outputs (:outputs instrument-instance)]
-            (doseq [output current-outputs]
-              (let [connected-to-port (first (:connected-to-ports output))
-                    system-out-base (get-in @config/config [:jack :system-out])
-                    system-port-name
-                    (str system-out-base (inc (:channel-index output)))]
-                (when connected-to-port
-                  (jack/disconnect (:port-name output) connected-to-port))
-                (when
-                    (<
-                     (:channel-index output)
-                     (get-in @config/config [:csound :nchnls]))
-                  (jack/connect (:port-name output) system-port-name))
-                (swap! csound-jna/csound-instances update-in
-                       [(:client-name instrument-instance) :outputs
-                        (:channel-index output)]
-                       assoc
-                       :connected-to-ports
-                       (if
-                           (<
-                            (:channel-index output)
-                            (get-in @config/config [:csound :nchnls]))
-                         [system-port-name]
-                         [])
-                       :connected-to-instances
-                       (if
-                           (<
-                            (:channel-index output)
-                            (get-in @config/config [:csound :nchnls]))
-                         ["system"]
-                         [])))))
-          ;; connect to first node
-          (let [current-outputs (:outputs instrument-instance)
-                next-node (first new-fx-instances)]
-            (doseq [output current-outputs]
-              (let [connected-to-port (first (:connected-to-ports output))
-                    next-port-name
-                    (:port-name
-                     (nth (:inputs next-node) (:channel-index output)))]
-                (when connected-to-port
-                  (jack/disconnect (:port-name output) connected-to-port))
-                (when next-port-name
-                  (jack/connect (:port-name output) next-port-name)
-                  (swap! csound-jna/csound-instances update-in
-                         [(:client-name next-node) :inputs (:channel-index output)]
-                         #(->
-                           %
-                           (update :connected-from-ports conj (:port-name output))
-                           (update
-                            :connected-from-instances
-                            conj
-                            (:client-name instrument-instance)))))
-                (swap! csound-jna/csound-instances update-in
-                       [(:client-name instrument-instance) :outputs
-                        (:channel-index output)]
-                       assoc
-                       :connected-to-ports (if next-port-name [next-port-name] [])
-                       :connected-to-instances
-                       (if next-port-name [(:client-name next-node)] [])))))))
-      (loop [graph-node-names linear-new-fx]
-        (if (empty? graph-node-names)
-          nil
-          (let [graph-node
-                (get @csound-jna/csound-instances (first graph-node-names))
-                next-node
-                (and
-                 (second graph-node-names)
-                 (get
-                  @csound-jna/csound-instances
-                  (second graph-node-names)))]
-            (swap! csound-jna/csound-instances assoc-in
-                   [(first graph-node-names) :scheduled-to-kill?]
-                   false)
-            (when-let [outputs (:outputs graph-node)]
-              (run!
-               (fn
-                 [{:keys
-                   [port-name channel-index connected-to-ports
-                    connected-to-instances],
-                   :as env}]
-                 ;; Debugging
-                 (if next-node
-                   (when (< channel-index (count (:inputs next-node)))
-                     (let [next-node-inputs (:inputs next-node)
-                           next-port-name
-                           (:port-name (nth next-node-inputs channel-index))]
-                       (async/go-loop
-                           [retry 0]
-                         (let [query-result
-                               (jack/query-connection
-                                (:client-name graph-node))]
-                           (if
-                               (and
-                                query-result
-                                (some #(= port-name %) query-result)
-                                (some #(= next-port-name %) query-result))
-                             (jack/connect port-name next-port-name)
-                             (do
-                               (async/<! (async/timeout 25))
-                               (if (>= retry 10)
-                                 (jack/connect port-name next-port-name)
-                                 #_(throw
-                                    (Exception.
-                                     (str
-                                      "Error in starting csound instrument, "
-                                      (:client-name graph-node)
-                                      " did not start.")))
-                                 (recur (inc retry)))))))
-                       (swap! csound-jna/csound-instances update-in
-                              [(:client-name graph-node) :outputs channel-index]
-                              #(->
-                                %
-                                (update :connected-to-ports conj next-port-name)
-                                (update
-                                 :connected-to-instances
-                                 conj
-                                 (:client-name next-node))))
-                       (swap! csound-jna/csound-instances update-in
-                              [(:client-name next-node) :inputs channel-index]
-                              #(->
-                                %
-                                (update :connected-from-ports conj next-port-name)
-                                (update
-                                 :connected-from-instances
-                                 conj
-                                 (:client-name graph-node))))))
-                   (when
-                       (<
-                        channel-index
-                        (get-in @config/config [:csound :nchnls]))
-                     (let [system-out-base
-                           (get-in @config/config [:jack :system-out])
-                           system-port-name
-                           (str system-out-base (inc channel-index))]
-                       (async/go-loop
-                           [retry 0]
-                         (let [query-result
-                               (jack/query-connection
-                                (:client-name graph-node))]
-                           (if
-                               (and
-                                query-result
-                                (some #(= port-name %) query-result))
-                             (jack/connect port-name system-port-name)
-                             (if (>= retry 10)
-                               (throw
-                                (Exception.
-                                 (str
-                                  "Error in starting csound instrument, "
-                                  (:client-name graph-node)
-                                  " did not start.")))
-                               (and
-                                (async/<! (async/timeout 25))
-                                (recur (inc retry)))))))
-                       (swap! csound-jna/csound-instances update-in
-                              [(:client-name graph-node) :outputs channel-index]
-                              #(->
-                                %
-                                (update :connected-to-ports conj system-port-name)
-                                (update
-                                 :connected-to-instances
-                                 conj
-                                 "system")))))))
-               outputs))
-            (recur (rest graph-node-names))))))))
+        killable (clojure.set/difference
+                  old-fx-instances-names
+                  new-fx-instances-names)
+        spawnable (set (remove nil? (or spawnable* [])))
+        survivable (set (remove nil? (or survivable* [])))]
+    [killable spawnable survivable]))
 
-;; (update-in {:a {:b [nil {:c [] :d []}]}} [:a :b 1] #( -> % (update :c conj
-;; 1)
-;; (update :d conj 2)))
+(defn disconnect-all-outputs [graph-node]
+  (doseq [out-port (or (:jack-ports-out graph-node) [])]
+    (doseq [into-port (jack/get-port-connections out-port)]
+      (jack/disconnect
+       (:jack-client graph-node)
+       (jack/get-port-name out-port)
+       into-port))))
+
+(defn csound-reroute-jack
+  [instrument-instance old-fx-instances new-fx-instances]
+  (let [[killable spawnable survivable]
+        (fx-reroute-diffs old-fx-instances new-fx-instances)
+        killable-instances (filter #(contains? killable (:client-name %)) old-fx-instances)]
+    (doseq [{:keys [stop]} killable-instances] (stop))
+    (loop [graph (cons instrument-instance new-fx-instances)]
+      (let [graph-node (first graph)
+            next-node (second graph)
+            survivable? (and graph-node
+                             (or (contains? survivable (:client-name graph-node))
+                                 (= (:client-name graph-node)
+                                    (:client-name instrument-instance))))
+            spawnable? (and graph-node
+                            (contains? spawnable (:client-name graph-node)))]
+        (if (or (not next-node) (empty? next-node))
+          (do (when survivable? (disconnect-all-outputs graph-node))
+           (dotimes [output-index (count (:jack-ports-out graph-node))]
+             (let [out-port (nth (:jack-ports-out graph-node) output-index)
+                   out-port-name (jack/get-port-name out-port)
+                   system-out-base (get-in @config/config [:jack :system-out])
+                   system-port-name (str system-out-base (inc output-index))]
+               (jack/connect (:jack-client instrument-instance)
+                             out-port-name
+                             system-port-name))))
+          (let [next-ports (:jack-ports-in next-node)]
+            (when survivable? (disconnect-all-outputs graph-node))
+            (dotimes [output-index (count (:jack-ports-out graph-node))]
+              (let [out-port (nth (:jack-ports-out graph-node) output-index)
+                    out-port-name (jack/get-port-name out-port)
+                    in-port (nth next-ports output-index)
+                    in-port-name (jack/get-port-name in-port)]
+                (jack/connect (:jack-client instrument-instance)
+                              out-port-name
+                              in-port-name)))
+            (recur (rest graph))))))))
 
 (defn csound-register-pattern
   "Register a new pattern or upadte an existing one."
@@ -429,40 +189,6 @@
            {:args updated-args
             :beats updated-beats
             :fx-instances fx-instances})))
-
-#_(defn calculate-debounce-time
-    "calculate the debounce time for
-   all the threads in a chain based
-   on the maximum release-time value"
-    [instrument-release-time fx-instances]
-    (apply max (conj (map :release-time fx-instances) instrument-release-time)))
-
-#_(defn csound-kill-jack-chain
-  [root-name]
-  (loop [cur-nodes [(get @csound-jna/csound-instances root-name)]]
-    (when-let [cur-node (first cur-nodes)]
-      (when (fn? (:stop cur-node)) ((:stop cur-node)))
-      ;; in case these are self-looping fx's, we dissoc pattern-reg too
-      (swap! globals/pattern-registry dissoc (:client-name cur-node))
-      (swap! csound-jna/csound-instances dissoc (:client-name cur-node))
-      (let [next-instances
-            (->
-             cur-node
-             :outputs
-             first
-             :connected-to-instances)
-            next-nodes
-            (mapv #(get @csound-jna/csound-instances %) next-instances)
-            cur-nodes (into (rest cur-nodes) next-nodes)]
-        (when-not (empty? cur-nodes) (recur cur-nodes)))))
-  ;; kill zombies
-  (run!
-   (fn [[key val]]
-     (when (clojure.string/includes? (str key) root-name)
-       (and (fn? (:stop val)) ((:stop val)))
-       (swap! globals/pattern-registry dissoc key)
-       (swap! csound-jna/csound-instances dissoc key)))
-   @csound-jna/csound-instances))
 
 (defn args->args [{:keys [instr-form]} args]
   (let [argv-positions (mapv :name instr-form)
@@ -488,9 +214,17 @@
   (let [args (args->args env args)
         [args fx-args] (utils/seperate-fx-args args)
         fx-instances (reduce (fn [acc fx-cb] (conj acc (fx-cb i-name))) [] fx-args)]
-    (if (get @globals/pattern-registry i-name)
-      (csound-update-pattern
-       {:i-name i-name :args args :fx-instances fx-instances})
+    (if-let [current-state (get @globals/pattern-registry i-name)]
+      (let [current-order (mapv :fx-name (:fx-instances current-state))
+            new-order (mapv :fx-name fx-instances)
+            needs-reroute? (not= current-order new-order)]
+        (when needs-reroute?
+          (csound-reroute-jack
+           (:instrument-instance current-state)
+           (:fx-instances current-state)
+           fx-instances))
+        (csound-update-pattern
+         {:i-name i-name :args args :fx-instances fx-instances}))
       (let [{:keys [i-name]} env
             instrument-instance (csound-make-instance env)]
         (csound-initialize-jack-graph instrument-instance fx-instances)
@@ -506,9 +240,6 @@
   [env]
   (fn [& args]
     (apply csound-pattern-control env args)))
-
-;; host-pattern-name fx-name fx-controller-instr-number orc-string fx-form
-;;    num-outputs release-time-secs init-hook release-hook config loop-self?
 
 (defn ^:private find-fx
   [fx-name fx-instances]

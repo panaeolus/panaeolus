@@ -123,13 +123,29 @@
   [^JackLibrary$_jack_port port]
   (.jack_port_name jack-lib port))
 
+(defn port-connected-to?
+  [^JackLibrary$_jack_port port ^String connected-to?]
+  (= 1 (.jack_port_connected_to jack-lib port connected-to?)))
+
 (defn connect
   [^JackLibrary$_jack_client client source-port destination-port]
   (.jack_connect jack-lib client  source-port destination-port))
 
 (defn disconnect
   [^JackLibrary$_jack_client client source-port destination-port]
-  (.jack_disconnect jack-lib client  source-port destination-port))
+  (.jack_disconnect jack-lib client source-port destination-port))
+
+(defn jack-free [^Pointer ptr]
+  (.jack_free jack-lib ptr))
+
+(defn get-port-connections
+  [^JackLibrary$_jack_port port]
+  (let [^Pointer ptr (.jack_port_get_connections jack-lib port)]
+    (if ptr
+      (let [str (into [] (.getStringArray ptr 0))]
+        (jack-free ptr)
+        str)
+      [])))
 
 (def jack-server-atom (atom nil))
 
