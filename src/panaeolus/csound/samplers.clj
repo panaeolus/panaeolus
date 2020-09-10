@@ -22,29 +22,44 @@
       (string/join "\n" csound-tables)
       (format
         "
+  giFirstEvent = 1
+
   instr 1
-  iamp = ampdbfs(p5)
+  iamp = ampdbfs(p5 + 6)
   idur = p3
   ifreq = p4
-  ifreq limit ifreq, 0.00001, sr/2
   isample = (p6 %% %s) + 1
-  ilen nsamp isample
+  iframes nsamp isample
   isr ftsr isample
-  ;; p3 = ((ilen/isr)*(1/ifreq))
+  ilen = iframes / isr
   ichannels = ftchnls(isample)
-
-  imode = p7 ;; 1 or 2
+  icross = p7
   islice = p8
-  ;; iwidth = p9
-  ;; iwidth = ilen * min:i(islice, 1)
-  ia = (ilen * islice) %% ilen
-  ib = (ia + (ilen * islice)) %% ilen
+
+  ia = ilen * islice
+  icross = icross * ilen
+  ;; iloopDur = abs:i(ilen - idur) ;; min:i(idur, ilen)
+  ;; ib = (ia + (ilen * islice)) %% ilen
+  imode = 0
+
+  if (ifreq < 0) then
+    imode = 1
+    ifreq = abs:i(ifreq)
+  endif
+
+  ireinit = 0
+  if (giFirstEvent == 1) then
+    ireinit = 0
+    giFirstEvent = 0
+  else
+    ireinit = 1
+  endif
 
   if (ichannels == 1) then
-    aL loscilx iamp, ifreq, isample, 4, 1, 0, imode, ia, ib
+    aL flooper2 iamp, ifreq, 0, ilen, icross, isample, ia, imode
     aR = aL
   elseif (ichannels == 2) then
-    aL, aR loscilx iamp, ifreq, isample, 4, 1, 0, imode, ia, ib
+    aL, aR flooper2 iamp, ifreq, 0, ilen, icross, isample, ia, imode
   else
     aM = 0
     a1 = 0
@@ -52,9 +67,12 @@
   endif
 
   aenv    linseg 0, 0.02, 1, p3 - 0.05, 1, 0.02, 0, 0.01, 0
-
-  aL =  aL*aenv/2
-  aR =  aR*aenv/2
+  ;; aL dam aL, 0.2, 2, 0.2, 0.01, 0.5
+  ;; aR dam aR, 0.2, 2, 0.2, 0.01, 0.5
+  ;; aL  dcblock2 aL
+  ;; aR  dcblock2 aR
+  aL =  aL*aenv*0.06
+  aR =  aR*aenv*0.07
 
   outs aL, aR
   endin
@@ -68,8 +86,14 @@
       (string/join "\n" csound-tables)
       (format
         "
+  opcode AtanLimit, a, a
+    ain xin
+    aout = 2 * taninv(ain) / 3.1415927
+    xout aout
+  endop
+
   instr 1
-  iamp = ampdbfs(p5 - 12)
+  iamp = ampdbfs(p5 - 12) * 0.02
   idur = p3
   ifreq = p4
   ifreq limit ifreq, 0.00001, sr/2
@@ -114,10 +138,12 @@
     aR = 0
   endif
 
-  ;; aenv    linseg 0, 0.02, 1, p3 - 0.05, 1, 0.02, 0, 0.01, 0
+  aL AtanLimit aL
+  aR AtanLimit aR
+  aenv    linseg 0, 0.02, 1, p3 - 0.05, 1, 0.02, 0, 0.01, 0
 
-  ;; aL =  aL*aenv/2
-  ;; aR =  aR*aenv/2
+  aL =  aL*aenv
+  aR =  aR*aenv
 
   outs aL, aR
   endin
@@ -132,9 +158,8 @@
        :orc-string (produce-slice-sampler-orchestra ~directory-path)
        :instr-form
          [{:name :dur, :default 2} {:name :nn, :default 1}
-          {:name :amp, :default -18} {:name :sample, :default 0}
-          {:name :mode, :default 2} {:name :slice, :default 0}
-          ;; {:name :width :default 1}
+          {:name :amp, :default -6} {:name :sample, :default 0}
+          {:name :cross, :default 0.2} {:name :slice, :default 0}
          ]
        :instr-number 1
        :num-outs 2
@@ -144,7 +169,7 @@
        :orc-string (produce-grain-sampler-orchestra ~directory-path)
        :instr-form
          [{:name :dur, :default 2} {:name :nn, :default 1}
-          {:name :amp, :default -18} {:name :sample, :default 0}
+          {:name :amp, :default -6} {:name :sample, :default 0}
           {:name :voice, :default 64} {:name :ratio, :default 1}
           {:name :mode, :default 1} {:name :skip, :default 0}
           {:name :skip-os, :default 0} {:name :gap, :default 0.01}

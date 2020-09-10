@@ -31,15 +31,38 @@
                (conj args-without-fx (first args))
                fx)))))
 
+(def ^:private default-error-operation
+  {:operator :on
+   :on [1 1 1 1]
+   :error? true})
+
 (defn extract-beats [args]
-  (let [beats (second args)]
-    (if (number? beats)
-      [beats]
-      (if (sequential? beats)
-        beats
-        (if (fn? beats)
-          beats
-          (throw (AssertionError. beats " must be vector, list or number.")))))))
+  (let [operator (second args)]
+    (cond
+      (number? operator)
+      [(rest (rest args))
+       {:operator :every
+        :every operator
+        :error? false}]
+      (sequential? operator)
+      [(rest (rest args))
+       {:operator :on
+        :on operator
+        :error? false}]
+      (fn? operator)
+      [(rest (rest args))
+       {:operator :fn
+        :fn operator
+        :error? false}]
+      (and (keyword? operator)
+           (< 2 (count args)))
+      (case operator
+        :every [(rest (rest (rest args)))
+                {:operator :every
+                 :every (nth args 2)
+                 :error? false}]
+        default-error-operation)
+      :default default-error-operation)))
 
 (defn index-position-of
   "returns the index of pred in a collection,

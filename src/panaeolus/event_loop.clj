@@ -57,46 +57,55 @@
                                (if (empty? at)
                                  last-tick (last at)))))))))))
 
-
-(defn get-next-callback
-  [wait-chn queue mod-div queue-end index a-index local-state]
+(defn get-next-callback-on
+  [wait-chn queue queue-end index a-index local-state]
   (fn []
     (let [next-timestamp (first queue)
           timestamp-after-next (if (< 1 (count queue)) (second queue) queue-end)
           fx-instances (:fx-instances @local-state)
           send-event (get-in @local-state [:instrument-instance :send])
           args-processed (resolve-arg-indicies
-                          (:args @local-state)
-                          index
-                          a-index
-                          next-timestamp
-                          timestamp-after-next)]
+                          {:args (:args @local-state)
+                           :index index
+                           :a-index a-index
+                           :next-timestamp next-timestamp
+                           :timestamp-after-next timestamp-after-next})]
       (when-not (empty? fx-instances)
         (run! (fn [inst]
                 (apply (:send inst)
-                       (resolve-arg-indicies (:args inst) index a-index next-timestamp timestamp-after-next)))
-              (filter :input-msg-cb fx-instances)))
+                       (resolve-arg-indicies
+                        {:args (:args inst)
+                         :index index
+                         :a-index a-index
+                         :next-timestamp next-timestamp
+                         :timestamp-after-next timestamp-after-next})))
+              (filter #(and (not (empty? (:args %)))
+                            (get % :send)) fx-instances)))
       (if (some sequential? args-processed)
         (run! #(apply send-event %)
               (expand-nested-vectors-to-multiarg args-processed))
         (apply send-event args-processed))
       (put! wait-chn true))))
 
-(defn event-loop-instrument [get-current-state]
+(defmulti event-loop
+  (fn [get-current-state]
+    (get-in (get-current-state) [:beats :operator])))
+
+(defmethod event-loop :on
+  [get-current-state]
   (let [local-state (atom (get-current-state))]
     (go-loop [[queue mod-div queue-end]
               (beats-to-queue
                (link/get-beat)
-               (:beats @local-state))
+               (get-in @local-state [:beats :on]))
               index 0
               a-index 0]
       (if-let [next-timestamp (first queue)]
         (let [wait-chn (chan 1)]
           (link/at next-timestamp
-                   (get-next-callback
+                   (get-next-callback-on
                     wait-chn
                     queue
-                    mod-div
                     queue-end
                     index
                     a-index
@@ -106,10 +115,77 @@
                  (inc index)
                  (inc a-index)))
         (when-let [next-state (get-current-state)]
-          (reset! local-state next-state)
-          (recur (beats-to-queue queue-end (:beats next-state))
-                 0
-                 a-index))))))
+          (if-not (= (get-in next-state [:beats :operator]) :on)
+            (event-loop get-current-state)
+            (do
+              (reset! local-state next-state)
+              (recur (beats-to-queue queue-end (get-in next-state [:beats :on]))
+                     0
+                     a-index))))))))
+
+(defn get-next-callback-every
+  [wait-chn index a-index every next-timestamp local-state]
+  (fn []
+    (let [fx-instances (:fx-instances @local-state)
+          send-event (get-in @local-state [:instrument-instance :send])
+          args-processed (resolve-arg-indicies
+                          {:args (:args @local-state)
+                           :index index
+                           :a-index a-index
+                           :next-timestamp next-timestamp
+                           :every every})]
+      (when-not (empty? fx-instances)
+        (run! (fn [inst]
+                (apply (:send inst)
+                       (resolve-arg-indicies
+                        {:args (:args inst)
+                         :index index
+                         :a-index a-index
+                         :next-timestamp next-timestamp
+                         :every every})))
+              (filter #(and (not (empty? (:args %)))
+                            (get % :send)) fx-instances)))
+      (if (some sequential? args-processed)
+        (run! #(apply send-event %)
+              (expand-nested-vectors-to-multiarg args-processed))
+        (apply send-event args-processed))
+      (put! wait-chn true))))
+
+(defmethod event-loop :every
+  [get-current-state]
+  (let [local-state (atom (get-current-state))
+        initial-every (get-in @local-state [:beats :every])
+        beat-at-start (link/get-beat)
+        as-if-last-timestamp (* (quot beat-at-start initial-every)
+                                initial-every)]
+    (go-loop [every initial-every
+              last-timestamp as-if-last-timestamp
+              index 0
+              a-index 0]
+      (let [next-timestamp (+ last-timestamp every)
+            wait-chn (chan 1)]
+        (link/at next-timestamp
+                 (get-next-callback-every
+                  wait-chn
+                  index
+                  a-index
+                  every
+                  next-timestamp
+                  local-state))
+        (<! wait-chn)
+        (when-let [next-state (get-current-state)]
+          (if-not (= (get-in next-state [:beats :operator]) :every)
+            (event-loop get-current-state)
+            (do (reset! local-state next-state)
+                (let [next-every (get-in next-state [:beats :every])]
+                  (recur next-every
+                         (if (not= every next-every)
+                           (* (quot (link/get-beat) next-every)
+                              next-every)
+                           next-timestamp)
+                         (inc index)
+                         (inc a-index))))))))))
+
 
 (comment
   (beats-to-queue 609.0 [0.25 0.25 0.25 0.25])

@@ -5,15 +5,21 @@
   :orc-string
   "instr 1
     ain1, ain2 ins
-    denorm ain1, ain2
-    aFL, aFR  reverbsc ain1, ain2, 0.55, 17000, sr, 0.5, 1
+    ain1 = limit:a(ain1, 0, 0.8)
+    ain2 = limit:a(ain2, 0, 0.8)
+    aFL, aFR  reverbsc ain1, ain2, 0.15, sr/2, sr, 0.1, 1
     afader init 0
     if (p3 < 0) then
       kenv linseg 0, .05, 1,  .2, 1 ;; Fade in on initialization
     else
       kenv linseg 1, p3 - .05, 1, .05, 0 ;; Fade out on release
-  endif
-  outs (aFL*1.5)*kenv, (aFR*1.5)*kenv
+    endif
+
+    aFL = taninv(taninv(aFL))
+    aFR = taninv(taninv(aFR))
+
+  outs (aFL*2)*kenv, (aFR*2)*kenv
+  clear aFL, aFR
   endin
 "
   :num-outs 2

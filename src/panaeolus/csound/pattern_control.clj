@@ -1,6 +1,6 @@
 (ns panaeolus.csound.pattern-control
   (:require
-   [panaeolus.event-loop :refer [event-loop-instrument]]
+   [panaeolus.event-loop :refer [event-loop]]
    [panaeolus.config :as config]
    [panaeolus.globals :as globals]
    [panaeolus.sequence-parser :as sequence-parser]
@@ -44,7 +44,8 @@
             next-node (second graph)]
         (when next-node
          (let [next-ports (:jack-ports-in next-node)]
-           (dotimes [output-index (count (:jack-ports-out graph-node))]
+           (dotimes [output-index (min (count (:jack-ports-out graph-node))
+                                       (count next-ports))]
              (let [out-port (nth (:jack-ports-out graph-node) output-index)
                    out-port-name (jack/get-port-name out-port)
                    in-port (nth next-ports output-index)
@@ -145,7 +146,8 @@
         (when graph-node
           (let [next-ports (:jack-ports-in next-node)]
             (when survivable? (disconnect-all-outputs graph-node))
-            (dotimes [output-index (count (:jack-ports-out graph-node))]
+            (dotimes [output-index (min (count (:jack-ports-out graph-node))
+                                        (count next-ports))]
               (let [out-port (nth (:jack-ports-out graph-node) output-index)
                     out-port-name (jack/get-port-name out-port)
                     in-port (nth next-ports output-index)
@@ -158,19 +160,18 @@
 (defn csound-register-pattern
   "Register a new pattern or upadte an existing one."
   [i-name instrument-instance fx-instances isFx? args]
-  (let [beats (utils/extract-beats args)]
+  (let [[args beats] (utils/extract-beats args)]
     (swap! globals/pattern-registry assoc
            i-name
            {:i-name i-name
             :instrument-instance instrument-instance
-            :args (rest (rest args))
+            :args args
             :beats beats
             :fx-instances (if isFx? [] fx-instances)
             :isFx? isFx?})))
 
 (defn csound-update-pattern [{:keys [args i-name fx-instances]}]
-  (let [updated-args (rest (rest args))
-        updated-beats (utils/extract-beats args)]
+  (let [[updated-args updated-beats] (utils/extract-beats args)]
     (swap! globals/pattern-registry
            update i-name merge
            {:args updated-args
@@ -217,7 +218,7 @@
         (csound-initialize-jack-graph instrument-instance fx-instances)
         (csound-register-pattern
          i-name instrument-instance fx-instances false args)
-        (event-loop-instrument
+        (event-loop
          (fn [] (get @globals/pattern-registry i-name)))))
     :loop))
 

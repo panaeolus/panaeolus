@@ -147,7 +147,7 @@
         str)
       [])))
 
-(defn get-system-ports
+(defn get-physical-input-ports
   [^JackLibrary$_jack_client jack-client]
   (let [ptr (.jack_get_ports jack-lib jack-client nil nil
                     (NativeLong.
@@ -157,6 +157,17 @@
       (let [str (into [] (.getStringArray ptr 0))]
         (jack-free ptr)
         str)
+      [])))
+
+(defn query-input-ports
+  [^JackLibrary$_jack_client jack-client ^String query]
+  (let [ptr (.jack_get_ports
+             jack-lib jack-client nil nil
+             (NativeLong. JackLibrary$JackPortFlags/JackPortIsInput))]
+    (if ptr
+      (let [str (into [] (.getStringArray ptr 0))]
+        (jack-free ptr)
+        (vec (filter #(string/includes? query %) str)))
       [])))
 
 (comment

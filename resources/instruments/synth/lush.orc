@@ -18,7 +18,7 @@ instr    1    ; NOTE TRIGGERING INSTRUMENT
   endif
 
   icps = cpsmidinn(p4)
-  iamp = ampdbfs(p5)
+  iamp = ampdbfs(p5) * 0.3
   iatt = p6
   idec = p7
   isus = p8

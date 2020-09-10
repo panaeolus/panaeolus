@@ -13,7 +13,7 @@
 
 (defonce ^:private __open_master_client__
   (let [jack-client (jack/open-client "panaeolus")
-        system-ports (jack/get-system-ports jack-client)
+        system-ports (jack/get-physical-input-ports jack-client)
         jack-ports-in (mapv #(jack/create-input-port jack-client %)
                              (range 1 (inc (count system-ports))))
         jack-ports-out (mapv #(jack/create-output-port jack-client %)

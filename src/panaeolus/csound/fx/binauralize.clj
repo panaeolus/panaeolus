@@ -9,4 +9,4 @@
                {:name :diff :default 0.8}]
   :ctl-instr 2
   :num-outs  2
-  :release-time 2)
+  :release-time 10)

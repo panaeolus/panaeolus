@@ -14,7 +14,7 @@ instr 1
   ienv = p6
   imorph = p7
   iattack = p8
-
+  print p3
   k2 	linseg  	0, p3*.9, 0, p3*.1, 1  			; octaviation coefficient
   a1	oscili 	7, .15,1					;Rubato for vibrato
   a3	linen		a1, (p3-p3*.05), p3, .2			;delay for vibrato
@@ -63,7 +63,7 @@ instr 2
 
   k2 linseg 0, p3*.9, 0, p3*.1, 1  			; octaviation coefficient
   a1 oscili 5, .12,1					;Rubato for vibrato
-  a3 linen a1, (p3-p3*.02), p3, .2			;delay for vibrato
+  a3 linen a1, (p3-(p3*.02)), (p3-(p3*.78)), .2*p3      ;delay for vibrato
   a2 oscili a3, 4,1					;vibrato
   a4 linen (ienv*.4), imorph, p3, (p3*.05)		;format env shape
   a5 linen 1250/giZeroDB, iattack, p3, (p3*.15)			;amp envelope

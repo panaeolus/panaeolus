@@ -7,7 +7,7 @@
   "instruments/synth/lush.orc"
   :instr-form  [{:name :dur :default 2}
                 {:name :nn :default 48}
-                {:name :amp :default -12}
+                {:name :amp :default -6}
                 {:name :att :default 0.1}
                 {:name :dec :default 0.2}
                 {:name :sus :default 1}

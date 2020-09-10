@@ -1,22 +1,25 @@
-(ns panaeolus.live-code-arguments
-  (:require [panaeolus.metronome :as metronome]))
+(ns panaeolus.live-code-arguments)
 
 (set! *warn-on-reflection* true)
 
-(defn resolve-arg-indicies [args index a-index next-timestamp timestamp-after-next]
-  (let [bpm (metronome/get-bpm)
-        dur (* (- timestamp-after-next next-timestamp)
-               (/ 60 bpm))]
+(defn resolve-arg-indicies
+  [{:keys [args index a-index next-timestamp timestamp-after-next every]}]
+  (let [dur (if timestamp-after-next
+              (- timestamp-after-next next-timestamp)
+              every)]
     (reduce (fn [init val]
-              (if (fn? val)
-                (conj init (val {:dur       dur
-                                 :index     index          :a-index a-index
-                                 :timestamp next-timestamp :args    args}))
-                (if-not (sequential? val)
-                  (conj init val)
+              (let [maybe-derefed (if (instance? clojure.lang.Atom val) (deref val) val)
+                    maybe-called (if (fn? maybe-derefed)
+                                   (maybe-derefed
+                                    {:dur       dur
+                                     :index     index          :a-index a-index
+                                     :timestamp next-timestamp :args    args})
+                                   maybe-derefed)]
+                (if-not (sequential? maybe-called)
+                  (conj init maybe-called)
                   ;; (prn (nth val (mod a-index (count val))) val a-index)
-                  (conj init (nth val (mod a-index (count val)))))))
-            []
+                  (conj init (nth maybe-called (mod a-index (count maybe-called)))))))
+            (if every [:dur (float dur)] [])
             args)))
 
 (defn expand-nested-vectors-to-multiarg [args]

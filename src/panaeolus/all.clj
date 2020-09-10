@@ -43,7 +43,10 @@
     panaeolus.csound.instruments.wobble
     ;; CUSTOM (REMOVEME)
     panaeolus.csound.fx.weirdverb
-    panaeolus.csound.instruments.soundcheck)
+    panaeolus.csound.instruments.soundcheck
+    ;; jack-plugins
+    panaeolus.jack2.jack-plugins
+    )
   (:import
     [clojure.lang Var]
     [com.sun.jna CallbackReference$DefaultCallbackProxy]
@@ -94,7 +97,9 @@
   'panaeolus.csound.instruments.wobble
   ;; CUSTOM (DELETEME)
   'panaeolus.csound.instruments.soundcheck
-  'panaeolus.csound.fx.weirdverb)
+  'panaeolus.csound.fx.weirdverb
+  ;; Jack plugins
+  'panaeolus.jack2.jack-plugins)
 
 (defn read-from-file-with-trusted-contents
   [filename]
@@ -169,3 +174,8 @@
                    eval))
                (recur)))
           (require-rebel-readline args)))))
+
+(comment
+  (define-sampler kicks "/home/hlolli/samples/sim_kicks")
+  (define-sampler riff-128 "/home/hlolli/samples/sim_riff_128")
+  )

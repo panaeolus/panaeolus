@@ -4,6 +4,7 @@
    [clojure.string :as string]
    [panaeolus.utils.jna-path :as jna-path]
    [panaeolus.globals :as globals]
+   [panaeolus.metronome :as metro]
    [panaeolus.utils.utils :as utils]
    [panaeolus.jack2.jack-lib :as jack]
    [panaeolus.config :as config]
@@ -136,7 +137,10 @@
                  (fn [i v]
                    (conj i (get processed-args (:name v) (:default v))))
                  []
-                 instr-form)]
+                 instr-form)
+                p-list (if-let [xdur (:xdur processed-args)]
+                         (assoc p-list 0 (* xdur (first p-list)))
+                         p-list)]
             (input-message-async
              @csnd
              (clojure.string/join
@@ -149,22 +153,22 @@
       p (long 0)
       (* length Float/BYTES))))
 
-#_(defn to-float [x]
-    (if (> x Float/MAX_VALUE) Float/MAX_VALUE
-        (if (< x Float/MIN_VALUE) Float/MIN_VALUE
-            (float x))))
+(defn to-float [x]
+  (if (> x Float/MAX_VALUE) Float/MAX_VALUE
+      (if (< x Float/MIN_VALUE) Float/MIN_VALUE
+          (float x))))
 
 (defn handle-messages [csnd requested-client-name]
   (let [msg-cnt (or (CsoundLib/csoundGetMessageCnt csnd) 0)]
     (when (< 0 msg-cnt)
-     (loop [msg-cnt msg-cnt
-            out ""]
-       (if (zero? msg-cnt)
-         (when-not (< -1 (.indexOf out "rtevent")) (println out))
-         (let [head (CsoundLib/csoundGetFirstMessage csnd)]
-           (CsoundLib/csoundPopFirstMessage csnd)
-           (recur (dec msg-cnt)
-                  (str out head))))))))
+      (loop [msg-cnt msg-cnt
+             out ""]
+        (if (zero? msg-cnt)
+          (println out) ;;(when-not (< -1 (.indexOf out "rtevent")) (println out))
+          (let [head (CsoundLib/csoundGetFirstMessage csnd)]
+            (CsoundLib/csoundPopFirstMessage csnd)
+            (recur (dec msg-cnt)
+                   (str out head))))))))
 
 (def __nogc_callbacks__ (atom #{}))
 
@@ -205,6 +209,7 @@
                                   (dotimes [idx outputs]
                                     (aset memcpy-buffer-outputs
                                           (+ w-index sampl (* nframes idx))
+                                          ^float
                                           (float
                                            (.getDouble
                                             spout
@@ -244,6 +249,7 @@
      #(set-option @csnd %)
      ["-odac" "-iadc" "-+rtaudio=null" "-+rtmidi=null" "--daemon" ;; "-m0"
       "--format=double"
+      (str "--tempo=" (metro/get-bpm))
       ;; (str "--messagelevel=" (or (:messagelevel config) (get-in
       ;; @config/config [:csound :messagelevel]) 0))
       (str "-B " (* 2 jack-buffer-size))

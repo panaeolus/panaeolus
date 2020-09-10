@@ -309,7 +309,7 @@ instr 8
   ;; aout = aenv * afiltered * ampdbfs(p5)
   ;; outs aout, aout
 
-  iamp = ampdbfs(p5)
+  iamp = ampdbfs(p5) * 0.075
   kfreq cpsmidinn p4
   ktable phasor iwobbles/p3
   ;; ktable rspline 0, 1.0, 11, 11
