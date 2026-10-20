@@ -1,0 +1,2 @@
+# Empty context lines in unified diffs contain a required space.
+vendor/make-a-lisp/source.patch -whitespace

@@ -1,0 +1,21 @@
+{
+  "name": "panaeolus",
+  "version": "0.1.0",
+  "description": "Live coding in Csound MAL with a native beat clock, patterns, and effects.",
+  "license": "GPL-3.0-only",
+  "repository": "https://github.com/panaeolus/panaeolus",
+  "private": true,
+  "type": "module",
+  "engines": { "bun": ">=1.3.13" },
+  "scripts": {
+    "build": "bun tools/build.ts",
+    "dev": "bun tools/serve.ts",
+    "test:unit": "bun test tests/unit",
+    "test:integration": "bun tests/server.ts && bun tests/bundle.ts && bun tests/wasm.ts && bun tests/fx.ts && bun tests/audio-timing.ts && bun tests/live-eval.ts && bun tests/atomic-routing.ts && bun tests/live-bridge.ts",
+    "test": "bun run build && bun run test:unit && bun run test:integration",
+    "release:prepare": "bun tools/release.ts"
+  },
+  "dependencies": {
+    "@csound/browser": "7.0.0-beta36"
+  }
+}

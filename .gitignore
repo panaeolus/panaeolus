@@ -1,0 +1,17 @@
+# Installed dependencies and generated builds.
+/node_modules/
+/dist/
+/coverage/
+/.cache/
+/.worktrees/
+
+# Local configuration and editor files. Keep examples and bun.lock tracked.
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+.DS_Store
+*~
+*.swp
+*.swo

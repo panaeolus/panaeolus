@@ -1,0 +1,205 @@
+(ns panaeolus.instrument
+  (:require [panaeolus.event-loop :as loop]
+            [panaeolus.routing :as routing]
+            [panaeolus.fx :as fx]))
+
+;; These helpers do not create closures while a pattern is ticking.
+(defn finite-number? [value]
+  (and (number? value) (= (- value value) 0)))
+
+(defn positive-number? [value]
+  (and (finite-number? value) (> value 0)))
+
+(defn parameter-schema [params keys defaults]
+  (if (empty? params)
+    {:params keys :defaults defaults}
+    (let [parameter (first params)
+          value (second params)
+          key (keyword (name parameter))]
+      (when (or (contains? defaults key)
+                (contains? {:dur true :every true :id true :offset true :fx true} key))
+        (throw (str "definst: duplicate or reserved parameter " key)))
+      (when-not (finite-number? value)
+        (throw (str "definst: default for " key " must be a finite number")))
+      (parameter-schema (drop 2 params) (conj keys key) (assoc defaults key value)))))
+
+(defn output [signal]
+  (cond
+    (vector? signal)
+      (if (and (= 2 (count signal))
+               (= :a (csound/type (first signal)))
+               (= :a (csound/type (second signal))))
+        (csound/outs (first signal) (second signal))
+        (throw "definst: a stereo vector must contain two audio signals"))
+    (= :a (csound/type signal)) (csound/outs signal signal)
+    (= [:a :a] (csound/type signal)) (csound/outs signal)
+    :else (throw "definst: return mono audio or a stereo pair; Panaeolus adds the output")))
+
+(defn descriptor [instrument]
+  (let [value (get (meta instrument) :panaeolus/instrument)]
+    (if (and (fn? instrument) (map? value)) value
+      (throw "expected a Panaeolus instrument"))))
+
+(defn put-argument [supplied key value]
+  (if (contains? supplied key)
+    (throw (str "instrument: duplicate argument " key))
+    (assoc supplied key value)))
+
+(defn read-arguments [spec args position named supplied]
+  (if (empty? args)
+    supplied
+    (let [head (first args)]
+      (if (keyword? head)
+        (do
+          (when (< (count args) 2)
+            (throw (str "instrument: missing value for " head)))
+          (when-not (or (contains? (get spec :defaults) head)
+                        (contains? {:dur true :every true :id true :offset true :fx true} head))
+            (throw (str "instrument: unknown argument " head)))
+          (read-arguments spec (drop 2 args) position true
+            (put-argument supplied head (second args))))
+        (do
+          (when named
+            (throw "instrument: positional arguments must come before named arguments"))
+          (when (>= position (count (get spec :params)))
+            (throw "instrument: too many positional arguments"))
+          (read-arguments spec (rest args) (inc position) false
+            (put-argument supplied (nth (get spec :params) position) head)))))))
+
+(defn valid-value? [value pattern positive]
+  (if (and pattern (vector? value))
+    (and (not (empty? value))
+         (every? (if positive positive-number? finite-number?) value))
+    ((if positive positive-number? finite-number?) value)))
+
+(defn validate-values [keys arguments pattern]
+  (when-not (empty? keys)
+    (let [key (first keys)]
+      (when-not (valid-value? (get arguments key) pattern false)
+        (throw (str "instrument: " key " needs a finite number"
+                    (if pattern " or a nonempty vector of finite numbers" ""))))
+      (validate-values (rest keys) arguments pattern))))
+
+(defn arguments [spec args allow-pattern]
+  (let [supplied (read-arguments spec args 0 false {})
+        pattern (contains? supplied :every)
+        values (merge (get spec :defaults)
+                 {:dur (get spec :duration) :id (get spec :id) :offset (get spec :offset)} supplied)]
+    (when (and pattern (not allow-pattern))
+      (throw "with-defaults: :every belongs in an instrument call"))
+    (when (and allow-pattern (not pattern) (contains? supplied :offset))
+      (throw "instrument: :offset needs :every"))
+    (when-not (loop/valid-offset? (get values :offset))
+      (throw "instrument: :offset must be finite and between 0 and 1000000000 beats"))
+    (when pattern
+      (let [durations (get values :every)]
+        (when-not (and (vector? durations) (not (empty? durations))
+                      (every? loop/valid-duration? durations))
+          (throw "instrument: :every needs a nonempty vector of positive beat durations"))))
+    (when-not (or (keyword? (get values :id)) (string? (get values :id)))
+      (throw "instrument: :id must be a keyword or string"))
+    (when-not (valid-value? (get values :dur) pattern true)
+      (throw "instrument: :dur needs positive seconds, or a nonempty vector when looping"))
+    (validate-values (get spec :params) values pattern)
+    (let [effects (fx/chain (get values :fx))]
+      (when (and (not allow-pattern) (contains? supplied :fx))
+        (throw "with-defaults: :fx belongs in the instrument call"))
+      (when (and (not pattern)
+                 (some (fn [effect] (some vector? (get effect :values))) effects))
+        (throw "instrument: effect vectors need :every"))
+      (assoc values :fx effects))))
+
+(defn ordered-values [keys arguments]
+  (if (empty? keys) []
+    (cons (get arguments (first keys)) (ordered-values (rest keys) arguments))))
+
+(defn step-form [value]
+  (if (vector? value)
+    (list 'nth (list 'quote value) (list 'mod 'step (count value)))
+    value))
+
+(defn make-callback [compiled duration values route effects]
+  ;; Csound submits generated notes directly. Keep the Lisp form as a fallback
+  ;; when csound/event is redefined, and retain its identity for dispatch.
+  (let [number (get route :number)
+        controls (mapv (fn [effect] (get effect :values)) effects)
+        dur (step-form duration)
+        fields (vec (map step-form values))
+        callback (eval
+        (list 'fn ['event]
+          (list 'let ['step (list 'get 'event :step)]
+            (concat (list 'csound/event "i" (list 'quote compiled) 0 dur)
+                    fields (list (list 'get 'event :route))))))]
+    (with-meta callback
+      {:panaeolus/route route
+       :panaeolus/route-plan (when (contains? route :stages) route)
+       :panaeolus/tick {:route number :controls controls :instrument compiled
+                        :duration duration :values values :callback callback}})))
+
+(defn invoke [spec args]
+  ;; Validate the whole call before allocating a route or replacing a loop.
+  (let [values (arguments spec args true)
+        ordered (vec (ordered-values (get spec :params) values))
+        compiled (get spec :compiled)
+        duration (get values :dur)
+        effects (get values :fx)]
+    (if (contains? values :every)
+      (let [id (get values :id)
+            plan (routing/prepare id effects)]
+        (loop/start! id (get values :every)
+          (make-callback compiled duration ordered plan effects) :offset (get values :offset)))
+      (let [route (if (empty? effects) {:number 0} (routing/open! nil effects))
+            number (get route :number)]
+        (try*
+          (do
+            (routing/tick! number (mapv routing/initial-controls effects) compiled duration ordered)
+            (apply csound/event (concat (list "i" compiled 0 duration) ordered [number]))
+            (when (> number 0) (routing/close! route))
+            nil)
+          (catch* error
+            (do (when (> number 0) (routing/close! route))
+                (throw error))))))))
+
+(defn make-instrument [spec]
+  (let [runtime-spec (dissoc spec :signal)]
+    (with-meta (fn [& args] (invoke runtime-spec args))
+      {:panaeolus/instrument spec})))
+
+(defn define-instrument [id params signal]
+  (let [schema (parameter-schema params [] {})
+        compiled (routing/voice! id params signal)]
+    (make-instrument
+      (assoc schema :id id :duration 0.1 :offset 0 :signal signal :compiled compiled))))
+
+(defmacro definst [instrument-name params & body]
+  (when-not (and (symbol? instrument-name) (nil? (namespace instrument-name)))
+    (throw "definst: name must be an unqualified symbol"))
+  (when (empty? body) (throw "definst: an audio body is required"))
+  (let [bindings (csound/param-bindings params)]
+    (parameter-schema params [] {})
+    (list 'def instrument-name
+      (list 'panaeolus.instrument/define-instrument
+        (list 'str '*ns* "/" (list 'quote instrument-name))
+        (list 'quote params)
+        (list 'let bindings (cons 'do body))))))
+
+(defn with-defaults [instrument & args]
+  (let [spec (descriptor instrument)
+        values (arguments spec args false)]
+    (make-instrument
+      (assoc spec :defaults (select-keys values (get spec :params))
+                  :duration (get values :dur) :id (get values :id)
+                  :offset (get values :offset)))))
+
+(defn stop! [instrument-or-id]
+  (loop/stop!
+    (if (fn? instrument-or-id) (get (descriptor instrument-or-id) :id)
+      instrument-or-id)))
+
+(def record! routing/record!)
+(def finish! routing/finish!)
+(def export! routing/export!)
+
+(def stop-all! loop/stop-all!)
+(def tempo! loop/tempo!)
+(ns user)

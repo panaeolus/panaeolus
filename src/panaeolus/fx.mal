@@ -1,0 +1,121 @@
+(ns panaeolus.fx (:require [panaeolus.routing :as routing]))
+
+(defn finite? [value]
+  (and (number? value) (= 0 (- value value))))
+
+(defn values-of [value] (if (vector? value) value [value]))
+
+(defn read-args [spec args position named supplied]
+  (if (empty? args) (merge (get spec :defaults) supplied)
+    (let [head (first args)
+          key (if (keyword? head) head (if (< position (count (get spec :params))) (nth (get spec :params) position) nil))
+          value (if (keyword? head) (second args) head)]
+      (when (and (keyword? head) (< (count args) 2)) (throw "effect: missing argument value"))
+      (when (and named (not (keyword? head))) (throw "effect: positional arguments must come first"))
+      (when-not (contains? (get spec :defaults) key) (throw (str "effect: unknown or excess argument " head)))
+      (when (contains? supplied key) (throw (str "effect: duplicate argument " key)))
+      (when-not (and (not (empty? (values-of value))) (every? finite? (values-of value)))
+        (throw (str "effect: " key " needs a finite number or a nonempty vector")))
+      (read-args spec (if (keyword? head) (drop 2 args) (rest args))
+        (if (keyword? head) position (inc position)) (or named (keyword? head))
+        (assoc supplied key value)))))
+
+(defn make-effect [spec]
+  (with-meta
+    (fn [& args]
+      (let [values (read-args spec args 0 false {})]
+        (when (get spec :validate) ((get spec :validate) values))
+        (assoc spec :panaeolus/effect true
+          :values (mapv (fn [key] (get values key)) (get spec :params)))))
+    {:panaeolus/effect-definition spec}))
+
+(defn descriptor [effect]
+  (let [spec (get (meta effect) :panaeolus/effect-definition)]
+    (when-not (and (fn? effect) (map? spec)) (throw "expected an effect definition"))
+    spec))
+
+(defn with-tail [effect seconds]
+  (when-not (and (finite? seconds) (>= seconds 0) (<= seconds 60))
+    (throw "effect tail must be between 0 and 60 seconds"))
+  (make-effect (assoc (descriptor effect) :tail seconds)))
+
+(defn with-validator [effect validate]
+  (make-effect (assoc (descriptor effect) :validate validate)))
+
+(defn schema [params keys defaults]
+  (if (empty? params) {:params keys :defaults defaults}
+    (let [key (keyword (name (first params))) value (second params)]
+      (when (contains? defaults key) (throw "deffx: duplicate parameter"))
+      (when-not (finite? value) (throw "deffx: defaults must be finite numbers"))
+      (schema (drop 2 params) (conj keys key) (assoc defaults key value)))))
+
+(defn define-effect [id params builder]
+  (let [layout (schema params [] {})
+        stage (last (csound/param-bindings '[route 0 stage 0]))
+        graph (builder stage)
+        source (csound/source 10000 '[route 0 stage 0] graph)
+        revision [id params source]]
+    ;; Keep the frozen graph once; live calls only need its revision and controls.
+    (swap! routing/effect-graphs assoc revision graph)
+    (make-effect (assoc layout :id id :tail 0 :revision revision))))
+
+(defn parameter-bindings [params stage index]
+  (if (empty? params) []
+    (concat [(first params)
+             (list 'panaeolus.routing/control
+               (list 'last (list 'csound/param-bindings (list 'quote '[route 0]))) stage index)]
+      (parameter-bindings (drop 2 params) stage (inc index)))))
+
+(defmacro deffx [effect-name params inputs & body]
+  (when-not (and (symbol? effect-name) (nil? (namespace effect-name)))
+    (throw "deffx: name must be an unqualified symbol"))
+  (csound/param-bindings params)
+  (when-not (and (vector? inputs) (= 2 (count inputs)) (every? symbol? inputs)
+                (not= (first inputs) (second inputs)))
+    (throw "deffx: supply two distinct input names, such as [left right]"))
+  (when (empty? body) (throw "deffx: an audio body is required"))
+  (let [stage (gensym "stage")
+        route (gensym "route")
+        left (gensym "left")
+        right (gensym "right")
+        signal (gensym "signal")]
+    (list 'def effect-name
+      (list 'panaeolus.fx/define-effect
+        (list 'str '*ns* "/" (list 'quote effect-name)) (list 'quote params)
+        (list 'fn [stage]
+          (list 'let
+            (vec (concat
+              [route (list 'last (list 'csound/param-bindings (list 'quote '[route 0])))
+               left (list 'panaeolus.routing/bus route stage "L")
+               right (list 'panaeolus.routing/bus route stage "R")
+               (first inputs) (list (list 'csound/at-rate :a 'csound/chnget) left)
+               (second inputs) (list (list 'csound/at-rate :a 'csound/chnget) right)]
+              (parameter-bindings params stage 0)
+              [signal (cons 'do body)]))
+            (list 'csound/do
+              (list 'panaeolus.routing/send signal route (list '+ stage 1))
+              (list 'csound/chnclear left right))))))))
+
+(defn chain [value]
+  (let [effects (cond (nil? value) [] (vector? value) value :else [value])]
+    (when (> (count effects) 8) (throw "fx: at most eight serial effects"))
+    (when-not (every? (fn [effect] (and (map? effect) (true? (get effect :panaeolus/effect)))) effects)
+      (throw "fx: expected an effect call or a vector of effect calls"))
+    effects))
+
+(defn in-range? [value low high]
+  (every? (fn [number] (and (>= number low) (<= number high))) (values-of value)))
+
+(defn validate-flanger [values]
+  (when-not (and (in-range? (get values :rate) 0 1000)
+                (in-range? (get values :depth) 0 1)
+                (in-range? (get values :fback) -0.99 0.99)
+                (in-range? (get values :shape) 1 5)
+                (every? (fn [value] (= 0 (mod value 1))) (values-of (get values :shape)))
+                (in-range? (get values :dur) 0.000001 60))
+    (throw "flanger: rate 0..1000, depth 0..1 seconds, fback -0.99..0.99, shape 1..5, dur >0..60 seconds")))
+
+(deffx flanger [rate 5 depth 0.001 fback 0 shape 1 dur 0.1] [left right]
+  (flanger-node left right rate depth fback shape dur))
+(def flanger (with-validator (with-tail flanger 4) validate-flanger))
+(ns user)

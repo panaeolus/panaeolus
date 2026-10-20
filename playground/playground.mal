@@ -1,0 +1,53 @@
+;; Click Start engine, then Evaluate all. This file includes every definition
+;; needed for the example. Select a complete form and Cmd/Ctrl+Enter to edit live.
+;; Existing loops keep playing while edits evaluate in small steps.
+
+(ns playground
+  (:require [panaeolus.instrument :as p]
+            [panaeolus.event-loop :as loop]
+            [panaeolus.fx :refer [flanger]]))
+
+(p/tempo! 120)
+
+;; Return audio; Panaeolus adds the output. Defining a voice is silent.
+;; p3 is the note's :dur in seconds.
+(p/definst pulse [hz 440 amp 0.08]
+  (* (csound/poscil amp hz)
+     (csound/linseg 0 (* p3 0.05) 1 (* p3 0.95) 0)))
+
+(def notes [440 550 660])
+
+;; :every gives durations in beats. Each parameter vector cycles on its own.
+;; Three notes and two durations meet again after six events.
+;; Re-evaluate to replace the loop at its next grid position and use new notes.
+(pulse :every [0.25 0.5]
+  :hz notes
+  :fx (flanger :rate [0.2 0.5 0.8] :depth 0.003 :fback 0.35))
+
+;; Select any of these forms (without ;;) to try them:
+;; (pulse)                         ; one note with defaults
+;; (pulse 550 :amp 0.04 :dur 0.2)  ; positional + named
+;; (def soft (p/with-defaults pulse :amp 0.02 :id :soft))
+;; (soft :every [0.5 0.25] :hz [220 330 440])
+;; (p/stop! soft)
+;; (p/tempo! 90)
+;; (loop/now)
+;; (p/stop! pulse)
+;; (p/stop-all!)
+
+;; Two phrases on the same two-beat grid. Stop existing loops first.
+;; (p/stop-all!)
+;; (pulse :id :a :every [0.25 1.75] :hz [440 550])
+;; (pulse :id :b :offset 1 :every [0.25 1.75] :hz [660 880])
+;; (pulse :id :thirds :every [1/3 1/3 1/3] :hz [440 550 660])
+
+;; Remove :fx from the call above and re-evaluate it to send new notes dry.
+;; The old flanger keeps its tail. Parameter edits keep the same flanger alive.
+;; A vector runs effects in order:
+;; (pulse :every [0.25 0.5] :fx [(flanger :rate 0.2) (flanger :rate 0.7)])
+;; To record: start a fresh engine, click Record take, then Evaluate all.
+;; Finish take and Download CSD save a standalone orchestra + score.
+;; Or select these calls separately, at the same points:
+;; (p/record!)
+;; (p/finish!)
+;; (p/export!)

@@ -1,0 +1,94 @@
+;; Durations are beats. A callback receives the current step and its duration.
+(ns panaeolus.event-loop)
+
+(def on-remove (atom nil))
+
+(def state (atom {:serial 0 :names {} :slots {}}))
+(def requests (atom {}))
+(def responses (atom {}))
+(def request-serial (atom 0))
+
+(defn native-value [operation data]
+  (let [token (swap! request-serial inc)]
+    (swap! requests assoc token data)
+    (try*
+      (let [status (csound/eval (str "return " operation "(" token ")"))
+            result (get @responses token)]
+        (swap! responses dissoc token)
+        (when (< status 0) (throw "loop: native operation failed; see Csound output"))
+        result)
+      (catch* error
+        (do (swap! requests dissoc token)
+            (swap! responses dissoc token)
+            (throw error))))))
+
+(defn valid-positive? [value upper]
+  (and (number? value) (> value 0) (<= value upper)))
+
+(defn now []
+  (csound/eval "return i(panaeolusBeat)"))
+
+(defn tempo! [bpm]
+  (if (valid-positive? bpm 10000)
+    (csound/eval (str "return PanaeolusTempo(" bpm ")"))
+    (throw "tempo!: BPM must be a finite number greater than 0 and at most 10000")))
+
+(defn free-slot [slots candidate]
+  (if (= candidate 128)
+    (throw "start!: at most 128 loops can run at once")
+    (if (contains? slots candidate)
+      (free-slot slots (inc candidate))
+      candidate)))
+
+;; A callback can stop or replace itself. Check its generation after each call.
+(defn current? [slot generation]
+  (= generation (get (get (get @state :slots) slot) :generation)))
+
+(defn stop-generation! [slot generation]
+  (let [entry (native-value "PanaeolusLoopStop" {:slot slot :generation generation})]
+    (when entry
+      (when @on-remove (@on-remove entry))
+      true)))
+
+(defn stop! [id]
+  (let [entry (native-value "PanaeolusLoopStop" {:id id})]
+    (if entry
+      (do (when @on-remove (@on-remove entry)) true)
+      false)))
+
+(defn stop-all! []
+  (map stop! (keys (get @state :names)))
+  nil)
+
+(defn valid-duration? [duration]
+  (and (valid-positive? duration 1000000000) (>= duration 0.000001)))
+
+(defn valid-offset? [offset]
+  (and (number? offset) (>= offset 0) (<= offset 1000000000)))
+
+(defn start! [id durations callback & options]
+  (when-not (or (keyword? id) (string? id))
+    (throw "start!: id must be a keyword or string"))
+  (when-not (and (vector? durations) (not (empty? durations)))
+    (throw "start!: durations must be a nonempty vector"))
+  (when-not (every? valid-duration? durations)
+    (throw "start!: each duration must be finite and between 0.000001 and 1000000000 beats"))
+  (when-not (fn? callback)
+    (throw "start!: callback must be a function"))
+  (when-not (or (empty? options)
+               (and (= 2 (count options)) (= :offset (first options))
+                    (valid-offset? (second options))))
+    (throw "start!: optional :offset must be finite and between 0 and 1000000000 beats"))
+  (let [entry {:id id :durations durations :callback callback
+               :routing (get (meta callback) :panaeolus/tick)
+               :offset (if (empty? options) nil (second options))}
+        committed (native-value "PanaeolusLoopStart" entry)
+        old-entry (first committed)
+        new-entry (second committed)]
+    (when (and old-entry @on-remove
+               (not= (get (meta (get old-entry :callback)) :panaeolus/route)
+                     (get (meta (get new-entry :callback)) :panaeolus/route)))
+      (@on-remove old-entry))
+    id))
+
+(ns user)

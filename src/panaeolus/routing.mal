@@ -1,0 +1,134 @@
+(ns panaeolus.routing (:require [panaeolus.event-loop :as loop]))
+
+(def pending (atom {}))
+(def pending-serial (atom 0))
+(def effect-graphs (atom {}))
+(def definitions (atom {:voices {} :effects {} :voice-count 0 :effect-count 0}))
+
+(defn checked [code]
+  (let [result (csound/eval code)]
+    (when (< result 0) (throw "routing: native operation failed; see Csound output"))
+    result))
+
+(defn bridge [data operation]
+  ;; An audio callback may enter the bridge while an edit is between steps.
+  ;; Give each call its own value; the native operation consumes that value.
+  (let [token (swap! pending-serial inc)]
+    (swap! pending assoc token data)
+    (try*
+      (checked (str "return " operation "(" token ")"))
+      (catch* error
+        (do (swap! pending dissoc token) (throw error))))))
+
+(defn pair [signal]
+  (let [signals (cond
+                  (vector? signal) signal
+                  (= :a (csound/type signal)) [signal signal]
+                  (= [:a :a] (csound/type signal)) (csound/outputs signal)
+                  :else [])]
+    (when-not (and (= 2 (count signals))
+                  (every? (fn [value] (= :a (csound/type value))) signals))
+      (throw "audio body must return mono audio or a stereo pair"))
+    signals))
+
+(defn bus [route stage side]
+  (csound/sprintf (str "panaeolus/r%d/s%d/" side) route stage))
+
+(defn control [route stage index]
+  ((csound/at-rate :k csound/chnget)
+    (csound/sprintf "panaeolus/r%d/f%d/p%d" route stage index)))
+
+(defn send [signal route stage]
+  (let [stereo (pair signal)]
+    (csound/do
+      (csound/chnmix (first stereo) (bus route stage "L"))
+      (csound/chnmix (second stereo) (bus route stage "R")))))
+
+(defn register! [number params body label]
+  (let [source (str "; definition " (pr-str label) "\n" (csound/source number params body))
+        compiled (csound/compile-inst number params body)]
+    ;; The native registry removes the compiler's trailing return statement.
+    (bridge {:number number :source source} "PanaeolusRegister")
+    compiled))
+
+(defn voice! [id params signal]
+  (let [all-params (vec (concat params ['panaeolus-route 0]))
+        route (last (csound/param-bindings all-params))
+        body (send signal route 0)
+        fingerprint [id params (csound/source 1000 all-params body)]
+        known (get (get @definitions :voices) fingerprint)]
+    (if known known
+      (let [index (get @definitions :voice-count)
+            number (+ 1000 index)]
+        (when (>= number 9000) (throw "routing: voice definition limit reached"))
+        (let [compiled (register! number all-params body [id index])]
+          (swap! definitions assoc
+            :voice-count (inc index)
+            :voices (assoc (get @definitions :voices) fingerprint compiled))
+          compiled)))))
+
+(defn effect! [spec stage]
+  (let [key [(get spec :revision) stage]
+        known (get (get @definitions :effects) key)]
+    (if known known
+      (let [index (get @definitions :effect-count)
+            number (+ (+ 10000 (* stage 1000)) index)]
+        (when (>= index 1000) (throw "routing: effect definition limit reached"))
+        (register! number '[route 0 stage 0]
+          (get @effect-graphs (get spec :revision))
+          [(get spec :id) :stage stage :revision index])
+        (swap! definitions assoc
+          :effect-count (inc index)
+          :effects (assoc (get @definitions :effects) key number))
+        number))))
+
+(defn value-at [value step]
+  (if (vector? value) (nth value (mod step (count value))) value))
+
+(defn initial-controls [effect]
+  (mapv (fn [value] (value-at value 0)) (get effect :values)))
+
+(defn current-route [id]
+  (let [slot (get (get @loop/state :names) id)
+        entry (get (get @loop/state :slots) slot)]
+    (get (meta (get entry :callback)) :panaeolus/route)))
+
+(defn stage-numbers [effects index]
+  (if (empty? effects) []
+    (cons (effect! (first effects) index) (stage-numbers (rest effects) (inc index)))))
+
+(defn prepare [id effects]
+  {:id id
+   :topology (mapv (fn [effect] [(get effect :revision) (get effect :tail)]) effects)
+   :stages (vec (stage-numbers effects 0))
+   :controls (mapv initial-controls effects)
+   :tail (reduce + 0 (map (fn [effect] (get effect :tail)) effects))})
+
+(defn open! [id effects]
+  (let [topology (mapv (fn [effect] [(get effect :revision) (get effect :tail)]) effects)
+        current (current-route id)]
+    (if (and current (= topology (get current :topology)))
+      current
+      (let [stages (vec (stage-numbers effects 0))
+            route (bridge {:id id :stages stages :controls (mapv initial-controls effects)
+                           :tail (reduce + 0 (map (fn [effect] (get effect :tail)) effects))}
+                    "PanaeolusRouteOpen")]
+        {:number route :topology topology}))))
+
+(defn close! [route]
+  (when route (checked (str "return PanaeolusRouteClose(" (get route :number) ")"))))
+
+(defn tick! [route controls instrument duration values]
+  (bridge {:route route :controls controls :instrument instrument :duration duration :values values}
+    "PanaeolusRouteTick")
+  nil)
+
+(defn record! []
+  (when-not (empty? (get @loop/state :names))
+    (throw "record!: stop loops and let their tails finish before starting a take"))
+  (checked "return PanaeolusRecordStart()")
+  nil)
+
+(defn finish! [] (checked "return PanaeolusRecordStop()") nil)
+(defn export! [] (checked "return PanaeolusExport()") nil)
+(ns user)

@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/hlolli/csound-make-a-lisp",
+  "commit": "79b4ff0fc575ba13cbac90d132f58024c1b5ff2b",
+  "version": "0.2.0",
+  "sourceState": "local changes applied in source.patch",
+  "bundleSha256": "b5fa4dc81801d1c9980799ec3f40a56bd1aea2f9c766c104f0ccea26bed95661",
+  "patchSha256": "25ab23ea37140723b431d8e792397050e86c8ea5050ac04b9b610770bc81d22c",
+  "build": "Apply source.patch to the pinned checkout, then run python3 tools/bundle.py --output make-a-lisp.orc. Git metadata in the generated header may differ."
+}

@@ -1,0 +1,94 @@
+(ns test.instruments
+  (:require [panaeolus.instrument :as p]
+            [panaeolus.tests :refer [check fails?]]))
+
+;; Keep compilation real; record only event submission so p-fields are exact.
+(def real-event csound/event)
+(def played (atom []))
+(defn record-event [& args] (swap! played conj (vec args)) nil)
+(ns csound)
+(def event test.instruments/record-event)
+(ns test.instruments)
+
+(p/definst pulse [hz 440 amp 0.08] (csound/poscil amp hz))
+(check "instrument is callable" true (fn? pulse))
+(check "definition is silent" [] @played)
+(check "descriptor keeps audio before output" :a
+  (csound/type (get (get (meta pulse) :panaeolus/instrument) :signal)))
+(check "default loop ID uses caller namespace" "test.instruments/pulse"
+  (get (get (meta pulse) :panaeolus/instrument) :id))
+(check "one-shot result" nil (pulse))
+(check "one-shot defaults" [0 0.1 440 0.08] (vec (butlast (drop 2 (last @played)))))
+(pulse 550 :amp 0.04 :dur 0.2)
+(check "mixed arguments" [0 0.2 550 0.04] (vec (butlast (drop 2 (last @played)))))
+(pulse :amp 0.02 :hz 660)
+(check "named order is free" [0 0.1 660 0.02] (vec (butlast (drop 2 (last @played)))))
+(pulse 330 0.03)
+(check "positional arguments" [0 0.1 330 0.03] (vec (butlast (drop 2 (last @played)))))
+
+(def soft (-> pulse (p/with-defaults :amp 0.01) (p/with-defaults 220 :dur 0.3 :id :soft)))
+(check "composition is silent" 4 (count @played))
+(soft)
+(check "composed defaults" [0 0.3 220 0.01] (vec (butlast (drop 2 (last @played)))))
+(pulse)
+(check "original defaults stay intact" [0 0.1 440 0.08] (vec (butlast (drop 2 (last @played)))))
+(soft :hz 880)
+(check "call overrides composed defaults" [0 0.3 880 0.01] (vec (butlast (drop 2 (last @played)))))
+
+(check "unknown keyword" true (fails? (fn [] (pulse :frequency 440))))
+(check "missing keyword value" true (fails? (fn [] (pulse :hz))))
+(check "duplicate named" true (fails? (fn [] (pulse :hz 440 :hz 550))))
+(check "duplicate mixed" true (fails? (fn [] (pulse 440 :hz 550))))
+(check "too many positional" true (fails? (fn [] (pulse 440 0.1 123))))
+(check "positional after named" true (fails? (fn [] (pulse :amp 0.1 440))))
+(check "one-shot vector needs every" true (fails? (fn [] (pulse :hz [440 550]))))
+(check "empty values" true (fails? (fn [] (pulse :every [1] :hz []))))
+(check "nonnumeric values" true (fails? (fn [] (pulse :every [1] :hz [440 "bad"]))))
+(check "empty beat durations" true (fails? (fn [] (pulse :every []))))
+(check "invalid beat durations" true (fails? (fn [] (pulse :every [0]))))
+(check "invalid note duration" true (fails? (fn [] (pulse :dur 0))))
+(check "invalid note duration vector" true (fails? (fn [] (pulse :every [1] :dur [0.1 -1]))))
+(check "invalid loop ID" true (fails? (fn [] (pulse :every [1] :id 4))))
+(check "negative instrument offset" true (fails? (fn [] (pulse :every [1] :offset -1))))
+(check "vector instrument offset" true (fails? (fn [] (pulse :every [1] :offset [0 1]))))
+(check "offset needs a loop" true (fails? (fn [] (pulse :offset 1))))
+(check "defaults cannot start loops" true (fails? (fn [] (p/with-defaults pulse :every [1]))))
+(check "defaults cannot contain vectors" true (fails? (fn [] (p/with-defaults pulse :hz [1 2]))))
+(check "all invalid calls are silent" 7 (count @played))
+
+(check "duplicate parameter" true
+  (fails? (fn [] (eval '(p/definst bad [hz 440 hz 550] (csound/poscil 0.1 hz))))))
+(check "reserved parameter" true
+  (fails? (fn [] (eval '(p/definst bad [every 1] (csound/poscil 0.1 440))))))
+(check "reserved offset parameter" true
+  (fails? (fn [] (eval '(p/definst bad [offset 0] (csound/poscil 0.1 440))))))
+(check "invalid graph result" true
+  (fails? (fn [] (eval '(p/definst bad [] 42)))))
+(check "invalid parameter pairs" true
+  (fails? (fn [] (eval '(p/definst bad [hz] (csound/poscil 0.1 hz))))))
+(p/definst stereo [hz 440] (csound/pan2 (csound/poscil 0.01 hz) 0.25))
+(check "stereo instrument compiles" true (fn? stereo))
+(p/definst pair [hz 440] [(csound/poscil 0.01 hz) (csound/poscil 0.01 (* 2 hz))])
+(check "stereo vector compiles" true (fn? pair))
+(p/definst fixed [] (csound/poscil 0.01 220))
+(fixed)
+(check "no parameters" [0 0.1] (vec (butlast (drop 2 (last @played)))))
+
+(def previous pulse)
+(p/definst pulse [hz 440 amp 0.08] (csound/poscil amp (* 2 hz)))
+(previous)
+(def previous-voice (nth (last @played) 1))
+(pulse)
+(check "redefinition uses a fresh compiled voice" false (= previous-voice (nth (last @played) 1)))
+(soft)
+(check "derived values keep their original compiled voice" previous-voice (nth (last @played) 1))
+(check "redefinition keeps loop identity"
+  (get (get (meta previous) :panaeolus/instrument) :id)
+  (get (get (meta pulse) :panaeolus/instrument) :id))
+(println "PASS: instrument defaults, arguments, composition, redefinition, and graph checks")
+
+(reset! played [])
+(p/tempo! 120)
+(check "pattern returns default ID" "test.instruments/pulse"
+  (pulse :every [0.25 0.25 0.5 0.5] :hz [440 550 660] :amp [0.01 0.02] :dur [0.1 0.2]))
+;; Leave the recorder installed for the clock checks in wasm.ts.

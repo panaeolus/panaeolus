@@ -1,0 +1,2070 @@
+diff --git a/src/core.orc b/src/core.orc
+index 9c0bd8a..cd7644e 100644
+--- a/src/core.orc
++++ b/src/core.orc
+@@ -366,10 +366,48 @@ opcode MalCoreMaps(name:S, args:MalValue):MalValue
+   xout result
+ endop
+ 
++opcode MalCoreLogic(args:MalValue):MalValue
++  result:MalValue init MalMkValue($MAL_NIL_TYPE)
++  if (args.length != 2) ithen
++    result init MalArityError("core/logic", 2, args.length)
++  else
++    all:i = MalIsTruthy(MalAt(args, 0))
++    forms:MalValue init MalAt(args, 1)
++    if (forms.type != $MAL_LIST_TYPE && forms.type != $MAL_VECTOR_TYPE && \
++        forms.type != $MAL_NIL_TYPE) ithen
++      result init MalMkError("core/logic: expected a sequence")
++    elseif (forms.length == 0) ithen
++      if (all == 1) ithen
++        result init MalMkValue($MAL_TRUE_TYPE)
++      endif
++    else
++      result init MalAt(forms, forms.length - 1)
++      if (forms.length > 1) ithen
++        firstId:i = malGensymCount + 1
++        malGensymCount += forms.length - 1
++        for offset in [0 ... forms.length - 2] do
++          index:i = forms.length - offset - 2
++          name:MalValue init MalMkSymbol(sprintf("G__%.0f", firstId + index))
++          if (all == 1) ithen
++            branch:MalValue init MalAppendValue(MalMkList3(MalMkSymbol("if"), name, result), name)
++          else
++            branch:MalValue init MalAppendValue(MalMkList3(MalMkSymbol("if"), name, name), result)
++          endif
++          result init MalMkList3(MalMkSymbol("let*"), \
++            MalMkList2(name, MalAt(forms, index)), branch)
++        od
++      endif
++    endif
++  endif
++  xout result
++endop
++
+ opcode MalApplyCoreBuiltin(fn:MalValue, args:MalValue):MalValue
+   name:S init fn.string
+   result:MalValue init MalMkError(sprintf("unknown builtin '%s'", name))
+-  if (strcmp(name, "reduce") == 0) ithen
++  if (strcmp(name, "core/logic") == 0) ithen
++    result init MalCoreLogic(args)
++  elseif (strcmp(name, "reduce") == 0) ithen
+     result init MalCoreReduce(args)
+   elseif (strcmp(name, "mapv") == 0) ithen
+     result init MalCoreMapv(args)
+@@ -544,7 +582,7 @@ opcode MalInstallCoreHelpers(env:MalEnv):MalEnv
+     "reverse", "not-empty", "reduce", "reduced", "reduced?", "ensure-reduced", \
+     "unreduced", "filter", "remove", "keep", "mapv", "filterv", "every?", \
+     "not-every?", "some", "not-any?", "take", "drop", "take-while", \
+-    "drop-while", "get-in", "assoc-in", "update", "update-in", "select-keys", "merge"
++    "drop-while", "get-in", "assoc-in", "update", "update-in", "select-keys", "merge", "core/logic"
+   for name in names do
+     currentEnv init MalEnvSet(currentEnv, name, MalMkBuiltin(name))
+   od
+@@ -569,14 +607,6 @@ opcode MalInstallCoreHelpers(env:MalEnv):MalEnv
+     (let* [all (cons f functions)]
+       (fn* (& args) (mapv (fn* (g) (apply g args)) all))))
+ 
+-  (defn core/logic [all? forms]
+-    (if (empty? forms) (if all? true nil)
+-        (if (= (count forms) 1) (first forms)
+-            (let* [name (gensym)]
+-              (list 'let* (list name (first forms))
+-                    (if all?
+-                      (list 'if name (core/logic all? (rest forms)) name)
+-                      (list 'if name name (core/logic all? (rest forms)))))))))
+   (defmacro and [& forms] (core/logic true forms))
+   (defmacro or [& forms] (core/logic false forms))
+   (defmacro when [test & body] (list 'if test (cons 'do body) nil))
+diff --git a/src/csound-events.orc b/src/csound-events.orc
+index 7837797..286ccd8 100644
+--- a/src/csound-events.orc
++++ b/src/csound-events.orc
+@@ -11,7 +11,11 @@ opcode MalScheduleCsoundInstrument(instrument:MalValue, args:MalValue, \
+       "%s: expected at most %d arguments, got %d", \
+       instrument.string, instrument.length, args.length))
+   else
+-    scoreLine:S init sprintf("i \"%s\" %s %s", instrument.string, \
++    identifier:S init sprintf("\"%s\"", instrument.string)
++    if (instrument.number > 0) ithen
++      identifier init MalCsoundNumber(instrument.number)
++    endif
++    scoreLine:S init sprintf("i %s %s %s", identifier, \
+       MalCsoundNumber(start), MalCsoundNumber(duration))
+ 
+     if (instrument.length > 0) ithen
+diff --git a/src/csound-instruments.orc b/src/csound-instruments.orc
+index b93a735..a034407 100644
+--- a/src/csound-instruments.orc
++++ b/src/csound-instruments.orc
+@@ -64,6 +64,28 @@ opcode MalCsoundIdentifierIsValid(value:MalValue):i
+   xout valid
+ endop
+ 
++opcode MalCsoundInstrumentNameIsValid(value:MalValue):i
++  if (value.type == $MAL_NUMBER_TYPE) ithen
++    ;; Running instrument instances store their ID in a signed 16-bit field.
++    valid:i = value.number > 0 && value.number <= 32767
++    if (valid == 1) ithen
++      valid = value.number == int(value.number)
++    endif
++  else
++    valid = MalCsoundIdentifierIsValid(value)
++  endif
++  xout valid
++endop
++
++opcode MalCsoundInstrumentName(value:MalValue):S
++  if (value.type == $MAL_NUMBER_TYPE) ithen
++    name:S init MalCsoundNumber(value.number)
++  else
++    name init value.string
++  endif
++  xout name
++endop
++
+ opcode MalCsoundDefaults(params:MalValue):MalValue
+   defaults:MalValue init MalMkValue($MAL_LIST_TYPE)
+ 
+diff --git a/src/csound-opcodes.orc b/src/csound-opcodes.orc
+index 3dfb362..b8fd316 100644
+--- a/src/csound-opcodes.orc
++++ b/src/csound-opcodes.orc
+@@ -147,6 +147,10 @@ opcode MalCsoundInstallEffectOpcodes(env:MalEnv):MalEnv
+   fn init MalAppendValue(fn, MalCsoundSignature("a", "a,a,i,i", 3, "", 0))
+   env init MalEnvSet(env, "csound/vdelay", fn)
+ 
++  fn init MalMkCsoundOpcode("flanger", "a")
++  fn init MalAppendValue(fn, MalCsoundSignature("a", "a,a,k,i", 3, "", 0))
++  env init MalEnvSet(env, "csound/flanger", fn)
++
+   fn init MalMkCsoundOpcode("reverbsc", "a,a")
+   fn init MalAppendValue(fn, MalCsoundSignature("a,a", "a,a,k,k,i,i,i", 4, "", 0))
+   env init MalEnvSet(env, "csound/reverbsc", fn)
+@@ -240,12 +244,20 @@ opcode MalCsoundInstallChannelOpcodes(env:MalEnv):MalEnv
+     fn init MalAppendValue(fn, MalCsoundSignature(rates[index], "S", 1, "", 0))
+   od
+   env init MalEnvSet(env, "csound/chnget", fn)
++  fn init MalMkCsoundOpcode("chnset", "")
++  for index in [0 ... lenarray(rates) - 1] do
++    fn init MalAppendValue(fn, MalCsoundSignature("", strcat(rates[index], ",S"), 2, "", 0))
++  od
++  env init MalEnvSet(env, "csound/chnset", fn)
+   fn init MalMkCsoundOpcode("chnmix", "")
+   fn init MalAppendValue(fn, MalCsoundSignature("", "a,S", 2, "", 0))
+   env init MalEnvSet(env, "csound/chnmix", fn)
+   fn init MalMkCsoundOpcode("chnclear", "")
+   fn init MalAppendValue(fn, MalCsoundSignature("", "", 0, "S", 1))
+   env init MalEnvSet(env, "csound/chnclear", fn)
++  fn init MalMkCsoundOpcode("sprintf", "S")
++  fn init MalAppendValue(fn, MalCsoundSignature("S", "S", 1, "i", 1))
++  env init MalEnvSet(env, "csound/sprintf", fn)
+   xout env
+ endop
+ 
+diff --git a/src/csound-render.orc b/src/csound-render.orc
+index d5fd306..51fcba8 100644
+--- a/src/csound-render.orc
++++ b/src/csound-render.orc
+@@ -174,8 +174,8 @@ endop
+ 
+ opcode MalCsoundInstrumentSource(name:MalValue, params:MalValue, graph:MalValue):MalValue
+   bindings:MalValue init MalCsoundParamBindings(params)
+-  if (MalCsoundIdentifierIsValid(name) == 0) ithen
+-    result:MalValue init MalMkError("csound/definst: name must be a Csound-compatible symbol")
++  if (MalCsoundInstrumentNameIsValid(name) == 0) ithen
++    result:MalValue init MalMkError("csound/definst: name must be a Csound-compatible symbol or an integer from 1 to 32767")
+   elseif (bindings.type == $MAL_ERROR_TYPE) ithen
+     result init bindings
+   elseif (graph.type == $MAL_ERROR_TYPE) ithen
+@@ -193,7 +193,7 @@ opcode MalCsoundInstrumentSource(name:MalValue, params:MalValue, graph:MalValue)
+     elseif (rendered.outputs != 0) ithen
+       result init MalMkError("csound/definst: body must end in an output statement")
+     else
+-      result init MalMkString(sprintf("instr %s\n%sendin\nreturn 1\n", name.string, rendered.statements))
++      result init MalMkString(sprintf("instr %s\n%sendin\nreturn 1\n", MalCsoundInstrumentName(name), rendered.statements))
+     endif
+   endif
+   xout result
+@@ -204,11 +204,15 @@ opcode MalCompileCsoundInstrument(name:MalValue, params:MalValue, graph:MalValue
+   if (source.type == $MAL_ERROR_TYPE) ithen
+     result:MalValue init source
+   else
++    identifier:S init MalCsoundInstrumentName(name)
++    defaults:MalValue init MalCsoundDefaults(params)
++    instrumentId:i = name.type == $MAL_NUMBER_TYPE ? name.number : 0
+     compiled:i evalstr source.string
+     if (compiled != 1) ithen
+-      result init MalMkError(sprintf("csound/definst: Csound could not compile instrument '%s'", name.string))
++      result init MalMkError(sprintf("csound/definst: Csound could not compile instrument '%s'", identifier))
+     else
+-      result init MalMkCsoundInstrument(name.string, MalCsoundDefaults(params))
++      result init MalMkCsoundInstrument(identifier, defaults)
++      result.number = instrumentId
+     endif
+   endif
+   xout result
+diff --git a/src/csound.orc b/src/csound.orc
+index b4e83aa..45eb782 100644
+--- a/src/csound.orc
++++ b/src/csound.orc
+@@ -337,6 +337,7 @@ endop
+ opcode MalMkCsoundInstrument(name:S, defaults:MalValue):MalValue
+   instrument:MalValue init defaults
+   instrument.type = $MAL_CSOUND_INSTRUMENT_TYPE
++  instrument.number = 0
+   instrument.string init name
+   xout instrument
+ endop
+diff --git a/src/env.orc b/src/env.orc
+index 82c0a73..5ce1889 100644
+--- a/src/env.orc
++++ b/src/env.orc
+@@ -8,6 +8,7 @@ malEnvRegistry@global:MalEnv[] init 0
+ malEnvCount@global:i init 0
+ malEnvFreeIds@global:i[] init 0
+ malEnvFreeCount@global:i init 0
++malDebugEvalBindingSeen@global:i init 0
+ 
+ opcode MalEnvEnsureCapacity():void
+   capacity:i = lenarray(malEnvRegistry)
+@@ -83,10 +84,12 @@ endop
+ 
+ opcode MalEnvResolve(env:MalEnv):MalEnv
+   if (env.id >= 0 && env.id < malEnvCount) ithen
+-    stored:MalEnv MalEnvSnapshot malEnvRegistry[env.id]
+-
+-    if (stored.id == env.id) ithen
+-      result:MalEnv MalEnvSnapshot stored
++    if (malEnvRegistry[env.id].id == env.id) ithen
++      result:MalEnv init malEnvRegistry[env.id].keys, \
++        malEnvRegistry[env.id].values, malEnvRegistry[env.id].outer, \
++        malEnvRegistry[env.id].length, malEnvRegistry[env.id].id, \
++        malEnvRegistry[env.id].persistent, malEnvRegistry[env.id].namespace, \
++        malEnvRegistry[env.id].loadPaths
+     else
+       result:MalEnv MalEnvSnapshot env
+     endif
+@@ -124,13 +127,11 @@ opcode MalEnvRetain(env:MalEnv):MalEnv
+ endop
+ 
+ opcode MalEnvRelease(env:MalEnv):void
+-  resolved:MalEnv MalEnvResolve env
+-
+   ;; Csound evaluates && operands eagerly, so guard the registry read first.
+-  if (resolved.id > 0 && resolved.id < malEnvCount && \
+-      resolved.persistent == 0) ithen
+-    if (malEnvRegistry[resolved.id].id == resolved.id) ithen
+-      releasedId:i = resolved.id
++  if (env.id > 0 && env.id < malEnvCount) ithen
++    if (malEnvRegistry[env.id].id == env.id && \
++        malEnvRegistry[env.id].persistent == 0) ithen
++      releasedId:i = env.id
+       malEnvRegistry[releasedId] MalEnvHandle -1
+       MalEnvPushFreeId(releasedId)
+     endif
+@@ -166,21 +167,39 @@ endop
+ 
+ opcode MalMkEnvWithOuter(parent:MalEnv):MalEnv
+   id:i MalEnvAllocateId
+-  resolvedParent:MalEnv MalEnvResolve parent
++  parentId:i = parent.id
++  registered:i = 0
++  if (parentId >= 0 && parentId < malEnvCount) ithen
++    registered = malEnvRegistry[parentId].id == parentId
++  endif
++  if (registered == 1) ithen
++    namespace:S init malEnvRegistry[parentId].namespace
++  else
++    namespace:S init parent.namespace
++  endif
+   outer:MalEnv[] init 1
+-  outer[0] MalEnvHandle resolvedParent.id
+-  env:MalEnv init malEmptyStrings, malEmptyValues, outer, 0, id, 0, resolvedParent.namespace, MalMkValue($MAL_LIST_TYPE)
++  outer[0] MalEnvHandle parentId
++  env:MalEnv init malEmptyStrings, malEmptyValues, outer, 0, id, 0, namespace, MalMkValue($MAL_LIST_TYPE)
+   env MalEnvStore env
+   xout env
+ endop
+ 
+ opcode MalEnvFind(env:MalEnv, key:S):i
+-  resolved:MalEnv MalEnvResolve env
+   found:i = -1
+-
+-  if (resolved.length > 0) ithen
+-    for index in [0 ... resolved.length - 1] do
+-      storedKey:S init resolved.keys[index]
++  registered:i = 0
++  if (env.id >= 0 && env.id < malEnvCount) ithen
++    registered = malEnvRegistry[env.id].id == env.id
++  endif
++  if (registered == 1) ithen
++    keys:S[] init malEnvRegistry[env.id].keys
++    length:i = malEnvRegistry[env.id].length
++  else
++    keys:S[] init env.keys
++    length:i = env.length
++  endif
++  if (length > 0) ithen
++    for index in [0 ... length - 1] do
++      storedKey:S init keys[index]
+       comparison:i strcmp storedKey, key
+ 
+       if (comparison == 0) ithen
+@@ -194,6 +213,15 @@ opcode MalEnvFind(env:MalEnv, key:S):i
+ endop
+ 
+ opcode MalEnvSet(env:MalEnv, key:S, value:MalValue):MalEnv
++  ;; Once debug tracing has a binding, keep resolving it in each lexical scope.
++  ;; Until then no scope can enable tracing, so evaluation can skip the lookup.
++  if (strcmp(key, "DEBUG-EVAL") == 0) ithen
++    malDebugEvalBindingSeen = 1
++  elseif (strlen(key) > 10) ithen
++    if (strcmp(strsub(key, strlen(key) - 11), "/DEBUG-EVAL") == 0) ithen
++      malDebugEvalBindingSeen = 1
++    endif
++  endif
+   resolved:MalEnv MalEnvResolve env
+   index:i MalEnvFind resolved, key
+ 
+diff --git a/src/eval.orc b/src/eval.orc
+index cabf69c..9115013 100644
+--- a/src/eval.orc
++++ b/src/eval.orc
+@@ -2,8 +2,7 @@
+ ;; License, v. 2.0. If a copy of the MPL was not distributed with this
+ ;; file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ 
+-declare EVAL_ENV(result:MalValue, nextEnv:MalEnv):(MalValue, MalEnv)
+-declare MalEquals(left:MalValue, right:MalValue):(i)
++declare MalEvalInternal(result:MalValue, nextEnv:MalEnv):(MalValue, MalEnv)
+ declare MalApply(fn:MalValue, args:MalValue):(MalValue)
+ declare MalQuasiquote(ast:MalValue):(MalValue)
+ declare MalEvalSourceEnv(source:S, env:MalEnv):(MalValue, MalEnv)
+@@ -483,7 +482,7 @@ opcode MalEquals(left:MalValue, right:MalValue):i
+ 
+       case $MAL_CSOUND_INSTRUMENT_TYPE
+         ;; The name selects the Csound voice; defaults affect bare calls.
+-        result = strcmp(left.string, right.string) == 0 && left.length == right.length
++        result = left.number == right.number && strcmp(left.string, right.string) == 0 && left.length == right.length
+         if (result == 1 && left.length > 0) ithen
+           for index in [0 ... left.length - 1] do
+             if (MalEquals(MalAt(left, index), MalAt(right, index)) == 0) ithen
+@@ -1284,8 +1283,7 @@ opcode MalBindFunctionEnv(fn:MalValue, args:MalValue):(MalValue, MalEnv)
+     result init MalMkError("fn*: missing closure environment")
+   else
+     closure:MalEnv[] init fn.env
+-    capturedEnv:MalEnv init MalEnvResolve(closure[0])
+-    callEnv init MalMkEnvWithOuter(capturedEnv)
++    callEnv init MalMkEnvWithOuter(closure[0])
+ 
+     if (strlen(fn.string) > 0) ithen
+       callEnv.namespace init fn.string
+@@ -1324,8 +1322,8 @@ opcode MalApplyFunction(fn:MalValue, args:MalValue):MalValue
+ 
+   if (result.type != $MAL_ERROR_TYPE) ithen
+     body:MalValue init MalFunctionBody(fn)
+-    bodyInputEnv:MalEnv init callEnv
+-    result, callEnv = EVAL_ENV(body, bodyInputEnv)
++    bodyInputEnv:MalEnv init MalEnvHandle(callEnv.id)
++    result, callEnv = MalEvalInternal(body, bodyInputEnv)
+   endif
+ 
+   MalEnvRelease(callEnv)
+@@ -1357,14 +1355,14 @@ endop
+ 
+ opcode MalEvalSequenceEnv(ast:MalValue, env:MalEnv, startIndex:i, resultType:i):(MalValue, MalEnv)
+   result:MalValue init MalMkValue(resultType)
+-  currentEnv:MalEnv init env
++  currentEnv:MalEnv init MalEnvHandle(env.id)
+   index:i = startIndex
+   done:i = 0
+ 
+   while (index < ast.length && done == 0) do
+     value:MalValue init MalAt(ast, index)
+-    valueInputEnv:MalEnv init currentEnv
+-    evaluated:MalValue, currentEnv = EVAL_ENV(value, valueInputEnv)
++    valueInputEnv:MalEnv init MalEnvHandle(currentEnv.id)
++    evaluated:MalValue, currentEnv = MalEvalInternal(value, valueInputEnv)
+ 
+     if (evaluated.type == $MAL_ERROR_TYPE) ithen
+       result init evaluated
+@@ -1393,15 +1391,15 @@ endop
+ 
+ opcode MalEvalHashMapEnv(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+   result:MalValue init MalMkValue($MAL_HASH_MAP_TYPE)
+-  currentEnv:MalEnv init env
++  currentEnv:MalEnv init MalEnvHandle(env.id)
+   index:i = 0
+   done:i = 0
+ 
+   while (index < ast.length && done == 0) do
+     key:MalValue init MalAt(ast, index)
+     value:MalValue init MalAt(ast, index + 1)
+-    valueInputEnv:MalEnv init currentEnv
+-    evaluated:MalValue, currentEnv = EVAL_ENV(value, valueInputEnv)
++    valueInputEnv:MalEnv init MalEnvHandle(currentEnv.id)
++    evaluated:MalValue, currentEnv = MalEvalInternal(value, valueInputEnv)
+ 
+     if (evaluated.type == $MAL_ERROR_TYPE) ithen
+       result init evaluated
+@@ -1418,7 +1416,7 @@ endop
+ 
+ opcode MalEvalAstEnv(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+   result:MalValue init ast
+-  currentEnv:MalEnv init env
++  currentEnv:MalEnv init MalEnvHandle(env.id)
+   switch ast.type
+     case $MAL_SYMBOL_TYPE
+       result init MalResolveSymbol(env, ast.string)
+@@ -1544,7 +1542,7 @@ endop
+ 
+ opcode MalEvalDefinition(ast:MalValue, env:MalEnv, name:S, asMacro:i, atRoot:i):(MalValue, MalEnv)
+   result:MalValue init MalMkValue($MAL_NIL_TYPE)
+-  currentEnv:MalEnv init env
++  currentEnv:MalEnv init MalEnvHandle(env.id)
+   if (ast.length != 3) ithen
+     result init MalMkError(sprintf("%s: expected 2 arguments, got %d", \
+       name, ast.length - 1))
+@@ -1561,10 +1559,10 @@ opcode MalEvalDefinition(ast:MalValue, env:MalEnv, name:S, asMacro:i, atRoot:i):
+         key init MalDefinitionKey(definitionEnv, symbol.string)
+         definitionEnv init MalEnvRoot(definitionEnv)
+       endif
+-      definitionInputEnv:MalEnv init currentEnv
++      definitionInputEnv:MalEnv init MalEnvHandle(currentEnv.id)
+       value:MalValue init key
+       if (key.type != $MAL_ERROR_TYPE) ithen
+-        value, currentEnv = EVAL_ENV(valueForm, definitionInputEnv)
++        value, currentEnv = MalEvalInternal(valueForm, definitionInputEnv)
+       endif
+ 
+       if (value.type == $MAL_ERROR_TYPE) ithen
+@@ -1634,7 +1632,7 @@ endop
+ 
+ opcode MalEvalFn(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+   result:MalValue init MalMkValue($MAL_NIL_TYPE)
+-  currentEnv:MalEnv init env
++  currentEnv:MalEnv init MalEnvHandle(env.id)
+   if (ast.length != 3) ithen
+     result init MalMkError(sprintf("fn*: expected 2 arguments, got %d", \
+       ast.length - 1))
+@@ -1659,25 +1657,25 @@ endop
+ 
+ opcode MalEvalIf(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+   result:MalValue init MalMkValue($MAL_NIL_TYPE)
+-  currentEnv:MalEnv init env
++  currentEnv:MalEnv init MalEnvHandle(env.id)
+   if (ast.length < 3 || ast.length > 4) ithen
+     result init MalMkError(sprintf("if: expected 2 or 3 arguments, got %d", \
+       ast.length - 1))
+   else
+     conditionForm:MalValue init MalAt(ast, 1)
+-    branchInputEnv:MalEnv init currentEnv
+-    condition:MalValue, currentEnv = EVAL_ENV(conditionForm, branchInputEnv)
++    branchInputEnv:MalEnv init MalEnvHandle(currentEnv.id)
++    condition:MalValue, currentEnv = MalEvalInternal(conditionForm, branchInputEnv)
+ 
+     if (condition.type == $MAL_ERROR_TYPE) ithen
+       result init condition
+     elseif (MalIsTruthy(condition) == 1) ithen
+       thenForm:MalValue init MalAt(ast, 2)
+-      branchInputEnv init currentEnv
+-      result, currentEnv = EVAL_ENV(thenForm, branchInputEnv)
++      branchInputEnv init MalEnvHandle(currentEnv.id)
++      result, currentEnv = MalEvalInternal(thenForm, branchInputEnv)
+     elseif (ast.length == 4) ithen
+       elseForm:MalValue init MalAt(ast, 3)
+-      branchInputEnv init currentEnv
+-      result, currentEnv = EVAL_ENV(elseForm, branchInputEnv)
++      branchInputEnv init MalEnvHandle(currentEnv.id)
++      result, currentEnv = MalEvalInternal(elseForm, branchInputEnv)
+     endif
+   endif
+ 
+@@ -1686,14 +1684,14 @@ endop
+ 
+ opcode MalEvalDo(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+   result:MalValue init MalMkValue($MAL_NIL_TYPE)
+-  currentEnv:MalEnv init env
++  currentEnv:MalEnv init MalEnvHandle(env.id)
+   index:i = 1
+   done:i = 0
+ 
+   while (index < ast.length && done == 0) do
+     form:MalValue init MalAt(ast, index)
+-    formInputEnv:MalEnv init currentEnv
+-    result, currentEnv = EVAL_ENV(form, formInputEnv)
++    formInputEnv:MalEnv init MalEnvHandle(currentEnv.id)
++    result, currentEnv = MalEvalInternal(form, formInputEnv)
+ 
+     if (result.type == $MAL_ERROR_TYPE) ithen
+       done = 1
+@@ -1707,7 +1705,7 @@ endop
+ 
+ opcode MalEvalLet(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+   result:MalValue init MalMkValue($MAL_NIL_TYPE)
+-  currentEnv:MalEnv init env
++  currentEnv:MalEnv init MalEnvHandle(env.id)
+   letEnv:MalEnv init MalMkEnvWithOuter(env)
+ 
+   if (ast.length != 3) ithen
+@@ -1734,8 +1732,8 @@ opcode MalEvalLet(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+           result init MalMkError("let*: binding name must be a symbol")
+           done = 1
+         else
+-          letInputEnv:MalEnv init letEnv
+-          value:MalValue, letEnv = EVAL_ENV(valueForm, letInputEnv)
++          letInputEnv:MalEnv init MalEnvHandle(letEnv.id)
++          value:MalValue, letEnv = MalEvalInternal(valueForm, letInputEnv)
+ 
+           if (value.type == $MAL_ERROR_TYPE) ithen
+             result init value
+@@ -1749,8 +1747,8 @@ opcode MalEvalLet(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+       od
+ 
+       if (done == 0) ithen
+-        letInputEnv init letEnv
+-        result, letEnv = EVAL_ENV(body, letInputEnv)
++        letInputEnv init MalEnvHandle(letEnv.id)
++        result, letEnv = MalEvalInternal(body, letInputEnv)
+       endif
+     endif
+   endif
+@@ -1760,23 +1758,27 @@ opcode MalEvalLet(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+   xout result, currentEnv
+ endop
+ 
+-opcode EVAL_ENV(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
++;; Internal calls carry registry handles. The public evaluator resolves its
++;; returned environment once, instead of copying all bindings at every form.
++opcode MalEvalInternal(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+   result:MalValue init ast
+   workAst:MalValue init ast
+-  evalEnv:MalEnv init env
+-  returnEnv:MalEnv init env
+-  recursiveInputEnv:MalEnv init env
++  evalEnv:MalEnv init MalEnvHandle(env.id)
++  returnEnv:MalEnv init MalEnvHandle(env.id)
++  recursiveInputEnv:MalEnv init MalEnvHandle(env.id)
+   transientEnvIds:i[] init 0
+   transientEnvCount:i = 0
+   done:i = 0
+ 
+   while (done == 0) do
+     transientEnvId:i = -1
+-    debugValue:MalValue init MalResolveSymbol(evalEnv, "DEBUG-EVAL")
+-    if (debugValue.type != $MAL_ERROR_TYPE) ithen
+-      if (MalIsTruthy(debugValue) == 1) ithen
+-        SdebugAst:S init pr_str(workAst)
+-        prints "EVAL: %s\n", SdebugAst
++    if (malDebugEvalBindingSeen == 1) ithen
++      debugValue:MalValue init MalResolveSymbol(evalEnv, "DEBUG-EVAL")
++      if (debugValue.type != $MAL_ERROR_TYPE) ithen
++        if (MalIsTruthy(debugValue) == 1) ithen
++          SdebugAst:S init pr_str(workAst)
++          prints "EVAL: %s\n", SdebugAst
++        endif
+       endif
+     endif
+ 
+@@ -1806,17 +1808,17 @@ opcode EVAL_ENV(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+         endif
+ 
+       elseif (MalIsSymbolNamed(head, "def") == 1 || MalIsSymbolNamed(head, "def!") == 1) ithen
+-        recursiveInputEnv init evalEnv
++        recursiveInputEnv init MalEnvHandle(evalEnv.id)
+         result, evalEnv = MalEvalDef(workAst, recursiveInputEnv)
+         done = 1
+ 
+       elseif (MalIsSymbolNamed(head, "defmacro!") == 1) ithen
+-        recursiveInputEnv init evalEnv
++        recursiveInputEnv init MalEnvHandle(evalEnv.id)
+         result, evalEnv = MalEvalDefMacro(workAst, recursiveInputEnv)
+         done = 1
+ 
+       elseif (MalIsSymbolNamed(head, "defn") == 1 || MalIsSymbolNamed(head, "defmacro") == 1) ithen
+-        recursiveInputEnv init evalEnv
++        recursiveInputEnv init MalEnvHandle(evalEnv.id)
+         result, evalEnv = MalEvalNamedDefinition(workAst, recursiveInputEnv)
+         done = 1
+ 
+@@ -1828,7 +1830,7 @@ opcode EVAL_ENV(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+         endif
+ 
+       elseif (head.type == $MAL_SYMBOL_TYPE && strcmp(head.string, "fn*") == 0) ithen
+-        recursiveInputEnv init evalEnv
++        recursiveInputEnv init MalEnvHandle(evalEnv.id)
+         result, evalEnv = MalEvalFn(workAst, recursiveInputEnv)
+         done = 1
+ 
+@@ -1857,8 +1859,8 @@ opcode EVAL_ENV(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+               done = 1
+             else
+               tryForm:MalValue init MalAt(workAst, 1)
+-              recursiveInputEnv init evalEnv
+-              tryResult:MalValue, evalEnv = EVAL_ENV( \
++              recursiveInputEnv init MalEnvHandle(evalEnv.id)
++              tryResult:MalValue, evalEnv = MalEvalInternal( \
+                 tryForm, recursiveInputEnv)
+ 
+               if (tryResult.type == $MAL_ERROR_TYPE) ithen
+@@ -1868,7 +1870,7 @@ opcode EVAL_ENV(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+                 catchEnv init MalEnvSet( \
+                   catchEnv, catchBinding.string, catchValue)
+                 workAst init MalAt(catchClause, 2)
+-                evalEnv init catchEnv
++                evalEnv init MalEnvHandle(catchEnv.id)
+               else
+                 result init tryResult
+                 done = 1
+@@ -1884,8 +1886,8 @@ opcode EVAL_ENV(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+           done = 1
+         else
+           ifConditionForm:MalValue init MalAt(workAst, 1)
+-          recursiveInputEnv init evalEnv
+-          ifCondition:MalValue, evalEnv = EVAL_ENV( \
++          recursiveInputEnv init MalEnvHandle(evalEnv.id)
++          ifCondition:MalValue, evalEnv = MalEvalInternal( \
+             ifConditionForm, recursiveInputEnv)
+ 
+           if (ifCondition.type == $MAL_ERROR_TYPE) ithen
+@@ -1912,8 +1914,8 @@ opcode EVAL_ENV(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+ 
+           while (doIndex < doLastIndex && doError == 0) do
+             doForm:MalValue init MalAt(workAst, doIndex)
+-            recursiveInputEnv init evalEnv
+-            result, evalEnv = EVAL_ENV(doForm, recursiveInputEnv)
++            recursiveInputEnv init MalEnvHandle(evalEnv.id)
++            result, evalEnv = MalEvalInternal(doForm, recursiveInputEnv)
+ 
+             if (result.type == $MAL_ERROR_TYPE) ithen
+               doError = 1
+@@ -1974,8 +1976,8 @@ opcode EVAL_ENV(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+                 letError = 1
+                 done = 1
+               else
+-                recursiveInputEnv init letEnv
+-                letValue:MalValue, letEnv = EVAL_ENV( \
++                recursiveInputEnv init MalEnvHandle(letEnv.id)
++                letValue:MalValue, letEnv = MalEvalInternal( \
+                   letValueForm, recursiveInputEnv)
+ 
+                 if (letValue.type == $MAL_ERROR_TYPE) ithen
+@@ -1999,14 +2001,14 @@ opcode EVAL_ENV(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+ 
+             if (letError == 0) ithen
+               workAst init letBody
+-              evalEnv init letEnv
++              evalEnv init MalEnvHandle(letEnv.id)
+             endif
+           endif
+         endif
+ 
+       else
+-        recursiveInputEnv init evalEnv
+-        fn:MalValue, evalEnv = EVAL_ENV(head, recursiveInputEnv)
++        recursiveInputEnv init MalEnvHandle(evalEnv.id)
++        fn:MalValue, evalEnv = MalEvalInternal(head, recursiveInputEnv)
+ 
+         if (fn.type == $MAL_ERROR_TYPE) ithen
+           result init fn
+@@ -2022,7 +2024,7 @@ opcode EVAL_ENV(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+             workAst init expansion
+           endif
+         else
+-          recursiveInputEnv init evalEnv
++          recursiveInputEnv init MalEnvHandle(evalEnv.id)
+           args:MalValue, evalEnv = MalEvalSequenceEnv( \
+             workAst, recursiveInputEnv, 1, $MAL_LIST_TYPE)
+ 
+@@ -2036,8 +2038,8 @@ opcode EVAL_ENV(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+             else
+               evalAst:MalValue init MalAt(args, 0)
+               evalRoot:MalEnv init MalEnvRoot(evalEnv)
+-              recursiveInputEnv init evalRoot
+-              result, evalRoot = EVAL_ENV(evalAst, recursiveInputEnv)
++              recursiveInputEnv init MalEnvHandle(evalRoot.id)
++              result, evalRoot = MalEvalInternal(evalAst, recursiveInputEnv)
+               evalEnv init MalEnvSetRoot(evalEnv, evalRoot)
+ 
+               done = 1
+@@ -2051,7 +2053,7 @@ opcode EVAL_ENV(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+             else
+               transientEnvId = callEnv.id
+               workAst init MalFunctionBody(fn)
+-              evalEnv init callEnv
++              evalEnv init MalEnvHandle(callEnv.id)
+             endif
+           else
+             result init MalApply(fn, args)
+@@ -2060,7 +2062,7 @@ opcode EVAL_ENV(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+         endif
+       endif
+     else
+-      recursiveInputEnv init evalEnv
++      recursiveInputEnv init MalEnvHandle(evalEnv.id)
+       result, evalEnv = MalEvalAstEnv(workAst, recursiveInputEnv)
+ 
+       done = 1
+@@ -2072,7 +2074,7 @@ opcode EVAL_ENV(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+     endif
+   od
+ 
+-  returnEnv init MalEnvResolve(returnEnv)
++  returnEnv init MalEnvHandle(returnEnv.id)
+ 
+   if (transientEnvCount > 0) ithen
+     for releaseIndex in [0 ... transientEnvCount - 1] do
+@@ -2085,22 +2087,29 @@ opcode EVAL_ENV(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
+   xout result, returnEnv
+ endop
+ 
++opcode EVAL_ENV(ast:MalValue, env:MalEnv):(MalValue, MalEnv)
++  handle:MalEnv init MalEnvHandle(env.id)
++  result:MalValue, nextEnv:MalEnv = MalEvalInternal(ast, handle)
++  updated:MalEnv init MalEnvResolve(nextEnv)
++  xout result, updated
++endop
++
+ opcode EVAL(ast:MalValue, env:MalEnv):MalValue
+-  result:MalValue, updatedEnv:MalEnv = EVAL_ENV(ast, env)
++  result:MalValue, updatedEnv:MalEnv = MalEvalInternal(ast, env)
+   xout result
+ endop
+ 
+ opcode MalEvalSourceEnv(source:S, env:MalEnv):(MalValue, MalEnv)
+   ast:MalValue init read_str(source)
+-  currentEnv:MalEnv init env
++  currentEnv:MalEnv init MalEnvHandle(env.id)
+   if (ast.type == $MAL_ERROR_TYPE) ithen
+     result:MalValue init ast
+   else
+-    sourceInputEnv:MalEnv init currentEnv
+-    result, currentEnv = EVAL_ENV(ast, sourceInputEnv)
++    sourceInputEnv:MalEnv init MalEnvHandle(currentEnv.id)
++    result, currentEnv = MalEvalInternal(ast, sourceInputEnv)
+   endif
+ 
+-  xout result, currentEnv
++  xout result, MalEnvResolve(currentEnv)
+ endop
+ 
+ ;; Read every form before evaluation, since read-string and load-file reuse
+@@ -2121,13 +2130,13 @@ opcode MalEvalFormsEnv(source:S, env:MalEnv):(MalValue, MalEnv)
+       endif
+     od
+   endif
+-  nextEnv:MalEnv init env
++  nextEnv:MalEnv init MalEnvHandle(env.id)
+   if (ast.type == $MAL_ERROR_TYPE) ithen
+     result:MalValue init ast
+   else
+-    result, nextEnv = EVAL_ENV(ast, env)
++    result, nextEnv = MalEvalInternal(ast, env)
+   endif
+-  xout result, nextEnv
++  xout result, MalEnvResolve(nextEnv)
+ endop
+ 
+ #include "src/threading.orc"
+@@ -2236,7 +2245,7 @@ opcode MalMkCsoundEnv():MalEnv
+   env init MalCsoundInstallOpcodes(env)
+ 
+   env init MalNsSwitch(env, "csound")
+-  source:S init "(defmacro definst [name params body] (list 'def name (list 'csound/compile-inst (list 'quote name) (list 'quote params) (list 'let* (csound/param-bindings params) body))))"
++  source:S init "(defmacro definst [name params body] (let* [compiled (list 'csound/compile-inst (list 'quote name) (list 'quote params) (list 'let* (csound/param-bindings params) body))] (if (number? name) compiled (list 'def name compiled))))"
+   result:MalValue, env = MalEvalSourceEnv(source, env)
+   env init MalNsSwitch(env, "user")
+ 
+diff --git a/src/main.orc b/src/main.orc
+index 3fa5e46..14d6c61 100644
+--- a/src/main.orc
++++ b/src/main.orc
+@@ -13,3 +13,4 @@
+ #include "src/printer.orc"
+ #include "src/csound.orc"
+ #include "src/eval.orc"
++#include "src/eval-job.orc"
+diff --git a/src/namespaces.orc b/src/namespaces.orc
+index 3acc882..1b5fdee 100644
+--- a/src/namespaces.orc
++++ b/src/namespaces.orc
+@@ -75,6 +75,21 @@ opcode MalNsSwitch(env:MalEnv, name:S):MalEnv
+   xout MalEnvResolve(env)
+ endop
+ 
++;; Namespace indexes keep names sorted; root binding slots remain stable.
++opcode MalNsKeyPosition(nsIndex:i, name:S):i
++  low:i = 0
++  high:i = malNamespaces[nsIndex].length
++  while (low < high) do
++    middle:i = int((low + high) / 2)
++    if (strcmp(malNamespaces[nsIndex].keys[middle], name) < 0) ithen
++      low = middle + 1
++    else
++      high = middle
++    endif
++  od
++  xout low
++endop
++
+ opcode MalNsRegister(root:MalEnv, key:S):void
+   ;; MalEnvSet keeps these indexes current. Root slots never move; lookup
+   ;; needs only names and slot numbers, without copying all global values.
+@@ -85,28 +100,25 @@ opcode MalNsRegister(root:MalEnv, key:S):void
+   nsIndex:i = MalNsEnsure(root, prefix, 1)
+   record:MalNamespace init malNamespaces[nsIndex]
+   slot:i = MalEnvFind(root, key)
+-  found:i = -1
+-  if (record.length > 0) ithen
+-    for index in [0 ... record.length - 1] do
+-      if (strcmp(record.keys[index], local) == 0) ithen
+-        found = index
+-        break
+-      endif
+-    od
++  position:i = MalNsKeyPosition(nsIndex, local)
++  found:i = 0
++  if (position < record.length) ithen
++    found = strcmp(record.keys[position], local) == 0
+   endif
+-  if (found >= 0) ithen
+-    record.slots[found] = slot
++  if (found == 1) ithen
++    record.slots[position] = slot
+   else
+     keys:S[] init record.length + 1
+     slots:i[] init record.length + 1
+     if (record.length > 0) ithen
+       for index in [0 ... record.length - 1] do
+-        keys[index] init record.keys[index]
+-        slots[index] = record.slots[index]
++        destination:i = index < position ? index : index + 1
++        keys[destination] init record.keys[index]
++        slots[destination] = record.slots[index]
+       od
+     endif
+-    keys[record.length] init local
+-    slots[record.length] = slot
++    keys[position] init local
++    slots[position] = slot
+     record.keys init keys
+     record.slots init slots
+     record.length += 1
+@@ -118,14 +130,11 @@ opcode MalNsSlot(owner:i, namespace:S, name:S):i
+   slot:i = -1
+   nsIndex:i = MalNsFind(owner, namespace)
+   if (nsIndex >= 0) ithen
+-    record:MalNamespace init malNamespaces[nsIndex]
+-    if (record.length > 0) ithen
+-      for index in [0 ... record.length - 1] do
+-        if (strcmp(record.keys[index], name) == 0) ithen
+-          slot = record.slots[index]
+-          break
+-        endif
+-      od
++    position:i = MalNsKeyPosition(nsIndex, name)
++    if (position < malNamespaces[nsIndex].length) ithen
++      if (strcmp(malNamespaces[nsIndex].keys[position], name) == 0) ithen
++        slot = malNamespaces[nsIndex].slots[position]
++      endif
+     endif
+   endif
+   xout slot
+@@ -160,7 +169,7 @@ opcode MalResolveSymbol(env:MalEnv, name:S):MalValue
+   else
+     namespace:S init malEnvRegistry[id].namespace
+     found:i = 0
+-    result:MalValue init MalMkError(sprintf("'%s' not found", name))
++    result:MalValue init MalMkValue($MAL_NIL_TYPE)
+     while (id != rootId && found == 0) do
+       if (malEnvRegistry[id].length > 0) ithen
+         for index in [0 ... malEnvRegistry[id].length - 1] do
+@@ -174,33 +183,42 @@ opcode MalResolveSymbol(env:MalEnv, name:S):MalValue
+       id = malEnvRegistry[id].outer[0].id
+     od
+     if (found == 0) ithen
+-      prefix:S, local:S = MalNameParts(name)
+-      nsIndex:i = MalNsFind(rootId, namespace)
+-      if (strlen(prefix) > 0) ithen
+-        if (nsIndex >= 0) ithen
+-          aliasIndex:i = MalMapFindKey(malNamespaces[nsIndex].aliases, MalMkSymbol(prefix))
+-          if (aliasIndex >= 0) ithen
+-            target:MalValue init MalAt(malNamespaces[nsIndex].aliases, aliasIndex + 1)
+-            prefix init target.string
+-          endif
+-        endif
+-        result init MalNsQualified(rootId, prefix, local)
+-      elseif (strcmp(name, "*ns*") == 0) ithen
++      if (strcmp(name, "*ns*") == 0) ithen
+         result init MalMkSymbol(malEnvRegistry[rootId].namespace)
+       else
+-        result init MalNsQualified(rootId, namespace, name)
+-        if (result.type == $MAL_ERROR_TYPE && nsIndex >= 0) ithen
+-          refIndex:i = MalMapFindKey(malNamespaces[nsIndex].refers, MalMkSymbol(name))
+-          if (refIndex >= 0) ithen
+-            target:MalValue init MalAt(malNamespaces[nsIndex].refers, refIndex + 1)
+-            targetNs:S, targetName:S = MalNameParts(target.string)
+-            result init MalNsQualified(rootId, targetNs, targetName)
+-          elseif (malNamespaces[nsIndex].core == 1) ithen
+-            result init MalNsQualified(rootId, "clojure.core", name)
++        slot:i = -1
++        prefix:S, local:S = MalNameParts(name)
++        nsIndex:i = MalNsFind(rootId, namespace)
++        if (strlen(prefix) > 0) ithen
++          if (nsIndex >= 0) ithen
++            aliasIndex:i = MalMapFindKey(malNamespaces[nsIndex].aliases, MalMkSymbol(prefix))
++            if (aliasIndex >= 0) ithen
++              target:MalValue init MalAt(malNamespaces[nsIndex].aliases, aliasIndex + 1)
++              prefix init target.string
++            endif
++          endif
++          slot = MalNsSlot(rootId, prefix, local)
++          if (slot < 0) ithen
++            result init MalMkError(sprintf("'%s/%s' not found", prefix, local))
++          endif
++        else
++          slot = MalNsSlot(rootId, namespace, name)
++          if (slot < 0 && nsIndex >= 0) ithen
++            refIndex:i = MalMapFindKey(malNamespaces[nsIndex].refers, MalMkSymbol(name))
++            if (refIndex >= 0) ithen
++              target:MalValue init MalAt(malNamespaces[nsIndex].refers, refIndex + 1)
++              targetNs:S, targetName:S = MalNameParts(target.string)
++              slot = MalNsSlot(rootId, targetNs, targetName)
++            elseif (malNamespaces[nsIndex].core == 1) ithen
++              slot = MalNsSlot(rootId, "clojure.core", name)
++            endif
++          endif
++          if (slot < 0) ithen
++            result init MalMkError(sprintf("'%s' not found", name))
+           endif
+         endif
+-        if (result.type == $MAL_ERROR_TYPE) ithen
+-          result init MalMkError(sprintf("'%s' not found", name))
++        if (slot >= 0) ithen
++          result init malEnvRegistry[rootId].values[slot]
+         endif
+       endif
+     endif
+diff --git a/src/types.orc b/src/types.orc
+index 831d3e5..aae67fe 100644
+--- a/src/types.orc
++++ b/src/types.orc
+@@ -20,6 +20,7 @@ malEmptyValues@global:MalValue[] init 0
+ malEmptyEnvs@global:MalEnv[] init 0
+ malEmptyStrings@global:S[] init 0
+ malAtomValues@global:MalValue[] init 0
++malAtomVersions@global:i[] init 0
+ malAtomCount@global:i init 0
+ malReducedCount@global:i init 0
+ malGensymCount@global:i init 0
+diff --git a/src/utils.orc b/src/utils.orc
+index 5e938ff..b671b42 100644
+--- a/src/utils.orc
++++ b/src/utils.orc
+@@ -2,6 +2,8 @@
+ ;; License, v. 2.0. If a copy of the MPL was not distributed with this
+ ;; file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ 
++declare MalEquals(left:MalValue, right:MalValue):(i)
++
+ opcode MalEnvHandle(id:i):MalEnv
+   paths:MalValue init $MAL_LIST_TYPE, 0, "", malEmptyValues, malEmptyEnvs, malEmptyValues, 0, 0, 0
+   env:MalEnv init malEmptyStrings, malEmptyValues, malEmptyEnvs, 0, id, 0, "", paths
+@@ -187,43 +189,6 @@ opcode MalMkKeyword(name:S):MalValue
+   xout val
+ endop
+ 
+-opcode MalMapKeysEqual(left:MalValue, right:MalValue):i
+-  result:i = 0
+-
+-  if (left.type == right.type) ithen
+-    switch left.type
+-      case $MAL_STRING_TYPE
+-        result = strcmp(left.string, right.string) == 0
+-
+-      case $MAL_KEYWORD_TYPE
+-        result = strcmp(left.string, right.string) == 0
+-
+-      case $MAL_SYMBOL_TYPE
+-        result = strcmp(left.string, right.string) == 0
+-
+-      case $MAL_NUMBER_TYPE
+-        result = left.number == right.number
+-
+-      case $MAL_NIL_TYPE
+-        result = 1
+-
+-      case $MAL_TRUE_TYPE
+-        result = 1
+-
+-      case $MAL_FALSE_TYPE
+-        result = 1
+-
+-      case $MAL_ATOM_TYPE
+-        result = left.number == right.number
+-
+-      case $MAL_REDUCED_TYPE
+-        result = left.number == right.number
+-    endsw
+-  endif
+-
+-  xout result
+-endop
+-
+ opcode MalMapFindKey(mapValue:MalValue, key:MalValue):i
+   result:i = -1
+   entryCount:i = int(mapValue.length / 2)
+@@ -232,7 +197,7 @@ opcode MalMapFindKey(mapValue:MalValue, key:MalValue):i
+     for entryIndex in [0 ... entryCount - 1] do
+       keyIndex:i = entryIndex * 2
+ 
+-      if (MalMapKeysEqual(MalAt(mapValue, keyIndex), key) == 1) ithen
++      if (MalEquals(MalAt(mapValue, keyIndex), key) == 1) ithen
+         result = keyIndex
+         break
+       endif
+@@ -352,19 +317,23 @@ opcode MalMkAtom(value:MalValue):MalValue
+ 
+   if (malAtomCount >= capacity) ithen
+     preserved:MalValue[] init capacity
++    versions:i[] init capacity
+ 
+     if (malAtomCount > 0) ithen
+       for index in [0 ... malAtomCount - 1] do
+         preserved[index] init malAtomValues[index]
++        versions[index] = malAtomVersions[index]
+       od
+     endif
+ 
+     newCapacity:i = capacity == 0 ? 8 : capacity * 2
+     malAtomValues init newCapacity
++    malAtomVersions init newCapacity
+ 
+     if (malAtomCount > 0) ithen
+       for index in [0 ... malAtomCount - 1] do
+         malAtomValues[index] init preserved[index]
++        malAtomVersions[index] = versions[index]
+       od
+     endif
+   endif
+@@ -372,6 +341,7 @@ opcode MalMkAtom(value:MalValue):MalValue
+   atomId:i = malAtomCount
+   malAtomCount += 1
+   malAtomValues[atomId] init value
++  malAtomVersions[atomId] = 0
+ 
+   val:MalValue init $MAL_ATOM_TYPE, atomId, "", malEmptyValues, \
+     malEmptyEnvs, malEmptyValues, 0, 0, 0
+@@ -384,6 +354,7 @@ endop
+ 
+ opcode MalAtomSetValue(atom:MalValue, value:MalValue):MalValue
+   malAtomValues[atom.number] init value
++  malAtomVersions[atom.number] += 1
+   xout value
+ endop
+ 
+diff --git a/src/eval-job-builtins.orc b/src/eval-job-builtins.orc
+new file mode 100644
+index 0000000..30682f5
+--- /dev/null
++++ b/src/eval-job-builtins.orc
+@@ -0,0 +1,398 @@
++;; This Source Code Form is subject to the terms of the Mozilla Public
++;; License, v. 2.0. If a copy of the MPL was not distributed with this
++;; file, You can obtain one at https://mozilla.org/MPL/2.0/.
++
++;; Each application below returns to the job dispatcher before running Lisp.
++;; Frames 100-108 belong to these builtin continuations.
++opcode MalEvalJobBuiltinContinue(slot:i, frame:MalEvalFrame):void
++  malEvalJobs[slot].env = frame.env
++  if (frame.index >= frame.limit) ithen
++    if (frame.kind == 103) ithen
++      name:S init frame.extra.string
++      if (strcmp(name, "every?") == 0 || strcmp(name, "not-any?") == 0) ithen
++        MalEvalJobReturn(slot, MalMkBool(1))
++      elseif (strcmp(name, "not-every?") == 0) ithen
++        MalEvalJobReturn(slot, MalMkBool(0))
++      elseif (strcmp(name, "some") == 0) ithen
++        MalEvalJobReturn(slot, MalMkValue($MAL_NIL_TYPE))
++      else
++        MalEvalJobReturn(slot, frame.data)
++      endif
++    else
++      MalEvalJobReturn(slot, frame.data)
++    endif
++  else
++    MalEvalJobPush(slot, frame)
++    if (frame.kind == 100) ithen
++      MalEvalJobSetApply(slot, frame.form, MalMkList1(MalAt(frame.aux, frame.index)))
++    elseif (frame.kind == 101) ithen
++      callArgs:MalValue init MalMkValue($MAL_LIST_TYPE)
++      for column in [0 ... frame.aux.length - 1] do
++        callArgs init MalAppendValue(callArgs, MalAt(MalAt(frame.aux, column), frame.index))
++      od
++      MalEvalJobSetApply(slot, frame.form, callArgs)
++    elseif (frame.kind == 102) ithen
++      MalEvalJobSetApply(slot, frame.form, MalMkList2(frame.data, MalAt(frame.aux, frame.index)))
++    elseif (frame.kind == 103) ithen
++      if (frame.flag == 1) ithen
++        ;; drop-while stops calling its predicate after the first false result.
++        MalEvalJobReturn(slot, MalMkBool(0))
++      else
++        MalEvalJobSetApply(slot, frame.form, MalMkList1(MalAt(frame.aux, frame.index)))
++      endif
++    else
++      ;; take/drop copy one item per dispatcher step.
++      MalEvalJobReturn(slot, MalAt(frame.aux, frame.index))
++    endif
++  endif
++endop
++
++opcode MalEvalJobBuiltinStart(slot:i, fn:MalValue, args:MalValue):i
++  handled:i = 0
++  if (fn.type == $MAL_BUILTIN_TYPE) ithen
++    name:S init fn.string
++    frame:MalEvalFrame init 0, 0, MalMkValue($MAL_NIL_TYPE), MalMkValue($MAL_NIL_TYPE), MalMkValue($MAL_NIL_TYPE), MalMkValue($MAL_NIL_TYPE), 0, 0, 0
++    frame.env = malEvalJobs[slot].env
++    frame.index = 0
++    frame.flag = 0
++
++    if (strcmp(name, "apply") == 0 && lenarray(fn.env) == 0) ithen
++      handled = 1
++      if (args.length < 2) ithen
++        MalEvalJobReturn(slot, MalMkError(sprintf("apply: expected at least 2 arguments, got %d", args.length)))
++      elseif (MalIsSequential(MalAt(args, args.length - 1)) == 0) ithen
++        MalEvalJobReturn(slot, MalMkError("apply: final argument must be list or vector"))
++      else
++        MalEvalJobSetApply(slot, MalAt(args, 0), MalFlattenApplyArgs(args))
++      endif
++
++    elseif (strcmp(name, "map") == 0 && lenarray(fn.env) == 0) ithen
++      handled = 1
++      if (args.length != 2) ithen
++        MalEvalJobReturn(slot, MalArityError(name, 2, args.length))
++      else
++        sequence:MalValue init MalAt(args, 1)
++        if (MalIsCsoundArray(sequence) == 1) ithen
++          sequence init MalCsoundArraySeq(sequence)
++        endif
++        if (sequence.type == $MAL_ERROR_TYPE) ithen
++          MalEvalJobReturn(slot, sequence)
++        elseif (MalIsSequential(sequence) == 0) ithen
++          MalEvalJobReturn(slot, MalMkError("map: second argument must be list or vector"))
++        else
++          frame.kind = 100
++          frame.form init MalAt(args, 0)
++          frame.aux init sequence
++          frame.data init MalMkValue($MAL_LIST_TYPE)
++          frame.limit = sequence.length
++          MalEvalJobBuiltinContinue(slot, frame)
++        endif
++      endif
++
++    elseif (strcmp(name, "mapv") == 0 && lenarray(fn.env) == 0) ithen
++      handled = 1
++      if (args.length < 2) ithen
++        MalEvalJobReturn(slot, MalMkError("mapv: expected a function and at least one collection"))
++      else
++        collections:MalValue init MalMkValue($MAL_LIST_TYPE)
++        size:i = -1
++        failure:MalValue init MalMkValue($MAL_NIL_TYPE)
++        for index in [1 ... args.length - 1] do
++          sequence:MalValue init MalSeq(MalAt(args, index))
++          if (sequence.type == $MAL_ERROR_TYPE) ithen
++            failure init sequence
++            break
++          endif
++          collections init MalAppendValue(collections, sequence)
++          size = size < 0 ? sequence.length : min(size, sequence.length)
++        od
++        if (failure.type == $MAL_ERROR_TYPE) ithen
++          MalEvalJobReturn(slot, failure)
++        else
++          frame.kind = 101
++          frame.form init MalAt(args, 0)
++          frame.aux init collections
++          frame.data init MalMkValue($MAL_VECTOR_TYPE)
++          frame.limit = size
++          MalEvalJobBuiltinContinue(slot, frame)
++        endif
++      endif
++
++    elseif (strcmp(name, "reduce") == 0 && lenarray(fn.env) == 0) ithen
++      handled = 1
++      if (args.length != 2 && args.length != 3) ithen
++        MalEvalJobReturn(slot, MalMkError("reduce: expected 2 or 3 arguments"))
++      else
++        sequence:MalValue init MalSeq(MalAt(args, args.length - 1))
++        if (sequence.type == $MAL_ERROR_TYPE) ithen
++          MalEvalJobReturn(slot, sequence)
++        elseif (args.length == 2 && sequence.length == 0) ithen
++          ;; Empty reductions return the zero-argument call unchanged.
++          MalEvalJobSetApply(slot, MalAt(args, 0), MalMkValue($MAL_LIST_TYPE))
++        else
++          frame.kind = 102
++          frame.form init MalAt(args, 0)
++          frame.aux init sequence
++          frame.limit = sequence.length
++          if (args.length == 3) ithen
++            frame.data init MalAt(args, 1)
++          else
++            frame.data init MalAt(sequence, 0)
++            frame.index = 1
++          endif
++          MalEvalJobBuiltinContinue(slot, frame)
++        endif
++      endif
++
++    elseif ((strcmp(name, "filter") == 0 || strcmp(name, "filterv") == 0 || \
++        strcmp(name, "remove") == 0 || strcmp(name, "keep") == 0 || \
++        strcmp(name, "every?") == 0 || strcmp(name, "not-every?") == 0 || \
++        strcmp(name, "some") == 0 || strcmp(name, "not-any?") == 0 || \
++        strcmp(name, "take-while") == 0 || strcmp(name, "drop-while") == 0) && lenarray(fn.env) == 0) ithen
++      handled = 1
++      if (args.length != 2) ithen
++        MalEvalJobReturn(slot, MalArityError(name, 2, args.length))
++      else
++        sequence:MalValue init MalSeq(MalAt(args, 1))
++        if (sequence.type == $MAL_ERROR_TYPE) ithen
++          MalEvalJobReturn(slot, sequence)
++        else
++          frame.kind = 103
++          frame.form init MalAt(args, 0)
++          frame.aux init sequence
++          frame.extra init MalMkString(name)
++          frame.data init MalMkValue(strcmp(name, "filterv") == 0 ? $MAL_VECTOR_TYPE : $MAL_LIST_TYPE)
++          frame.limit = sequence.length
++          MalEvalJobBuiltinContinue(slot, frame)
++        endif
++      endif
++
++    elseif (strcmp(name, "swap!") == 0 && lenarray(fn.env) == 0) ithen
++      handled = 1
++      if (args.length < 2) ithen
++        MalEvalJobReturn(slot, MalMkError(sprintf("swap!: expected at least 2 arguments, got %d", args.length)))
++      else
++        atom:MalValue init MalAt(args, 0)
++        if (atom.type != $MAL_ATOM_TYPE) ithen
++          MalEvalJobReturn(slot, MalMkError("swap!: first argument must be an atom"))
++        else
++          frame.kind = 104
++          frame.form init MalAt(args, 1)
++          frame.data init atom
++          frame.aux init MalCoreSlice(args, 2, args.length, 0)
++          frame.index = malAtomVersions[atom.number]
++          callArgs:MalValue init MalMkList1(MalAtomValue(atom))
++          if (frame.aux.length > 0) ithen
++            for index in [0 ... frame.aux.length - 1] do
++              callArgs init MalAppendValue(callArgs, MalAt(frame.aux, index))
++            od
++          endif
++          MalEvalJobPush(slot, frame)
++          MalEvalJobSetApply(slot, frame.form, callArgs)
++        endif
++      endif
++
++    elseif ((strcmp(name, "update") == 0 || strcmp(name, "update-in") == 0) && lenarray(fn.env) == 0) ithen
++      handled = 1
++      if (args.length < 3) ithen
++        MalEvalJobReturn(slot, MalMkError(sprintf("%s: invalid arguments", name)))
++      else
++        path:MalValue init MalMkList1(MalAt(args, 1))
++        if (strcmp(name, "update-in") == 0) ithen
++          path init MalSeq(MalAt(args, 1))
++          if (path.length == 0 && path.type != $MAL_ERROR_TYPE) ithen
++            path init MalMkList1(MalMkValue($MAL_NIL_TYPE))
++          endif
++        endif
++        if (path.type == $MAL_ERROR_TYPE) ithen
++          MalEvalJobReturn(slot, path)
++        else
++          old:MalValue init MalCoreGetIn(MalAt(args, 0), path, MalMkValue($MAL_NIL_TYPE))
++          if (old.type == $MAL_ERROR_TYPE) ithen
++            MalEvalJobReturn(slot, old)
++          else
++            frame.kind = 105
++            frame.data init MalAt(args, 0)
++            frame.aux init path
++            callArgs:MalValue init MalMkList1(old)
++            if (args.length > 3) ithen
++              for index in [3 ... args.length - 1] do
++                callArgs init MalAppendValue(callArgs, MalAt(args, index))
++              od
++            endif
++            MalEvalJobPush(slot, frame)
++            MalEvalJobSetApply(slot, MalAt(args, 2), callArgs)
++          endif
++        endif
++      endif
++
++    elseif ((strcmp(name, "take") == 0 || strcmp(name, "drop") == 0) && lenarray(fn.env) == 0) ithen
++      handled = 1
++      if (args.length != 2) ithen
++        MalEvalJobReturn(slot, MalArityError(name, 2, args.length))
++      else
++        amount:MalValue init MalAt(args, 0)
++        sequence:MalValue init MalSeq(MalAt(args, 1))
++        if (amount.type != $MAL_NUMBER_TYPE) ithen
++          MalEvalJobReturn(slot, MalMkError(sprintf("%s: count must be a number", name)))
++        elseif (sequence.type == $MAL_ERROR_TYPE) ithen
++          MalEvalJobReturn(slot, sequence)
++        else
++          size:i = min(sequence.length, max(0, ceil(amount.number)))
++          frame.kind = 106
++          frame.data init MalMkValue($MAL_LIST_TYPE)
++          frame.aux init sequence
++          frame.index = strcmp(name, "take") == 0 ? 0 : size
++          frame.limit = strcmp(name, "take") == 0 ? size : sequence.length
++          MalEvalJobBuiltinContinue(slot, frame)
++        endif
++      endif
++
++    elseif (strcmp(name, "eval") == 0 && lenarray(fn.env) == 0) ithen
++      handled = 1
++      if (args.length != 1) ithen
++        MalEvalJobReturn(slot, MalArityError(name, 1, args.length))
++      else
++        root:MalEnv init MalEnvRoot(MalEnvHandle(frame.env))
++        frame.kind = 108
++        MalEvalJobPush(slot, frame)
++        MalEvalJobSetEval(slot, MalAt(args, 0), root.id)
++      endif
++
++    elseif (strcmp(name, "load-file") == 0 && lenarray(fn.env) > 0) ithen
++      handled = 1
++      if (args.length != 1) ithen
++        MalEvalJobReturn(slot, MalMkError("load-file: expected one argument"))
++      else
++        path:MalValue init MalAt(args, 0)
++        if (path.type != $MAL_STRING_TYPE) ithen
++          MalEvalJobReturn(slot, MalMkError("load-file: expected a filename string"))
++        else
++          MalEvalJobReturn(slot, MalMkError("load-file: load files before starting cooperative evaluation"))
++        endif
++      endif
++
++    elseif (strcmp(name, "require") == 0 && lenarray(fn.env) > 0) ithen
++      handled = 1
++      root:MalEnv init MalEnvRoot(fn.env[0])
++      result:MalValue init MalMkValue($MAL_NIL_TYPE)
++      if (args.length > 0) ithen
++        for index in [0 ... args.length - 1] do
++          result init MalRequireSpecValid(MalAt(args, index))
++          if (result.type == $MAL_ERROR_TYPE) ithen
++            break
++          endif
++        od
++        if (result.type != $MAL_ERROR_TYPE) ithen
++          for index in [0 ... args.length - 1] do
++            library:MalValue init MalAt(args, index)
++            if (library.type == $MAL_VECTOR_TYPE) ithen
++              library init MalAt(library, 0)
++            endif
++            nsIndex:i = MalNsFind(root.id, library.string)
++            loaded:i = 0
++            if (nsIndex >= 0) ithen
++              loaded = malNamespaces[nsIndex].status == 1 ? 1 : 0
++            endif
++            if (loaded == 0) ithen
++              result init MalMkError(sprintf("require: load namespace '%s' before starting cooperative evaluation", library.string))
++              break
++            endif
++          od
++        endif
++      endif
++      if (result.type != $MAL_ERROR_TYPE) ithen
++        result init MalNsRequire(root, args)
++      endif
++      MalEvalJobReturn(slot, result)
++    endif
++  endif
++  xout handled
++endop
++
++opcode MalEvalJobBuiltinResume(slot:i, frame:MalEvalFrame, value:MalValue):void
++  malEvalJobs[slot].env = frame.env
++  if (value.type == $MAL_ERROR_TYPE) ithen
++    MalEvalJobReturn(slot, value)
++  elseif (frame.kind == 100 || frame.kind == 101 || frame.kind == 106) ithen
++    frame.data init MalAppendValue(frame.data, value)
++    frame.index += 1
++    MalEvalJobBuiltinContinue(slot, frame)
++  elseif (frame.kind == 102) ithen
++    if (value.type == $MAL_REDUCED_TYPE) ithen
++      MalEvalJobReturn(slot, MalAt(value, 0))
++    else
++      frame.data init value
++      frame.index += 1
++      MalEvalJobBuiltinContinue(slot, frame)
++    endif
++  elseif (frame.kind == 103) ithen
++    name:S init frame.extra.string
++    truth:i = MalIsTruthy(value)
++    done:i = 0
++    if (strcmp(name, "some") == 0 || strcmp(name, "not-any?") == 0) ithen
++      if (truth == 1) ithen
++        done = 1
++        if (strcmp(name, "some") == 0) ithen
++          MalEvalJobReturn(slot, value)
++        else
++          MalEvalJobReturn(slot, MalMkBool(0))
++        endif
++      endif
++    elseif (strcmp(name, "every?") == 0 || strcmp(name, "not-every?") == 0) ithen
++      if (truth == 0) ithen
++        done = 1
++        MalEvalJobReturn(slot, MalMkBool(strcmp(name, "not-every?") == 0 ? 1 : 0))
++      endif
++    elseif (strcmp(name, "take-while") == 0 && truth == 0) ithen
++      done = 1
++      MalEvalJobReturn(slot, frame.data)
++    else
++      include:i = truth
++      if (strcmp(name, "keep") == 0) ithen
++        include = value.type != $MAL_NIL_TYPE ? 1 : 0
++      elseif (strcmp(name, "remove") == 0) ithen
++        include = 1 - truth
++      elseif (strcmp(name, "drop-while") == 0) ithen
++        if (truth == 0) ithen
++          frame.flag = 1
++        endif
++        include = frame.flag
++      endif
++      if (include == 1) ithen
++        if (strcmp(name, "keep") == 0) ithen
++          frame.data init MalAppendValue(frame.data, value)
++        else
++          frame.data init MalAppendValue(frame.data, MalAt(frame.aux, frame.index))
++        endif
++      endif
++    endif
++    if (done == 0) ithen
++      frame.index += 1
++      MalEvalJobBuiltinContinue(slot, frame)
++    endif
++  elseif (frame.kind == 104) ithen
++    atom:MalValue init frame.data
++    if (frame.index != malAtomVersions[atom.number]) ithen
++      ;; A callback changed the atom while this job yielded. Retry with its
++      ;; latest value, including when another writer restored the old value.
++      frame.index = malAtomVersions[atom.number]
++      callArgs:MalValue init MalMkList1(MalAtomValue(atom))
++      if (frame.aux.length > 0) ithen
++        for index in [0 ... frame.aux.length - 1] do
++          callArgs init MalAppendValue(callArgs, MalAt(frame.aux, index))
++        od
++      endif
++      MalEvalJobPush(slot, frame)
++      MalEvalJobSetApply(slot, frame.form, callArgs)
++    else
++      MalEvalJobReturn(slot, MalAtomSetValue(atom, value))
++    endif
++  elseif (frame.kind == 105) ithen
++    MalEvalJobReturn(slot, MalCoreAssocIn(frame.data, frame.aux, 0, value))
++  elseif (frame.kind == 108) ithen
++    MalEvalJobReturn(slot, value)
++  else
++    MalEvalJobReturn(slot, MalMkError("unknown builtin continuation"))
++  endif
++endop
+diff --git a/src/eval-job.orc b/src/eval-job.orc
+new file mode 100644
+index 0000000..fa1cd14
+--- /dev/null
++++ b/src/eval-job.orc
+@@ -0,0 +1,594 @@
++;; This Source Code Form is subject to the terms of the Mozilla Public
++;; License, v. 2.0. If a copy of the MPL was not distributed with this
++;; file, You can obtain one at https://mozilla.org/MPL/2.0/.
++
++;; A job saves evaluator continuations between init passes. Each step runs at
++;; most its budget of transitions; builtins run one native operation at a
++;; time. Jobs share ordinary environments and atoms, so writes remain visible
++;; between steps. Cancellation releases scopes; it does not undo writes.
++;; Core frames: 1 collection/arguments, 2 if, 3 do, 4 let binding, 5 call
++;; head, 6 definition, 7 try, 8 macro expansion, 9 scope cleanup. Builtin
++;; continuations use kinds 100 and above.
++struct MalEvalFrame kind:i, env:i, form:MalValue, data:MalValue, aux:MalValue, extra:MalValue, index:i, limit:i, flag:i
++struct MalEvalJob id:i, status:i, env:i, mode:i, top:i, depth:i
++
++malEvalJobs@global:MalEvalJob[] init 16
++malEvalJobNextId@global:i init 1
++;; Keep payloads in parallel arrays: Csound cannot assign a nested UDT member
++;; of a struct-array element directly. Scalars in MalEvalJob need no copies.
++malEvalJobAsts@global:MalValue[] init 16
++malEvalJobValues@global:MalValue[] init 16
++malEvalJobFunctions@global:MalValue[] init 16
++malEvalJobArguments@global:MalValue[] init 16
++malEvalJobFrames@global:MalEvalFrame[] init 256
++malEvalJobFrameNext@global:i[] init 256
++malEvalJobFrameCount@global:i init 0
++malEvalJobFrameFree@global:i init -1
++
++opcode MalEvalJobSlot(id:i):i
++  result:i = -1
++  if (id > 0) ithen
++    for slot in [0 ... lenarray(malEvalJobs) - 1] do
++      if (malEvalJobs[slot].id == id) ithen
++        result = slot
++        break
++      endif
++    od
++  endif
++  xout result
++endop
++
++opcode MalEvalJobPush(slot:i, frame:MalEvalFrame):void
++  index:i = malEvalJobFrameFree
++  if (index >= 0) ithen
++    malEvalJobFrameFree = malEvalJobFrameNext[index]
++  else
++    index = malEvalJobFrameCount
++    capacity:i = lenarray(malEvalJobFrames)
++    if (index >= capacity) ithen
++      saved:MalEvalFrame[] init capacity
++      links:i[] init capacity
++      for offset in [0 ... capacity - 1] do
++        saved[offset] init malEvalJobFrames[offset]
++        links[offset] = malEvalJobFrameNext[offset]
++      od
++      malEvalJobFrames init capacity * 2
++      malEvalJobFrameNext init capacity * 2
++      for offset in [0 ... capacity - 1] do
++        malEvalJobFrames[offset] init saved[offset]
++        malEvalJobFrameNext[offset] = links[offset]
++      od
++    endif
++    malEvalJobFrameCount += 1
++  endif
++  malEvalJobFrames[index] init frame
++  malEvalJobFrameNext[index] = malEvalJobs[slot].top
++  malEvalJobs[slot].top = index
++  malEvalJobs[slot].depth = malEvalJobs[slot].depth + 1
++endop
++
++opcode MalEvalJobPop(slot:i):MalEvalFrame
++  index:i = malEvalJobs[slot].top
++  frame:MalEvalFrame init malEvalJobFrames[index]
++  malEvalJobs[slot].top = malEvalJobFrameNext[index]
++  malEvalJobs[slot].depth = malEvalJobs[slot].depth - 1
++  malEvalJobFrameNext[index] = malEvalJobFrameFree
++  malEvalJobFrameFree = index
++  empty:MalEvalFrame init 0, 0, MalMkValue($MAL_NIL_TYPE), MalMkValue($MAL_NIL_TYPE), MalMkValue($MAL_NIL_TYPE), MalMkValue($MAL_NIL_TYPE), 0, 0, 0
++  malEvalJobFrames[index] init empty
++  xout frame
++endop
++
++opcode MalEvalJobOwnEnv(slot:i, id:i):void
++  frame:MalEvalFrame init 9, id, MalMkValue($MAL_NIL_TYPE), MalMkValue($MAL_NIL_TYPE), MalMkValue($MAL_NIL_TYPE), MalMkValue($MAL_NIL_TYPE), 0, 0, 0
++  MalEvalJobPush(slot, frame)
++endop
++
++opcode MalEvalJobSetEval(slot:i, ast:MalValue, env:i):void
++  malEvalJobAsts[slot] init ast
++  malEvalJobs[slot].env = env
++  malEvalJobs[slot].mode = 0
++endop
++
++opcode MalEvalJobSetApply(slot:i, fn:MalValue, args:MalValue):void
++  malEvalJobFunctions[slot] init fn
++  malEvalJobArguments[slot] init args
++  malEvalJobs[slot].mode = 2
++endop
++
++opcode MalEvalJobReturn(slot:i, value:MalValue):void
++  malEvalJobValues[slot] init value
++  malEvalJobs[slot].mode = 1
++endop
++
++opcode MalEvalJobFail(slot:i, message:S):void
++  MalEvalJobReturn(slot, MalMkError(message))
++endop
++
++;; Loading an unseen module would enter the synchronous evaluator. Already
++;; loaded libraries can safely install aliases and refers in a job.
++opcode MalEvalJobRequireReady(env:MalEnv, specs:MalValue):MalValue
++  result:MalValue init MalMkValue($MAL_NIL_TYPE)
++  root:MalEnv init MalEnvRoot(env)
++  if (specs.length > 0) ithen
++    for index in [0 ... specs.length - 1] do
++      result init MalRequireSpecValid(MalAt(specs, index))
++      if (result.type == $MAL_ERROR_TYPE) ithen
++        break
++      endif
++    od
++    if (result.type != $MAL_ERROR_TYPE) ithen
++      for index in [0 ... specs.length - 1] do
++        library:MalValue init MalAt(specs, index)
++        if (library.type == $MAL_VECTOR_TYPE) ithen
++          library init MalAt(library, 0)
++        endif
++        nsIndex:i = MalNsFind(root.id, library.string)
++        if (nsIndex < 0) ithen
++          result init MalMkError(sprintf("require: load '%s' before starting an evaluation job", library.string))
++        elseif (malNamespaces[nsIndex].status != 1) ithen
++          result init MalMkError(sprintf("require: load '%s' before starting an evaluation job", library.string))
++        endif
++        if (result.type == $MAL_ERROR_TYPE) ithen
++          break
++        endif
++      od
++    endif
++  endif
++  xout result
++endop
++
++opcode MalEvalJobNamespace(ast:MalValue, env:MalEnv):MalValue
++  result:MalValue init MalMkValue($MAL_NIL_TYPE)
++  specs:MalValue init MalMkValue($MAL_LIST_TYPE)
++  valid:i = 0
++  root:MalEnv init MalEnvRoot(env)
++  if (ast.length >= 2 && strlen(root.namespace) > 0) ithen
++    valid = MalNsNameValid(MalAt(ast, 1))
++  endif
++  ;; Syntax errors must win over a later module-load check, as in ns itself.
++  if (valid == 1 && ast.length > 2) ithen
++    for index in [2 ... ast.length - 1] do
++      clause:MalValue init MalAt(ast, index)
++      if (clause.type != $MAL_LIST_TYPE || clause.length == 0) ithen
++        valid = 0
++      else
++        head:MalValue init MalAt(clause, 0)
++        if (head.type != $MAL_KEYWORD_TYPE || strcmp(head.string, "require") != 0) ithen
++          valid = 0
++        elseif (clause.length > 1) ithen
++          for item in [1 ... clause.length - 1] do
++            spec:MalValue init MalAt(clause, item)
++            check:MalValue init MalRequireSpecValid(spec)
++            if (check.type == $MAL_ERROR_TYPE) ithen
++              valid = 0
++              break
++            endif
++            specs init MalAppendValue(specs, spec)
++          od
++        endif
++      endif
++      if (valid == 0) ithen
++        break
++      endif
++    od
++  endif
++  if (valid == 1) ithen
++    result init MalEvalJobRequireReady(root, specs)
++  endif
++  if (result.type != $MAL_ERROR_TYPE) ithen
++    result init MalEvalNamespace(ast, env)
++  endif
++  xout result
++endop
++
++opcode MalEvalJobDefine(slot:i, ast:MalValue, asMacro:i, atRoot:i):void
++  head:MalValue init MalAt(ast, 0)
++  if (ast.length != 3) ithen
++    MalEvalJobReturn(slot, MalArityError(head.string, 2, ast.length - 1))
++  else
++    name:MalValue init MalAt(ast, 1)
++    if (name.type != $MAL_SYMBOL_TYPE) ithen
++      MalEvalJobFail(slot, sprintf("%s: first argument must be a symbol", head.string))
++    else
++      env:MalEnv init MalEnvResolve(MalEnvHandle(malEvalJobs[slot].env))
++      definitionEnv:MalEnv init env
++      key:MalValue init MalMkString(name.string)
++      if (atRoot == 1 || lenarray(env.outer) == 0) ithen
++        key init MalDefinitionKey(env, name.string)
++        definitionEnv init MalEnvRoot(env)
++      endif
++      if (key.type == $MAL_ERROR_TYPE) ithen
++        MalEvalJobReturn(slot, key)
++      else
++        frame:MalEvalFrame init 0, 0, MalMkValue($MAL_NIL_TYPE), MalMkValue($MAL_NIL_TYPE), MalMkValue($MAL_NIL_TYPE), MalMkValue($MAL_NIL_TYPE), 0, 0, 0
++        frame.kind = 6
++        frame.env = env.id
++        frame.form init MalAt(ast, 2)
++        frame.data init key
++        frame.aux init head
++        frame.index = definitionEnv.id
++        frame.flag = asMacro
++        MalEvalJobPush(slot, frame)
++        MalEvalJobSetEval(slot, frame.form, env.id)
++      endif
++    endif
++  endif
++endop
++
++opcode MalEvalJobLetNext(slot:i, frame:MalEvalFrame):void
++  if (frame.index >= frame.data.length) ithen
++    MalEvalJobSetEval(slot, frame.form, frame.env)
++  else
++    name:MalValue init MalAt(frame.data, frame.index)
++    if (name.type != $MAL_SYMBOL_TYPE) ithen
++      MalEvalJobFail(slot, "let*: binding name must be a symbol")
++    else
++      MalEvalJobPush(slot, frame)
++      MalEvalJobSetEval(slot, MalAt(frame.data, frame.index + 1), frame.env)
++    endif
++  endif
++endop
++
++#include "src/eval-job-builtins.orc"
++
++opcode MalEvalJobEval(slot:i):void
++  ast:MalValue init malEvalJobAsts[slot]
++  env:MalEnv init MalEnvHandle(malEvalJobs[slot].env)
++  if (malDebugEvalBindingSeen == 1) ithen
++    debug:MalValue init MalResolveSymbol(env, "DEBUG-EVAL")
++    if (debug.type != $MAL_ERROR_TYPE && MalIsTruthy(debug) == 1) ithen
++      prints "EVAL: %s\n", pr_str(ast)
++    endif
++  endif
++  frame:MalEvalFrame init 0, env.id, ast, MalMkValue($MAL_NIL_TYPE), MalMkValue($MAL_NIL_TYPE), MalMkValue($MAL_NIL_TYPE), 0, 0, 0
++  if (ast.type == $MAL_SYMBOL_TYPE) ithen
++    MalEvalJobReturn(slot, MalResolveSymbol(env, ast.string))
++  elseif (ast.type == $MAL_VECTOR_TYPE || ast.type == $MAL_HASH_MAP_TYPE) ithen
++    if (ast.length == 0) ithen
++      MalEvalJobReturn(slot, MalMkValue(ast.type))
++    else
++      frame.kind = 1
++      frame.data init MalMkValue(ast.type)
++      frame.index = ast.type == $MAL_HASH_MAP_TYPE ? 1 : 0
++      MalEvalJobPush(slot, frame)
++      MalEvalJobSetEval(slot, MalAt(ast, frame.index), env.id)
++    endif
++  elseif (ast.type != $MAL_LIST_TYPE) ithen
++    MalEvalJobReturn(slot, ast)
++  elseif (ast.length == 0) ithen
++    MalEvalJobReturn(slot, MalMkValue($MAL_LIST_TYPE))
++  else
++    head:MalValue init MalAt(ast, 0)
++    if (MalIsSymbolNamed(head, "ns") == 1) ithen
++      MalEvalJobReturn(slot, MalEvalJobNamespace(ast, env))
++    elseif (MalIsSymbolNamed(head, "quote") == 1) ithen
++      MalEvalJobReturn(slot, MalEvalQuote(ast))
++    elseif (MalIsSymbolNamed(head, "quasiquote") == 1) ithen
++      if (ast.length != 2) ithen
++        MalEvalJobReturn(slot, MalArityError("quasiquote", 1, ast.length - 1))
++      else
++        quoted:MalValue init MalQuasiquote(MalAt(ast, 1))
++        if (quoted.type == $MAL_ERROR_TYPE) ithen
++          MalEvalJobReturn(slot, quoted)
++        else
++          MalEvalJobSetEval(slot, quoted, env.id)
++        endif
++      endif
++    elseif (MalIsSymbolNamed(head, "def") == 1 || MalIsSymbolNamed(head, "def!") == 1 || MalIsSymbolNamed(head, "defmacro!") == 1) ithen
++      MalEvalJobDefine(slot, ast, MalIsSymbolNamed(head, "defmacro!"), MalIsSymbolNamed(head, "def"))
++    elseif (MalIsSymbolNamed(head, "defn") == 1 || MalIsSymbolNamed(head, "defmacro") == 1) ithen
++      if (ast.length < 3) ithen
++        MalEvalJobFail(slot, sprintf("%s: expected a name, parameter vector, and body", head.string))
++      else
++        name:MalValue init MalAt(ast, 1)
++        if (name.type != $MAL_SYMBOL_TYPE) ithen
++          MalEvalJobFail(slot, sprintf("%s: first argument must be a symbol", head.string))
++        else
++          expanded:MalValue init MalExpandFn(ast, 2, head.string)
++          if (expanded.type == $MAL_ERROR_TYPE) ithen
++            MalEvalJobReturn(slot, expanded)
++          else
++            MalEvalJobDefine(slot, MalMkList3(head, name, expanded), MalIsSymbolNamed(head, "defmacro"), 1)
++          endif
++        endif
++      endif
++    elseif (MalIsSymbolNamed(head, "fn") == 1) ithen
++      expanded:MalValue init MalExpandFn(ast, 1, "fn")
++      if (expanded.type == $MAL_ERROR_TYPE) ithen
++        MalEvalJobReturn(slot, expanded)
++      else
++        MalEvalJobSetEval(slot, expanded, env.id)
++      endif
++    elseif (MalIsSymbolNamed(head, "fn*") == 1) ithen
++      value:MalValue, unused:MalEnv = MalEvalFn(ast, env)
++      MalEvalJobReturn(slot, value)
++    elseif (MalIsSymbolNamed(head, "if") == 1) ithen
++      if (ast.length < 3 || ast.length > 4) ithen
++        MalEvalJobFail(slot, sprintf("if: expected 2 or 3 arguments, got %d", ast.length - 1))
++      else
++        frame.kind = 2
++        MalEvalJobPush(slot, frame)
++        MalEvalJobSetEval(slot, MalAt(ast, 1), env.id)
++      endif
++    elseif (MalIsSymbolNamed(head, "do") == 1) ithen
++      if (ast.length == 1) ithen
++        MalEvalJobReturn(slot, MalMkValue($MAL_NIL_TYPE))
++      else
++        if (ast.length > 2) ithen
++          frame.kind = 3
++          frame.index = 2
++          MalEvalJobPush(slot, frame)
++        endif
++        MalEvalJobSetEval(slot, MalAt(ast, 1), env.id)
++      endif
++    elseif (MalIsSymbolNamed(head, "let*") == 1 || MalIsSymbolNamed(head, "let") == 1) ithen
++      immutable:i = MalIsSymbolNamed(head, "let")
++      body:MalValue init MalMkValue($MAL_NIL_TYPE)
++      if (immutable == 1) ithen
++        body init MalLetBody(ast)
++      elseif (ast.length != 3) ithen
++        body init MalArityError("let*", 2, ast.length - 1)
++      else
++        body init MalAt(ast, 2)
++      endif
++      if (body.type == $MAL_ERROR_TYPE) ithen
++        MalEvalJobReturn(slot, body)
++      else
++        bindings:MalValue init MalAt(ast, 1)
++        if (MalIsSequential(bindings) == 0) ithen
++          MalEvalJobFail(slot, "let*: bindings must be list or vector")
++        elseif (bindings.length % 2 != 0) ithen
++          MalEvalJobFail(slot, "let*: bindings must contain even number of forms")
++        else
++          letEnv:MalEnv init MalMkEnvWithOuter(env)
++          MalEvalJobOwnEnv(slot, letEnv.id)
++          frame.kind = 4
++          frame.env = letEnv.id
++          frame.form init body
++          frame.data init bindings
++          frame.flag = immutable
++          MalEvalJobLetNext(slot, frame)
++        endif
++      endif
++    elseif (MalIsSymbolNamed(head, "try*") == 1) ithen
++      if (ast.length < 2 || ast.length > 3) ithen
++        MalEvalJobFail(slot, sprintf("try*: expected 1 or 2 arguments, got %d", ast.length - 1))
++      elseif (ast.length == 2) ithen
++        MalEvalJobSetEval(slot, MalAt(ast, 1), env.id)
++      else
++        catcher:MalValue init MalAt(ast, 2)
++        if (MalIsForm(catcher, "catch*") == 0 || catcher.length != 3) ithen
++          MalEvalJobFail(slot, "try*: second argument must be (catch* symbol handler)")
++        else
++          binding:MalValue init MalAt(catcher, 1)
++          if (binding.type != $MAL_SYMBOL_TYPE) ithen
++            MalEvalJobFail(slot, "catch*: binding must be a symbol")
++          else
++            frame.kind = 7
++            frame.form init catcher
++            MalEvalJobPush(slot, frame)
++            MalEvalJobSetEval(slot, MalAt(ast, 1), env.id)
++          endif
++        endif
++      endif
++    else
++      frame.kind = 5
++      MalEvalJobPush(slot, frame)
++      MalEvalJobSetEval(slot, head, env.id)
++    endif
++  endif
++endop
++
++opcode MalEvalJobResume(slot:i):void
++  value:MalValue init malEvalJobValues[slot]
++  depth:i = malEvalJobs[slot].depth
++  if (depth == 0) ithen
++    malEvalJobs[slot].status = 1
++  else
++    frame:MalEvalFrame init MalEvalJobPop(slot)
++    malEvalJobs[slot].env = frame.env
++    if (frame.kind == 9) ithen
++      MalEnvRelease(MalEnvHandle(frame.env))
++    elseif (value.type == $MAL_ERROR_TYPE) ithen
++      if (frame.kind == 7) ithen
++        catchEnv:MalEnv init MalMkEnvWithOuter(MalEnvHandle(frame.env))
++        MalEvalJobOwnEnv(slot, catchEnv.id)
++        binding:MalValue init MalAt(frame.form, 1)
++        catchEnv init MalEnvSet(catchEnv, binding.string, MalErrorPayload(value))
++        MalEvalJobSetEval(slot, MalAt(frame.form, 2), catchEnv.id)
++      endif
++    elseif (frame.kind >= 100) ithen
++      MalEvalJobBuiltinResume(slot, frame, value)
++    elseif (frame.kind == 1) ithen
++      ;; Vectors, map values, and call arguments retain left-to-right order.
++      if (frame.data.type == $MAL_HASH_MAP_TYPE) ithen
++        frame.data init MalMapAssoc(frame.data, MalAt(frame.form, frame.index - 1), value)
++        frame.index += 2
++      else
++        frame.data init MalAppendValue(frame.data, value)
++        frame.index += 1
++      endif
++      if (frame.index < frame.form.length) ithen
++        MalEvalJobPush(slot, frame)
++        MalEvalJobSetEval(slot, MalAt(frame.form, frame.index), frame.env)
++      elseif (frame.flag == 1) ithen
++        MalEvalJobSetApply(slot, frame.aux, frame.data)
++      else
++        MalEvalJobReturn(slot, frame.data)
++      endif
++    elseif (frame.kind == 2) ithen
++      if (MalIsTruthy(value) == 1) ithen
++        MalEvalJobSetEval(slot, MalAt(frame.form, 2), frame.env)
++      elseif (frame.form.length == 4) ithen
++        MalEvalJobSetEval(slot, MalAt(frame.form, 3), frame.env)
++      else
++        MalEvalJobReturn(slot, MalMkValue($MAL_NIL_TYPE))
++      endif
++    elseif (frame.kind == 3) ithen
++      next:MalValue init MalAt(frame.form, frame.index)
++      frame.index += 1
++      if (frame.index < frame.form.length) ithen
++        MalEvalJobPush(slot, frame)
++      endif
++      MalEvalJobSetEval(slot, next, frame.env)
++    elseif (frame.kind == 4) ithen
++      letEnv:MalEnv init MalEnvHandle(frame.env)
++      if (frame.flag == 1) ithen
++        letEnv init MalMkEnvWithOuter(letEnv)
++        MalEvalJobOwnEnv(slot, letEnv.id)
++      endif
++      name:MalValue init MalAt(frame.data, frame.index)
++      letEnv init MalEnvSet(letEnv, name.string, value)
++      frame.env = letEnv.id
++      frame.index += 2
++      MalEvalJobLetNext(slot, frame)
++    elseif (frame.kind == 5) ithen
++      if (MalIsMacro(value) == 1) ithen
++        frame.kind = 8
++        MalEvalJobPush(slot, frame)
++        MalEvalJobSetApply(slot, value, MalUnevaluatedArgs(frame.form))
++      elseif (frame.form.length == 1) ithen
++        MalEvalJobSetApply(slot, value, MalMkValue($MAL_LIST_TYPE))
++      else
++        frame.kind = 1
++        frame.aux init value
++        frame.data init MalMkValue($MAL_LIST_TYPE)
++        frame.index = 1
++        frame.flag = 1
++        MalEvalJobPush(slot, frame)
++        MalEvalJobSetEval(slot, MalAt(frame.form, 1), frame.env)
++      endif
++    elseif (frame.kind == 6) ithen
++      if (frame.flag == 1 && value.type != $MAL_FUNCTION_TYPE) ithen
++        MalEvalJobFail(slot, sprintf("%s: value must be a function", frame.aux.string))
++      else
++        if (frame.flag == 1) ithen
++          value init MalFunctionAsMacro(value)
++        endif
++        target:MalEnv init MalEnvSet(MalEnvHandle(frame.index), frame.data.string, value)
++        if (MalIsFnForm(frame.form) == 1) ithen
++          value init MalFunctionCaptureEnv(value, MalEnvHandle(frame.env))
++          target init MalEnvSet(target, frame.data.string, value)
++        endif
++        MalEvalJobReturn(slot, value)
++      endif
++    elseif (frame.kind == 8) ithen
++      MalEvalJobSetEval(slot, value, frame.env)
++    endif
++  endif
++endop
++
++opcode MalEvalJobApply(slot:i):void
++  fn:MalValue init malEvalJobFunctions[slot]
++  args:MalValue init malEvalJobArguments[slot]
++  if (fn.type == $MAL_FUNCTION_TYPE) ithen
++    result:MalValue, callEnv:MalEnv = MalBindFunctionEnv(fn, args)
++    if (result.type == $MAL_ERROR_TYPE) ithen
++      MalEvalJobReturn(slot, result)
++    else
++      ;; Bind first: a returned closure may retain the preceding scope. Then
++      ;; discard only tail-position cleanup frames before entering the body.
++      MalEvalJobSetEval(slot, MalFunctionBody(fn), callEnv.id)
++      malEvalJobs[slot].mode = 4
++    endif
++  elseif (MalEvalJobBuiltinStart(slot, fn, args) == 0) ithen
++    MalEvalJobReturn(slot, MalApply(fn, args))
++  endif
++endop
++
++;; Start returns a positive, never-reused token, or -1 when all slots are held.
++;; Completed jobs keep their result until Cancel releases the token.
++opcode MalEvalJobStart(ast:MalValue, env:MalEnv):i
++  slot:i = -1
++  for index in [0 ... lenarray(malEvalJobs) - 1] do
++    if (malEvalJobs[index].id == 0) ithen
++      slot = index
++      break
++    endif
++  od
++  id:i = -1
++  if (slot >= 0) ithen
++    id = malEvalJobNextId
++    malEvalJobNextId += 1
++    malEvalJobs[slot].id = id
++    malEvalJobs[slot].status = 0
++    malEvalJobs[slot].depth = 0
++    malEvalJobs[slot].top = -1
++    malEvalJobValues[slot] init MalMkValue($MAL_NIL_TYPE)
++    MalEvalJobSetEval(slot, ast, env.id)
++  endif
++  xout id
++endop
++
++;; 0 means pending, 1 means complete (including a Lisp error), -1 means an
++;; unknown token. A nonpositive budget observes status without running work.
++opcode MalEvalJobStep(id:i, budget:i):i
++  slot:i = MalEvalJobSlot(id)
++  status:i = -1
++  if (slot >= 0) ithen
++    remaining:i = max(0, int(budget))
++    while (remaining > 0 && malEvalJobs[slot].status == 0) do
++      mode:i = malEvalJobs[slot].mode
++      if (mode == 0) ithen
++        MalEvalJobEval(slot)
++      elseif (mode == 1) ithen
++        MalEvalJobResume(slot)
++      elseif (mode == 2) ithen
++        MalEvalJobApply(slot)
++      elseif (mode == 4) ithen
++        tailScope:i = 0
++        if (malEvalJobs[slot].depth > 0) ithen
++          top:i = malEvalJobs[slot].top
++          tailScope = malEvalJobFrames[top].kind == 9
++        endif
++        if (tailScope == 1) ithen
++          frame:MalEvalFrame init MalEvalJobPop(slot)
++          MalEnvRelease(MalEnvHandle(frame.env))
++        else
++          MalEvalJobOwnEnv(slot, malEvalJobs[slot].env)
++          malEvalJobs[slot].mode = 0
++        endif
++      endif
++      remaining -= 1
++    od
++    status = malEvalJobs[slot].status
++  endif
++  xout status
++endop
++
++opcode MalEvalJobResult(id:i):MalValue
++  slot:i = MalEvalJobSlot(id)
++  result:MalValue init MalMkError("evaluation job: unknown token")
++  if (slot >= 0) ithen
++    if (malEvalJobs[slot].status == 1) ithen
++      result init malEvalJobValues[slot]
++    else
++      result init MalMkError("evaluation job: still pending")
++    endif
++  endif
++  xout result
++endop
++
++opcode MalEvalJobCancel(id:i):void
++  slot:i = MalEvalJobSlot(id)
++  if (slot >= 0) ithen
++    ;; A newly bound tail call has not yet installed its cleanup frame.
++    if (malEvalJobs[slot].mode == 4) ithen
++      MalEnvRelease(MalEnvHandle(malEvalJobs[slot].env))
++    endif
++    while (malEvalJobs[slot].depth > 0) do
++      frame:MalEvalFrame init MalEvalJobPop(slot)
++      if (frame.kind == 9) ithen
++        MalEnvRelease(MalEnvHandle(frame.env))
++      endif
++    od
++    malEvalJobs[slot].id = 0
++    malEvalJobs[slot].status = -1
++    malEvalJobs[slot].top = -1
++    malEvalJobAsts[slot] init MalMkValue($MAL_NIL_TYPE)
++    malEvalJobValues[slot] init MalMkValue($MAL_NIL_TYPE)
++    malEvalJobFunctions[slot] init MalMkValue($MAL_NIL_TYPE)
++    malEvalJobArguments[slot] init MalMkValue($MAL_NIL_TYPE)
++  endif
++endop

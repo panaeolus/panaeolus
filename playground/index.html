@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#17201d" />
+    <title>Panaeolus · Playground</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script type="importmap">{"imports":{"@csound/browser":"/vendor/csound.js"}}</script>
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="identity"><span class="mark" aria-hidden="true">p.</span><h1>Panaeolus <span>playground</span></h1></div>
+      <div class="engine-state" role="status"><span class="status-dot" id="status-dot"></span><span id="status">Engine stopped</span></div>
+    </header>
+
+    <main>
+      <section class="transport" aria-label="Engine controls">
+        <div class="transport-group">
+          <button id="start" class="primary">Start engine <span aria-hidden="true">↗</span></button>
+          <button id="stop" disabled>Stop engine</button>
+          <span class="engine-note">One Csound engine · native clock</span>
+        </div>
+        <div class="transport-group tempo-controls">
+          <label for="tempo">Tempo</label>
+          <input id="tempo" type="number" min="1" max="999" step="1" value="120" inputmode="decimal" />
+          <span class="unit">BPM</span>
+          <button id="set-tempo" disabled>Set</button>
+          <button id="stop-loops" disabled>Stop all loops</button>
+        </div>
+      </section>
+
+      <section class="transport" aria-label="Performance recording">
+        <div class="transport-group">
+          <button id="record" disabled>Record take</button>
+          <button id="finish" disabled>Finish take</button>
+          <button id="export" disabled>Download CSD</button>
+          <span id="take-status" class="engine-note">Start a take before starting loops.</span>
+        </div>
+      </section>
+
+      <div class="workspace">
+        <section class="editor-panel" aria-label="Lisp editor">
+          <div class="panel-heading">
+            <div><span class="file-dot" aria-hidden="true"></span><h2>playground.mal</h2><span id="saved" class="muted">Local draft</span></div>
+            <button id="reset" class="text-button" title="Replace the editor with playground/playground.mal">Reload file</button>
+          </div>
+          <label class="sr-only" for="source">Lisp source</label>
+          <textarea id="source" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-describedby="editor-help" placeholder="Loading playground/playground.mal…"></textarea>
+          <div class="editor-actions">
+            <p id="editor-help">Select forms to evaluate.<br /><kbd id="shortcut">⌘ Enter</kbd> selection · <kbd id="shortcut-all">⌘ ⇧ Enter</kbd> all</p>
+            <div class="transport-group">
+              <button id="evaluate" disabled>Evaluate selection</button>
+              <button id="evaluate-all" class="primary" disabled>Evaluate all <span aria-hidden="true">→</span></button>
+            </div>
+          </div>
+        </section>
+
+        <section class="console-panel" aria-label="Csound output">
+          <div class="panel-heading">
+            <div><h2>Output</h2><span class="muted">Csound + Lisp</span></div>
+            <button id="clear" class="text-button">Clear</button>
+          </div>
+          <div id="console" role="log" aria-label="Engine messages" aria-live="polite" aria-relevant="additions" tabindex="0"></div>
+          <div class="console-footer"><span class="status-dot"></span><span id="audio-mode">Audio stopped · SharedArrayBuffer required</span></div>
+        </section>
+      </div>
+
+      <footer class="notes">
+        <p><strong>Start here</strong> Start the engine, then evaluate the file to hear a loop. Edit the durations or notes and evaluate again.</p>
+        <p><code>[0.25 0.5]</code><br />Three notes, two durations. Both cycles line up every six events.</p>
+      </footer>
+    </main>
+  </body>
+</html>
