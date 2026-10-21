@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
+import { appendCsoundSource } from "../tools/build";
 
 Object.assign(globalThis, { self: globalThis, window: globalThis });
 const { libcsound } = await import("../node_modules/@csound/browser/dist/csound.js");
@@ -46,8 +47,20 @@ opcode BundleEval(source:S):i
 endop
 `), 0);
   assert.equal(api.csoundStart(engine), 0);
+  // Force a macro name across chunks, then cover undefined names and escapes.
+  // Both chunks must survive the intermediate compiler without expansion.
+  const sourceChunks = ["$MAL_HASH_MAP_", 'TYPE $undefined \\$literal "quote"\nhljóð'];
+  for (const chunk of sourceChunks) {
+    evaluate(`(csound/eval ${JSON.stringify(appendCsoundSource(chunk, "__bundle_chunks"))})`);
+  }
+  assert.equal(api.csoundGetStringChannel(engine, "__bundle_chunks"), sourceChunks.join(""));
+  api.csoundSetStringChannel(engine, "__bundle_chunks", "");
   api.writeFile(engine, "panaeolus.mal", new TextEncoder().encode(bundle));
   evaluate("(ns performance) (def notes [440 550 660]) (create-ns 'panaeolus.instrument) (load-file \"panaeolus.mal\")");
+  assert.equal(api.csoundGetStringChannel(engine, "__panaeolus_loader_source"), "",
+    "Loading left the assembled orchestra in its temporary channel");
+  assert.equal(api.csoundGetStringChannel(engine, "__panaeolus_loader_owner"), "",
+    "Loading left the owner marker in its temporary channel");
   check("(= 'performance *ns*)");
   check("(= [440 550 660] notes)");
   check("(= 1 (csound/eval \"return bundleEnv.id == panaeolusEnv.id ? 1 : 0\"))");
@@ -63,6 +76,8 @@ endop
   const clock = api.csoundEvalCode(engine, 'return nstrnum("PanaeolusClock")');
   const env = api.csoundEvalCode(engine, "return panaeolusEnv.id");
   evaluate('(load-file "panaeolus.mal")');
+  assert.equal(api.csoundGetStringChannel(engine, "__panaeolus_loader_source"), "",
+    "Repeated loading assembled the orchestra again");
   assert.equal(api.csoundEvalCode(engine, 'return nstrnum("PanaeolusClock")'), clock);
   assert.equal(api.csoundEvalCode(engine, "return panaeolusEnv.id"), env);
   check("(= 2 (count (get @panaeolus.event-loop/state :slots)))");
@@ -79,6 +94,8 @@ endop
   assert.ok(peak > 0 && peak <= 1, `Invalid audio peak: ${peak}`);
   check("(= [0 1 2 3 4 5] @hits)");
   evaluate("(p/stop-all!)");
+  // Construct after using the loaded graph builders: an oversized loader
+  // literal used to inflate their string buffers and exhaust Wasm memory here.
   // Another MAL root in this Csound engine must not reset the active runtime.
   assert.equal(api.csoundEvalCode(engine,
     'bundleEnv init MalMkCsoundEnv()\nreturn 0'), 0);

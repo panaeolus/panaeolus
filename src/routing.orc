@@ -1,6 +1,9 @@
 ;; The Lisp bridge owns no DSP. Recorded CSDs include only the registered
 ;; immutable definitions and routing-support.orc, never this file.
 
+declare PanaeolusHeldTick(route:MalValue, controls:MalValue, instrument:MalValue, values:MalValue, voiceDelay:i):i
+declare PanaeolusHeldStop(route:i, stopTime:i, stopLive:i):void
+
 panaeolusDefinitionNumbers@global:i[] init 16384
 panaeolusDefinitionSources@global:S[] init 16384
 panaeolusDefinitionCount@global:i init 0
@@ -17,6 +20,7 @@ panaeolusRecordedChunkCount@global:i init 0
 panaeolusRecordedRoutes@global:i[] init 256
 panaeolusRecordedEnds@global:i[] init 256
 panaeolusRecordedUsed@global:i[] init 32768
+panaeolusRecordedHeld@global:i[] init 256
 
 opcode PanaeolusRoutingFailure(message:S):i
   chnset message, "__panaeolus_error"
@@ -273,11 +277,13 @@ opcode PanaeolusBindRoute(entry:MalValue, previous:MalValue):MalValue
     oldCallback:MalValue init MalMapGet(previous, MalMkKeyword("callback"))
     oldRoute:MalValue init MalMapGet(MalMeta(oldCallback), MalMkKeyword("panaeolus/route"))
     topology:MalValue init MalMapGet(plan, MalMkKeyword("topology"))
+    voice:MalValue init MalMapGet(plan, MalMkKeyword("voice"))
     number:MalValue init MalMapGet(oldRoute, MalMkKeyword("number"))
     route:i = -1
     if (number.type == $MAL_NUMBER_TYPE && number.number > 0 && number.number < 256) ithen
       if (panaeolusRouteActive[number.number] == 1 && \
-          MalEquals(topology, MalMapGet(oldRoute, MalMkKeyword("topology"))) == 1) ithen
+          MalEquals(topology, MalMapGet(oldRoute, MalMkKeyword("topology"))) == 1 && \
+          MalEquals(voice, MalMapGet(oldRoute, MalMkKeyword("voice"))) == 1) ithen
         route = number.number
       endif
     endif
@@ -290,6 +296,7 @@ opcode PanaeolusBindRoute(entry:MalValue, previous:MalValue):MalValue
       descriptor:MalValue init MalMkValue($MAL_HASH_MAP_TYPE)
       descriptor init MalMapAssoc(descriptor, MalMkKeyword("number"), MalMkNumber(route))
       descriptor init MalMapAssoc(descriptor, MalMkKeyword("topology"), topology)
+      descriptor init MalMapAssoc(descriptor, MalMkKeyword("voice"), voice)
       tick:MalValue init MalMapGet(metadata, MalMkKeyword("panaeolus/tick"))
       tick init MalMapAssoc(tick, MalMkKeyword("route"), MalMkNumber(route))
       metadata init MalMapAssoc(metadata, MalMkKeyword("panaeolus/route"), descriptor)
@@ -399,6 +406,17 @@ opcode PanaeolusPrepareTick(entry:MalValue, eventMap:MalValue):i
     endif
     ;; Dispatch runs after the audio graph. Its queued voice starts in the
     ;; following control block; controls already change in this block.
+    legato:MalValue init MalMapGet(routing, MalMkKeyword("legato"))
+    if (legato.type == $MAL_TRUE_TYPE) ithen
+      result = PanaeolusHeldTick(route, controls, instrument, values, ksmps / sr)
+      heldCallback:MalValue init MalMapGet(entry, MalMkKeyword("callback"))
+      heldGenerated:MalValue init MalMapGet(routing, MalMkKeyword("callback"))
+      if (result == 2 && (heldCallback.type != $MAL_FUNCTION_TYPE || \
+          heldGenerated.type != $MAL_FUNCTION_TYPE || heldCallback.number != heldGenerated.number)) ithen
+        result = 1
+      endif
+      igoto PREPARE_TICK_DONE
+    endif
     result = PanaeolusTick(route, controls, instrument, duration, values, ksmps / sr)
     if (result >= 0) ithen
       callback:MalValue init MalMapGet(entry, MalMkKeyword("callback"))
@@ -420,6 +438,7 @@ opcode PanaeolusPrepareTick(entry:MalValue, eventMap:MalValue):i
       endif
     endif
   endif
+PREPARE_TICK_DONE:
   xout result
 endop
 
@@ -428,6 +447,7 @@ opcode PanaeolusRouteClose(route:i):i
   if (route > 0 && route < 256 && route == int(route)) ithen
     if (panaeolusRouteActive[route] == 1) ithen
       now:i = times()
+      PanaeolusHeldStop(route, now, 1)
       deadline:i = max(now, panaeolusRouteLastNote[route]) + panaeolusRouteTails[route]
       panaeolusRouteEnds[route] init deadline
       panaeolusRouteActive[route] init 2
@@ -464,6 +484,7 @@ opcode PanaeolusRecordStart():i
       panaeolusRecordedRoutes init 256
       panaeolusRecordedEnds init 256
       panaeolusRecordedUsed init 32768
+      panaeolusRecordedHeld init 256
       panaeolusTakeReady = 0
       panaeolusRecordFailed = 0
       panaeolusRecording = 1
@@ -486,6 +507,7 @@ opcode PanaeolusRecordStop():i
     panaeolusRecordEnd = max(panaeolusRecordEnd, now)
     for route in [1 ... 255] do
       if (panaeolusRecordedRoutes[route] == 1) ithen
+        PanaeolusHeldStop(route, now, 0)
         deadline:i = max(now, panaeolusRecordedEnds[route]) + panaeolusRouteTails[route]
         PanaeolusRecordRouteStop(route, deadline)
       endif

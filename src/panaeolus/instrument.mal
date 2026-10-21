@@ -17,7 +17,7 @@
           value (second params)
           key (keyword (name parameter))]
       (when (or (contains? defaults key)
-                (contains? {:dur true :every true :id true :offset true :fx true} key))
+                (contains? {:dur true :every true :id true :offset true :fx true :legato true} key))
         (throw (str "definst: duplicate or reserved parameter " key)))
       (when-not (finite-number? value)
         (throw (str "definst: default for " key " must be a finite number")))
@@ -54,7 +54,7 @@
           (when (< (count args) 2)
             (throw (str "instrument: missing value for " head)))
           (when-not (or (contains? (get spec :defaults) head)
-                        (contains? {:dur true :every true :id true :offset true :fx true} head))
+                        (contains? {:dur true :every true :id true :offset true :fx true :legato true} head))
             (throw (str "instrument: unknown argument " head)))
           (read-arguments spec (drop 2 args) position true
             (put-argument supplied head (second args))))
@@ -84,7 +84,14 @@
   (let [supplied (read-arguments spec args 0 false {})
         pattern (contains? supplied :every)
         values (merge (get spec :defaults)
-                 {:dur (get spec :duration) :id (get spec :id) :offset (get spec :offset)} supplied)]
+                 {:dur (get spec :duration) :id (get spec :id) :offset (get spec :offset)
+                  :legato (get spec :legato)} supplied)]
+    (when-not (or (= false (get values :legato)) (= true (get values :legato)))
+      (throw "instrument: :legato must be true or false"))
+    (when (and (get values :legato) (contains? supplied :dur))
+      (throw "instrument: :dur does not apply to a held voice; use stop!"))
+    (when (and (get values :legato) (get (get spec :held) :error))
+      (throw (str "instrument: body cannot use k-rate legato controls: " (get (get spec :held) :error))))
     (when (and pattern (not allow-pattern))
       (throw "with-defaults: :every belongs in an instrument call"))
     (when (and allow-pattern (not pattern) (contains? supplied :offset))
@@ -118,11 +125,14 @@
     (list 'nth (list 'quote value) (list 'mod 'step (count value)))
     value))
 
+(defn effect-values [effect] (get effect :values))
+(defn held-callback [event] nil)
+
 (defn make-callback [compiled duration values route effects]
   ;; Csound submits generated notes directly. Keep the Lisp form as a fallback
   ;; when csound/event is redefined, and retain its identity for dispatch.
   (let [number (get route :number)
-        controls (mapv (fn [effect] (get effect :values)) effects)
+        controls (mapv effect-values effects)
         dur (step-form duration)
         fields (vec (map step-form values))
         callback (eval
@@ -136,19 +146,61 @@
        :panaeolus/tick {:route number :controls controls :instrument compiled
                         :duration duration :values values :callback callback}})))
 
+(defn make-held-callback [compiled values route effects once]
+    (with-meta held-callback
+      {:panaeolus/route route
+       :panaeolus/route-plan route
+       :panaeolus/tick {:route (get route :number) :instrument compiled
+                        :legato true :once once :duration 0.1 :values values
+                        :controls (mapv effect-values effects)
+                        :callback held-callback}}))
+
+;; Preparing a value validates it without starting playback or opening buses.
+(defn prepare [instrument args]
+  (let [spec (descriptor instrument)
+        values (arguments spec args true)]
+    ;; A timed pattern needs its compiled voice, not copies of both DSP graphs
+    ;; in every repeated segment. Held graphs stay frozen until first compiled.
+    {:spec (select-keys spec (if (get values :legato)
+                              [:id :params :compiled :declaration :held]
+                              [:params :compiled]))
+     :values values}))
+
+;; Compile before the clock callback runs. Native code opens the route only
+;; when start-prepared! commits the new loop.
+(defn prepare-playback [prepared id]
+  (let [spec (get prepared :spec)
+        values (get prepared :values)
+        effects (get values :fx)
+        ordered (vec (ordered-values (get spec :params) values))
+        legato (get values :legato)
+        compiled (if legato
+          (routing/held-voice! (get spec :id) (get spec :declaration) (get (get spec :held) :signal))
+          (get spec :compiled))
+        plan (assoc (routing/prepare id effects) :voice (when legato compiled))]
+    {:durations (if (contains? values :every) (get values :every) [1])
+     :offset (get values :offset)
+     :callback (if legato
+       (make-held-callback compiled ordered plan effects (not (contains? values :every)))
+       (make-callback compiled (get values :dur) ordered plan effects))}))
+
+(defn start-prepared! [id prepared at until]
+  (loop/start-at! id (get prepared :durations) (get prepared :callback) at until))
+
 (defn invoke [spec args]
   ;; Validate the whole call before allocating a route or replacing a loop.
-  (let [values (arguments spec args true)
-        ordered (vec (ordered-values (get spec :params) values))
-        compiled (get spec :compiled)
-        duration (get values :dur)
-        effects (get values :fx)]
-    (if (contains? values :every)
+  (let [values (arguments spec args true)]
+    (if (or (get values :legato) (contains? values :every))
       (let [id (get values :id)
-            plan (routing/prepare id effects)]
-        (loop/start! id (get values :every)
-          (make-callback compiled duration ordered plan effects) :offset (get values :offset)))
-      (let [route (if (empty? effects) {:number 0} (routing/open! nil effects))
+            ready (prepare-playback {:spec spec :values values} id)]
+        (if (contains? values :every)
+          (loop/start! id (get ready :durations) (get ready :callback) :offset (get values :offset))
+          (loop/start! id [1] (get ready :callback))))
+      (let [effects (get values :fx)
+            ordered (vec (ordered-values (get spec :params) values))
+            compiled (get spec :compiled)
+            duration (get values :dur)
+            route (if (empty? effects) {:number 0} (routing/open! nil effects))
             number (get route :number)]
         (try*
           (do
@@ -165,11 +217,19 @@
     (with-meta (fn [& args] (invoke runtime-spec args))
       {:panaeolus/instrument spec})))
 
-(defn define-instrument [id params signal]
+(defn define-instrument [id params signal held]
   (let [schema (parameter-schema params [] {})
         compiled (routing/voice! id params signal)]
     (make-instrument
-      (assoc schema :id id :duration 0.1 :offset 0 :signal signal :compiled compiled))))
+      (assoc schema :id id :duration 0.1 :offset 0 :legato false
+        :signal signal :compiled compiled :declaration params :held held))))
+
+(defn held-bindings [params index]
+  (if (empty? params) []
+    (concat [(first params)
+             (list 'panaeolus.routing/voice-control
+               (list 'last (list 'csound/param-bindings (list 'quote '[route 0]))) index)]
+      (held-bindings (drop 2 params) (inc index)))))
 
 (defmacro definst [instrument-name params & body]
   (when-not (and (symbol? instrument-name) (nil? (namespace instrument-name)))
@@ -181,7 +241,14 @@
       (list 'panaeolus.instrument/define-instrument
         (list 'str '*ns* "/" (list 'quote instrument-name))
         (list 'quote params)
-        (list 'let bindings (cons 'do body))))))
+        (list 'let bindings (cons 'do body))
+        ;; Freeze both graphs at definition time. An i-rate-only opcode may
+        ;; reject k controls; that leaves the ordinary note voice usable.
+        (list 'try*
+          (list 'hash-map :signal
+            (list 'let (vec (concat (csound/param-bindings []) (held-bindings params 0)))
+              (cons 'do body)))
+          (list 'catch* 'error (list 'hash-map :error 'error)))))))
 
 (defn with-defaults [instrument & args]
   (let [spec (descriptor instrument)
@@ -189,11 +256,14 @@
     (make-instrument
       (assoc spec :defaults (select-keys values (get spec :params))
                   :duration (get values :dur) :id (get values :id)
-                  :offset (get values :offset)))))
+                  :offset (get values :offset) :legato (get values :legato)))))
 
 (defn stop! [instrument-or-id]
   (loop/stop!
-    (if (fn? instrument-or-id) (get (descriptor instrument-or-id) :id)
+    (if (fn? instrument-or-id)
+      (if (get (meta instrument-or-id) :panaeolus/plan)
+        (get (get (meta instrument-or-id) :panaeolus/plan) :id)
+        (get (descriptor instrument-or-id) :id))
       instrument-or-id)))
 
 (def record! routing/record!)

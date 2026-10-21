@@ -1,0 +1,281 @@
+(ns panaeolus.composition
+  (:require [panaeolus.event-loop :as loop]
+            [panaeolus.instrument :as instrument]))
+
+;; Keep the prepared score once. Loop state is copied during child commits;
+;; embedding every section there would copy the whole score for each child.
+(def performances (atom {}))
+(def plans (atom {}))
+(def patterns (atom {}))
+(def playbacks (atom {}))
+
+(defn descriptor [plan]
+  (let [handle (get (meta plan) :panaeolus/plan)
+        spec (get @plans (get handle :token))]
+    (if (and (fn? plan) (map? spec)) spec
+      (throw "composition: expected a pattern or composition"))))
+
+(defn checked-span [beats]
+  (when-not (loop/valid-duration? beats)
+    (throw "composition: length must be between 0.000001 and 1000000000 beats"))
+  beats)
+
+(defn stop-children! [children]
+  (when-not (empty? children)
+    (loop/stop! (first children))
+    (stop-children! (rest children))))
+
+(defn larger [a b] (if (> a b) a b))
+
+(defn same-beat? [a b]
+  ;; Match the clock's eight-epsilon tolerance, but keep it below half the
+  ;; shortest valid duration so distinct segments survive at large beat counts.
+  (let [roundoff (* 0.0000000000000017763568394002505 (larger 1 (larger a b)))
+        tolerance (if (> roundoff 0.00000025) 0.00000025 roundoff)]
+    (and (<= (- a b) tolerance) (<= (- b a) tolerance))))
+
+(defn before-beat? [a b] (and (< a b) (not (same-beat? a b))))
+
+(defn insert-boundary [boundaries beat]
+  (cond
+    (empty? boundaries) [beat]
+    (same-beat? beat (first boundaries)) boundaries
+    (< beat (first boundaries)) (cons beat boundaries)
+    :else (cons (first boundaries) (insert-boundary (rest boundaries) beat))))
+
+(defn boundary-durations [boundaries]
+  (if (= 1 (count boundaries)) [1]
+    (cons (- (second boundaries) (first boundaries))
+      (boundary-durations (rest boundaries)))))
+
+(defn leaf-id [leaf] (get leaf :id))
+(defn leaf-span [leaf] (get leaf :span))
+(defn leaves-of [spec] (get spec :leaves))
+(defn starts-at? [beat leaf] (same-beat? beat (get leaf :start)))
+(defn starts-before? [beat leaf] (before-beat? (get leaf :start) beat))
+(defn ends-between? [previous beat leaf]
+  (and (get leaf :span)
+       (before-beat? previous (+ (get leaf :start) (get leaf :span)))
+       (not (before-beat? beat (+ (get leaf :start) (get leaf :span))))))
+(defn leaf-window [leaf] [(get leaf :start) (get leaf :span)])
+(defn active-at? [beat window]
+  (and (not (before-beat? beat (first window)))
+       (or (nil? (second window))
+           (before-beat? beat (+ (first window) (second window))))))
+
+(defn count-active [leaves beat total]
+  (if (empty? leaves) total
+    (count-active (rest leaves) beat (+ total (if (active-at? beat (first leaves)) 1 0)))))
+
+(defn count-owned [names children total]
+  (if (empty? children) total
+    (count-owned names (rest children) (+ total (if (contains? names (first children)) 1 0)))))
+
+(defn check-capacity-windows [pending windows available]
+  ;; Reserve one slot for the conductor. Check before replacing a playing plan.
+  (when-not (empty? pending)
+    (let [beat (first pending)]
+      (when (> (count-active windows beat 0) available)
+        (throw "composition: not enough loop slots for overlapping patterns")))
+    (check-capacity-windows (rest pending) windows available)))
+
+(defn check-capacity-at [boundaries leaves available]
+  ;; Only interval bounds are needed to count overlapping patterns.
+  (check-capacity-windows boundaries (mapv leaf-window leaves) available))
+
+(defn available-slots [id]
+  (let [names (get @loop/state :names)
+        old (get (get @loop/state :slots) (get names id))
+        children (get (meta (get old :callback)) :panaeolus/children)
+        removed (+ (if old 1 0) (count-owned names children 0))]
+    (- 127 (- (count names) removed))))
+
+(defn prepare-leaves [leaves owner index ready]
+  (if (empty? leaves) ready
+    (let [leaf (first leaves)
+          id (str owner "/" index)
+          playback (instrument/prepare-playback (get @patterns (get leaf :pattern)) id)
+          period (reduce + 0 (get playback :durations))
+          phase (mod (get playback :offset) period)]
+      (swap! playbacks assoc id playback)
+      (prepare-leaves (rest leaves) owner (inc index)
+        (conj ready (assoc leaf :id id :phase phase))))))
+
+(defn child-ids [owner index count ready]
+  (if (= index count) ready
+    (child-ids owner (inc index) count (conj ready (str owner "/" index)))))
+
+(defn forget-playbacks! [children]
+  (when-not (empty? children)
+    (swap! playbacks dissoc (first children))
+    (forget-playbacks! (rest children))))
+
+(defn launch-leaves! [leaves origin]
+  (when-not (empty? leaves)
+    (let [leaf (first leaves)
+          at (+ origin (get leaf :phase))
+          until (when (get leaf :span) (+ origin (get leaf :span)))]
+      ;; An offset beyond this segment's end leaves the segment silent.
+      (when (or (nil? until) (< at until))
+        (instrument/start-prepared! (get leaf :id) (get @playbacks (get leaf :id)) at until))
+      (launch-leaves! (rest leaves) origin))))
+
+(defn tick! [token id event]
+  (let [action (nth (get @performances token) (get event :index))]
+    (if (get action :finish)
+      (loop/stop! id)
+      (do
+        ;; The conductor may dispatch before a child's end waiter at the same
+        ;; beat. Free those slots before starting the next full-size section.
+        (stop-children! (get action :stops))
+        (launch-leaves! (get action :leaves) (get event :beat))))))
+
+(defn starting-leaves [leaves beat ready]
+  (if (empty? leaves) ready
+    (starting-leaves (rest leaves) beat
+      (if (starts-at? beat (first leaves)) (conj ready (first leaves)) ready))))
+
+(defn ending-ids [leaves previous beat ready]
+  (if (empty? leaves) ready
+    (ending-ids (rest leaves) previous beat
+      (if (ends-between? previous beat (first leaves)) (conj ready (leaf-id (first leaves))) ready))))
+
+(defn actions-for [boundaries previous leaves span]
+  (if (empty? boundaries) []
+    (let [beat (first boundaries)]
+      (cons {:finish (and span (same-beat? beat span))
+             :stops (ending-ids leaves previous beat [])
+             :leaves (starting-leaves leaves beat [])}
+        (actions-for (rest boundaries) beat leaves span)))))
+
+(defn add-boundary [result leaf] (insert-boundary result (get leaf :start)))
+
+(defn owns-performance? [id token]
+  (let [slot (get (get @loop/state :names) id)
+        entry (get (get @loop/state :slots) slot)
+        plan (get (meta (get entry :callback)) :panaeolus/composition)]
+    (= token (get plan :token))))
+
+(defn play! [spec args]
+  (when-not (or (empty? args)
+               (and (= 2 (count args)) (= :id (first args))
+                    (or (keyword? (second args)) (string? (second args)))))
+    (throw "composition: call with no arguments or :id followed by a name"))
+  (let [id (if (empty? args) (get spec :id) (second args))
+        source (get spec :leaves)
+        span (get spec :span)
+        boundaries (reduce add-boundary [0] source)]
+    (check-capacity-at boundaries source (available-slots id))
+    (let [owner (str id "/" (gensym "play"))
+          children (child-ids owner 0 (count source) [])]
+      (try*
+        (let [leaves (prepare-leaves source owner 0 [])
+              boundaries (if span (insert-boundary boundaries span) boundaries)
+              durations (vec (boundary-durations boundaries))
+              actions (vec (actions-for boundaries -1 leaves span))
+              ;; Capture only the names, so loop state never contains the score.
+              callback (partial tick! owner id)
+              callback (with-meta callback
+                         {:panaeolus/children children
+                          :panaeolus/composition {:token owner :callback callback}
+                          :panaeolus/park-after-last true})]
+          (when-not (every? loop/valid-duration? durations)
+            (throw "composition: segment boundaries must be at least 0.000001 beats apart"))
+          ;; All graphs and arguments are ready before this one commit replaces
+          ;; the old conductor. Children receive its exact beat.
+          (swap! performances assoc owner actions)
+          (loop/start-at! id durations callback (loop/now) nil))
+        (catch* error
+          (do
+            ;; Removal hooks run after commit. A failed old hook must not
+            ;; erase the new conductor's already committed playback data.
+            (when-not (owns-performance? id owner)
+              (swap! performances dissoc owner)
+              (forget-playbacks! children))
+            (throw error)))))))
+
+(defn play-plan! [token & args]
+  (play! (get @plans token) args))
+
+(defn make-plan [spec]
+  (when (> (count (get spec :leaves)) 1024)
+    (throw "composition: at most 1024 pattern segments"))
+  ;; Csound copies metadata with Lisp values. Keep callables small and store
+  ;; each plan once so repeated sections do not copy large argument maps.
+  (let [token (str (gensym "plan"))
+        callable (partial play-plan! token)]
+    (swap! plans assoc token spec)
+    (with-meta callable {:panaeolus/plan {:id (get spec :id) :token token}})))
+
+(defn pattern [voice & args]
+  (let [prepared (instrument/prepare voice args)
+        values (get prepared :values)
+        token (str (gensym "pattern"))]
+    (when-not (contains? values :every)
+      (throw "pattern: supply :every with beat durations"))
+    ;; Repeated sections refer to one immutable argument snapshot.
+    (swap! patterns assoc token prepared)
+    (make-plan {:id (get values :id) :span nil
+                :leaves [{:pattern token :start 0 :span nil}]})))
+
+(defn clip-leaf [span leaf]
+  (let [remaining (- span (get leaf :start))
+        old (get leaf :span)]
+    (assoc leaf :span (if (and old (< old remaining)) old remaining))))
+
+(defn for-beats [beats plan]
+  (checked-span beats)
+  (let [spec (descriptor plan)
+        span (if (and (get spec :span) (< (get spec :span) beats)) (get spec :span) beats)
+        leaves (filter (partial starts-before? span) (get spec :leaves))]
+    (make-plan (assoc spec :span span
+      :leaves (mapv (partial clip-leaf span) leaves)))))
+
+(defn shift-leaf [beats leaf] (assoc leaf :start (+ beats (get leaf :start))))
+
+(defn shifted-leaves [leaves beats]
+  (mapv (partial shift-leaf beats) leaves))
+
+(defn sequence-spec [plans span leaves]
+  (if (empty? plans)
+    {:id (str (gensym "composition")) :span (checked-span span) :leaves (vec leaves)}
+    (let [spec (descriptor (first plans))
+          length (get spec :span)]
+      (when-not length (throw "then: bound each pattern with for-beats first"))
+      (sequence-spec (rest plans) (+ span length)
+        (concat leaves (shifted-leaves (get spec :leaves) span))))))
+
+(defn then [& plans]
+  (when (empty? plans) (throw "then: supply at least one pattern"))
+  (make-plan (sequence-spec plans 0 [])))
+
+(defn together [& plans]
+  (when (empty? plans) (throw "together: supply at least one pattern"))
+  (let [specs (mapv descriptor plans)
+        spans (mapv leaf-span specs)
+        span (when (every? number? spans) (reduce larger 0 spans))]
+    (make-plan {:id (str (gensym "composition")) :span span
+                :leaves (vec (apply concat (mapv leaves-of specs)))})))
+
+(defn repeated-leaves [times spec index leaves]
+  (if (= index times) leaves
+    (repeated-leaves times spec (inc index)
+      (concat leaves (shifted-leaves (get spec :leaves) (* index (get spec :span)))))))
+
+(defn repeat-times [times plan]
+  (when-not (and (number? times) (> times 0) (<= times 1024) (= 0 (mod times 1)))
+    (throw "repeat-times: count must be an integer between 1 and 1024"))
+  (let [spec (descriptor plan)]
+    (when-not (get spec :span) (throw "repeat-times: bound the pattern with for-beats first"))
+    (when (> (* times (count (get spec :leaves))) 1024)
+      (throw "composition: at most 1024 pattern segments"))
+    (make-plan {:id (get spec :id) :span (checked-span (* times (get spec :span)))
+                :leaves (vec (repeated-leaves times spec 0 []))})))
+
+(ns panaeolus.instrument)
+(def pattern panaeolus.composition/pattern)
+(def for-beats panaeolus.composition/for-beats)
+(def then panaeolus.composition/then)
+(def together panaeolus.composition/together)
+(def repeat-times panaeolus.composition/repeat-times)
+(ns user)

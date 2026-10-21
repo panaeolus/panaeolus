@@ -8,6 +8,7 @@ panaeolusRouteTails@global:i[] init 256
 panaeolusRouteCounts@global:i[] init 256
 panaeolusRouteStages@global:i[][] init 256, 8
 panaeolusLastVoiceEnd@global:i init 0
+panaeolusHeldInstruments@global:i[] init 256
 
 opcode PanaeolusAudioChannel(route:i, stage:i, side:S):S
   xout sprintf("panaeolus/r%d/s%d/%s", route, stage, side)
@@ -15,6 +16,20 @@ endop
 
 opcode PanaeolusControlChannel(route:i, stage:i, parameter:i):S
   xout sprintf("panaeolus/r%d/f%d/p%d", route, stage, parameter)
+endop
+
+opcode PanaeolusVoiceChannel(route:i, parameter:i):S
+  xout sprintf("panaeolus/r%d/v/p%d", route, parameter)
+endop
+
+opcode PanaeolusHeldGuard(route:i):void
+  channel:S init PanaeolusVoiceChannel(route, -1)
+  enabled:i chnget channel
+  ;; A stop can arrive after a voice was queued but before its init pass.
+  ;; turnoff2i cannot see that pending note, so reject it at its own start.
+  if (enabled == 0) ithen
+    turnoff2i p1, 4, 0
+  endif
 endop
 
 ;; The live manager runs before all voices and processors. A retiring route
@@ -52,6 +67,11 @@ instr 93
     turnoff2i 30000 + route / 1024, 4, 0
     panaeolusRouteActive[route] = 0
   endif
+endin
+
+instr 94
+  channel:S = PanaeolusVoiceChannel(p4, p5)
+  chnset p6, channel
 endin
 
 instr 30000

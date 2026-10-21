@@ -45,6 +45,35 @@
 ;; The old flanger keeps its tail. Parameter edits keep the same flanger alive.
 ;; A vector runs effects in order:
 ;; (pulse :every [0.25 0.5] :fx [(flanger :rate 0.2) (flanger :rate 0.7)])
+
+;; These functions build silent values. Only calling the result plays it.
+;; Stop the example loop first, then select/evaluate the following definitions.
+;; (p/stop-all!)
+;; (defn phrase [notes]
+;;   (p/for-beats 4 (p/pattern pulse :every [0.25 0.5] :hz notes)))
+;; (def song (apply p/then (map phrase [[440 550 660] [330 440]])))
+;; (song) ; eight beats, once; vectors restart at each phrase
+;; (p/stop! song)
+;; (def layered (p/together song (p/for-beats 8
+;;   (p/pattern pulse :every [1] :hz 110 :amp 0.03))))
+;; (layered)
+;; (def twice (p/repeat-times 2 song))
+;; (twice :id :set)
+;; (p/stop! :set)
+
+;; A held body needs k-rate controls and must sustain without a p3 envelope.
+;; Changing controls keeps the voice alive. Changing the FX chain starts a new
+;; voice; changing just an effect's values keeps its state.
+;; (p/definst tone [hz 110 amp 0.04] (csound/poscil amp hz))
+;; (def drone (p/with-defaults tone :id :drone :legato true))
+;; (drone)
+;; (drone :hz 165)
+;; (drone :every [1 2] :hz [110 165 220] :fx (flanger :rate 0.2))
+;; (p/stop! drone)
+;; (def held-section (p/for-beats 8
+;;   (p/pattern drone :every [1 2] :hz [110 165 220])))
+;; (held-section) ; stops the held voice at eight beats
+
 ;; To record: start a fresh engine, click Record take, then Evaluate all.
 ;; Finish take and Download CSD save a standalone orchestra + score.
 ;; Or select these calls separately, at the same points:

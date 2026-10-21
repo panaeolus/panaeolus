@@ -44,16 +44,23 @@
 (defn current? [slot generation]
   (= generation (get (get (get @state :slots) slot) :generation)))
 
+(defn notify-removal! [entry]
+  (when entry
+    ;; Native removal stops every owned child first. User hooks may yield,
+    ;; replace a loop, or fail without leaving the other voices running.
+    (map notify-removal! (or (get entry :removed-children) []))
+    (when @on-remove (@on-remove entry))))
+
 (defn stop-generation! [slot generation]
   (let [entry (native-value "PanaeolusLoopStop" {:slot slot :generation generation})]
     (when entry
-      (when @on-remove (@on-remove entry))
+      (notify-removal! entry)
       true)))
 
 (defn stop! [id]
   (let [entry (native-value "PanaeolusLoopStop" {:id id})]
     (if entry
-      (do (when @on-remove (@on-remove entry)) true)
+      (do (notify-removal! entry) true)
       false)))
 
 (defn stop-all! []
@@ -65,6 +72,32 @@
 
 (defn valid-offset? [offset]
   (and (number? offset) (>= offset 0) (<= offset 1000000000)))
+
+(defn commit! [entry]
+  (let [committed (native-value "PanaeolusLoopStart" entry)
+        old-entry (first committed)
+        new-entry (second committed)]
+    (when (and old-entry @on-remove
+               (or (get (meta (get old-entry :callback)) :panaeolus/children)
+                   (not= (get (meta (get old-entry :callback)) :panaeolus/route)
+                         (get (meta (get new-entry :callback)) :panaeolus/route))))
+      (notify-removal! old-entry))
+    (get entry :id)))
+
+;; Compositions use absolute beats, so their segments share one origin and
+;; restart their parameter vectors together. :until excludes the end beat.
+(defn start-at! [id durations callback at until]
+  (when-not (and (or (keyword? id) (string? id))
+                (vector? durations) (not (empty? durations))
+                (every? valid-duration? durations) (fn? callback)
+                (number? at) (>= at 0) (= (- at at) 0)
+                (or (nil? until)
+                    (and (number? until) (> until at) (= (- until until) 0))))
+    (throw "composition: invalid absolute loop bounds"))
+  (commit! {:id id :durations durations :callback callback
+            :routing (get (meta callback) :panaeolus/tick)
+            :park-after-last (get (meta callback) :panaeolus/park-after-last)
+            :at at :until until}))
 
 (defn start! [id durations callback & options]
   (when-not (or (keyword? id) (string? id))
@@ -79,16 +112,8 @@
                (and (= 2 (count options)) (= :offset (first options))
                     (valid-offset? (second options))))
     (throw "start!: optional :offset must be finite and between 0 and 1000000000 beats"))
-  (let [entry {:id id :durations durations :callback callback
-               :routing (get (meta callback) :panaeolus/tick)
-               :offset (if (empty? options) nil (second options))}
-        committed (native-value "PanaeolusLoopStart" entry)
-        old-entry (first committed)
-        new-entry (second committed)]
-    (when (and old-entry @on-remove
-               (not= (get (meta (get old-entry :callback)) :panaeolus/route)
-                     (get (meta (get new-entry :callback)) :panaeolus/route)))
-      (@on-remove old-entry))
-    id))
+  (commit! {:id id :durations durations :callback callback
+            :routing (get (meta callback) :panaeolus/tick)
+            :offset (if (empty? options) nil (second options))}))
 
 (ns user)

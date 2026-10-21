@@ -38,6 +38,10 @@
   ((csound/at-rate :k csound/chnget)
     (csound/sprintf "panaeolus/r%d/f%d/p%d" route stage index)))
 
+(defn voice-control [route index]
+  ((csound/at-rate :k csound/chnget)
+    (csound/sprintf "panaeolus/r%d/v/p%d" route index)))
+
 (defn send [signal route stage]
   (let [stereo (pair signal)]
     (csound/do
@@ -62,6 +66,22 @@
             number (+ 1000 index)]
         (when (>= number 9000) (throw "routing: voice definition limit reached"))
         (let [compiled (register! number all-params body [id index])]
+          (swap! definitions assoc
+            :voice-count (inc index)
+            :voices (assoc (get @definitions :voices) fingerprint compiled))
+          compiled)))))
+
+(defn held-voice! [id params signal]
+  (let [layout '[panaeolus-route 0]
+        route (last (csound/param-bindings layout))
+        body (csound/do (held-guard-node route) (send signal route 0))
+        fingerprint [id :legato params (csound/source 1000 layout body)]
+        known (get (get @definitions :voices) fingerprint)]
+    (if known known
+      (let [index (get @definitions :voice-count)
+            number (+ 1000 index)]
+        (when (>= number 9000) (throw "routing: voice definition limit reached"))
+        (let [compiled (register! number layout body [id :legato index])]
           (swap! definitions assoc
             :voice-count (inc index)
             :voices (assoc (get @definitions :voices) fingerprint compiled))
