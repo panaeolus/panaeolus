@@ -118,4 +118,26 @@
 (deffx flanger [rate 5 depth 0.001 fback 0 shape 1 dur 0.1] [left right]
   (flanger-node left right rate depth fback shape dur))
 (def flanger (with-validator (with-tail flanger 4) validate-flanger))
+
+(defn integer-range? [value low high]
+  (and (in-range? value low high)
+       (every? (fn [number] (= 0 (mod number 1))) (values-of value))))
+
+(defn validate-bbcut [values]
+  (when-not (and (in-range? (get values :bpm) 20 400)
+                (integer-range? (get values :subdiv) 2 64)
+                (integer-range? (get values :bar) 1 16)
+                (integer-range? (get values :phrase) 1 16)
+                (integer-range? (get values :repeats) 0 16)
+                (integer-range? (get values :stutter) 1 64)
+                (in-range? (get values :chance) 0 1)
+                (integer-range? (get values :envelope) 0 1))
+    (throw "bbcut: bpm 20..400, subdiv 2..64, bar/phrase 1..16, repeats 0..16, stutter 1..64, chance 0..1, envelope 0 or 1; counts must be integers")))
+
+;; Both channels share one cutter, preserving stereo cuts. Its controls are
+;; init-rate in Csound: changing one restarts the cut phrase, not the source.
+(deffx bbcut [bpm 120 subdiv 8 bar 4 phrase 1 repeats 2 stutter 4 chance 0 envelope 1]
+  [left right]
+  (bbcut-node left right bpm subdiv bar phrase repeats stutter chance envelope))
+(def bbcut (with-validator bbcut validate-bbcut))
 (ns user)

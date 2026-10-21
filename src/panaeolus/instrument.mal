@@ -108,6 +108,7 @@
     (when-not (valid-value? (get values :dur) pattern true)
       (throw "instrument: :dur needs positive seconds, or a nonempty vector when looping"))
     (validate-values (get spec :params) values pattern)
+    (when (get spec :validate) ((get spec :validate) values))
     (let [effects (fx/chain (get values :fx))]
       (when (and (not allow-pattern) (contains? supplied :fx))
         (throw "with-defaults: :fx belongs in the instrument call"))
@@ -257,6 +258,10 @@
       (assoc spec :defaults (select-keys values (get spec :params))
                   :duration (get values :dur) :id (get values :id)
                   :offset (get values :offset) :legato (get values :legato)))))
+
+(defn with-validator [instrument validate]
+  (when-not (fn? validate) (throw "with-validator: expected a function"))
+  (make-instrument (assoc (descriptor instrument) :validate validate)))
 
 (defn stop! [instrument-or-id]
   (loop/stop!

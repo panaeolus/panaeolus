@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
+import { csoundModule } from "./csound-module";
 
 export const root = resolve(import.meta.dir, "..");
 
@@ -44,7 +45,8 @@ export async function build() {
   await Bun.write(interpreterPath, interpreter.includes(reservation) ? interpreter : interpreter + reservation);
   // Explicit order: add each new module here after its dependencies.
   const modules = ["src/panaeolus/event_loop.mal", "src/panaeolus/routing.mal",
-    "src/panaeolus/fx.mal", "src/panaeolus/instrument.mal", "src/panaeolus/composition.mal"];
+    "src/panaeolus/fx.mal", "src/panaeolus/instrument.mal", "src/panaeolus/composition.mal",
+    "src/panaeolus/sampler.mal"];
   const lisp = (await Promise.all(modules.map(path => Bun.file(resolve(root, path)).text()))).join("\n");
   const runtime = await Bun.file(resolve(root, "src/runtime.orc")).text();
   const marker = "@@PANAEO_LISP@@";
@@ -56,13 +58,15 @@ export async function build() {
   const routing = await Bun.file(resolve(root, "src/routing.orc")).text();
   const held = await Bun.file(resolve(root, "src/held.orc")).text();
   const composition = await Bun.file(resolve(root, "src/composition.orc")).text();
-  const base = support + "\n" + flanger;
+  const sampler = await Bun.file(resolve(root, "src/sampler-support.orc")).text();
+  const samples = await Bun.file(resolve(root, "src/samples.orc")).text();
+  const base = support + "\n" + flanger + "\n" + sampler;
   const registerBase = `(do (swap! panaeolus.routing/pending assoc 0 {:number 0 :source ${JSON.stringify(base)}}) nil)`;
   const native =
     ";; SPDX-License-Identifier: GPL-3.0-only\n" +
     ";; Generated from src/runtime.orc and " + modules.join(", ") + ".\n" +
     ";; Load make-a-lisp.orc first. Rebuild with bun run build.\n" +
-    base + "\n" + runtime.replace(marker, () => csoundString(lisp)) + "\n" + routing + "\n" + held + "\n" + composition +
+    base + "\n" + runtime.replace(marker, () => csoundString(lisp)) + "\n" + samples + "\n" + routing + "\n" + held + "\n" + composition +
     `\npanaeolusBase:i = PanaeolusEval(${csoundString(registerBase)})\npanaeolusRegistration:i = PanaeolusRegister(0)\n` +
     "schedule(90, 0, -1)\nschedule(30000, 0, -1, 0, 0)\n" +
     'chnset 1, "__panaeolus_loaded"\n';
@@ -115,7 +119,10 @@ endop
     appendForms.join("") +
     `    (let [status (csound/eval ${JSON.stringify(compile)})]\n` +
     "      (in-ns previous)\n" +
-    "      (when (< status 0) (throw \"Panaeolus: native bridge compilation failed\"))\n" +
+    // evalstr may return zero after a compiler error. The marker proves native
+    // initialization reached the end before the session becomes bundle-ready.
+    '      (when (or (< status 0) (not= 1 (csound/eval "return chnget:i(\\\"__panaeolus_loaded\\\")")))\n' +
+    '        (throw "Panaeolus: native bridge compilation failed"))\n' +
     "      (def panaeolus.instrument/bundle-ready true))))\n");
 
   const result = await Bun.build({
@@ -125,6 +132,10 @@ endop
     external: ["@csound/browser"],
   });
   if (!result.success) throw new AggregateError(result.logs, "Playground build failed");
+  const csoundRoot = resolve(root, "node_modules/@csound/browser");
+  const csoundPackage = await Bun.file(resolve(csoundRoot, "package.json")).json();
+  await Bun.write(resolve(root, "dist/web/csound.js"), csoundModule(
+    await Bun.file(resolve(csoundRoot, "dist/csound.js")).text(), csoundPackage.version));
   console.log("Built dist/make-a-lisp.orc, dist/panaeolus.orc, dist/panaeolus.mal, and playground.");
 }
 

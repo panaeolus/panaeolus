@@ -1,0 +1,73 @@
+{
+  "title": "Final demo Panaeolus",
+  "bpm": 128,
+  "duration": 30,
+  "sampleRate": 48000,
+  "setup": "(require '[panaeolus.instrument :as p]\n         '[panaeolus.sampler :as sampler]\n         '[panaeolus.fx :refer [flanger bbcut]])\n(defn shot [file id]\n  (p/with-defaults (sampler/load file :id id) :cross 0))\n(def kick (shot \"samples/kick.wav\" :kick))\n(def clap (shot \"samples/clap.wav\" :clap))\n(def hat (shot \"samples/hat.wav\" :hat))\n(def bass (shot \"samples/bass.wav\" :bass))\n(def chord (shot \"samples/chord.wav\" :chord))\n(def lead (shot \"samples/lead.wav\" :lead))",
+  "setupDisplay": ";; samples ready: kick, clap, hat, bass, chord, lead",
+  "cues": [
+    {
+      "start": 0.12,
+      "eval": 0.9375,
+      "label": "Kick",
+      "code": "(p/tempo! 128)\n(kick :every [1] :amp 0.85 :offset 0)",
+      "log": "128 BPM / kick loop started"
+    },
+    {
+      "start": 2.05,
+      "eval": 3.75,
+      "label": "Percussion",
+      "code": "(clap :every [2] :offset 1 :amp 0.42)\n(hat :every [1] :offset 0.5 :amp 0.27)",
+      "log": "clap on 2 + 4 / hats between beats"
+    },
+    {
+      "start": 5.3,
+      "eval": 7.5,
+      "label": "Bass",
+      "code": "(bass :every [0.75 0.25 0.5 0.5] :offset 0\n  :dur 0.19 :rate [1 2 1 1.4983] :amp 0.52)",
+      "log": "bass / 4 pitches over 4 durations"
+    },
+    {
+      "start": 9,
+      "eval": 11.25,
+      "label": "Chords",
+      "code": "(chord :every [0.5 1 0.5 2] :offset 0.5\n  :dur 0.3 :rate [1 1 1.3348 1.4983] :amp 0.32)",
+      "log": "minor seventh stabs / half-beat offset"
+    },
+    {
+      "start": 12.75,
+      "eval": 15,
+      "label": "Melody",
+      "code": "(hat :every [0.5] :amp [0.13 0.28] :offset 0)\n(lead :every [0.75 0.75 0.5] :offset 0\n  :dur 0.15 :rate [2 2.3784 2.9966 2.6697]\n  :amp [0.2 0.14 0.16])",
+      "log": "lead / 4 pitches against 3 accents"
+    },
+    {
+      "start": 16.1,
+      "eval": 18.75,
+      "label": "Breakdown",
+      "code": "(p/stop! kick)\n(p/stop! bass)\n(chord :every [1] :dur 0.35 :amp 0.24\n  :fx (flanger :rate 0.35 :depth 0.003))",
+      "log": "kick + bass stopped / flanger on chords"
+    },
+    {
+      "start": 19.7,
+      "eval": 22.5,
+      "label": "Drop",
+      "code": "(kick :every [1] :amp 0.85 :offset 0)\n(bass :every [0.5 0.25 0.25 1] :offset 0\n  :dur 0.18 :rate [1 2 1.4983 1.1892] :amp 0.55)\n(chord :every [0.5 1 0.5 2] :offset 0.5\n  :dur 0.3 :rate [1 1 1.3348 1.4983] :amp 0.32)",
+      "log": "drums + bass return / chords dry again"
+    },
+    {
+      "start": 23.6,
+      "eval": 26.25,
+      "label": "Cut",
+      "code": "(hat :every [0.25] :amp [0.1 0.18 0.1 0.28]\n  :fx (bbcut :bpm 128 :subdiv 8 :repeats 2))",
+      "log": "hat loop replaced / stereo breakbeat cuts"
+    },
+    {
+      "start": 27.25,
+      "eval": 29.0625,
+      "label": "Finish",
+      "code": "(p/stop-all!)\n(chord :dur 0.8 :rate 0.5 :amp 0.45)",
+      "log": "loops stopped / final chord"
+    }
+  ]
+}

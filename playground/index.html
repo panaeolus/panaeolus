@@ -40,6 +40,15 @@
         </div>
       </section>
 
+      <section class="transport sample-controls" aria-label="Sample import">
+        <div class="transport-group">
+          <label for="sample-file">Sample</label>
+          <input id="sample-file" type="file" accept=".wav,.wave,.aif,.aiff,.aifc,.flac" aria-describedby="sample-help" disabled />
+          <button id="import-sample" disabled>Import sample</button>
+          <span id="sample-help" class="sample-note">WAV, AIFF, FLAC · up to 20 MiB · stays in this session</span>
+        </div>
+      </section>
+
       <div class="workspace">
         <section class="editor-panel" aria-label="Lisp editor">
           <div class="panel-heading">

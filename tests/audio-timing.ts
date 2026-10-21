@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 // Compare generated native note dispatch with the ordinary Lisp callback path.
 // Audio must match exactly; timings are reported, not tied to one machine.
 Object.assign(globalThis, { self: globalThis, window: globalThis });
-const { libcsound } = await import("../node_modules/@csound/browser/dist/csound.js");
+const { libcsound } = await import("../dist/web/csound.js");
 const api = await libcsound();
 const root = resolve(import.meta.dir, "..");
 const mal = await Bun.file(resolve(root, "dist/make-a-lisp.orc")).text();

@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 // Real audio keeps running while the Csound-owned evaluator resumes jobs.
 // Optional timing gates are for a quiet machine, not a shared CI worker.
 Object.assign(globalThis, { self: globalThis, window: globalThis });
-const { libcsound } = await import("../node_modules/@csound/browser/dist/csound.js");
+const { libcsound } = await import("../dist/web/csound.js");
 const api = await libcsound();
 const root = resolve(import.meta.dir, "..");
 const mal = await Bun.file(resolve(root, "dist/make-a-lisp.orc")).text();

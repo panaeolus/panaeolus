@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 // Use the exact engine shipped to the browser, with an offline audio clock.
 Object.assign(globalThis, { self: globalThis, window: globalThis });
-const { libcsound } = await import("../node_modules/@csound/browser/dist/csound.js");
+const { libcsound } = await import("../dist/web/csound.js");
 const api = await libcsound();
 const csound = api.csoundCreate();
 const root = resolve(import.meta.dir, "..");

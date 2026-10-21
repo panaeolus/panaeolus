@@ -1,0 +1,90 @@
+(ns panaeolus.sampler
+  (:require [panaeolus.instrument :as instrument]
+            [panaeolus.event-loop :as loop]
+            [panaeolus.fx :as fx]))
+
+(def modes {:forward 0 :reverse 1 :pingpong 2})
+(def parameters '[amp 0.5 rate 1 start 0 end 1 cross 0.005 pan 0])
+
+(defn options [args result]
+  (if (empty? args) result
+    (let [key (first args) value (second args)]
+      (when-not (and (>= (count args) 2) (contains? {:mode true :id true} key))
+        (throw "sampler/load: expected :mode or :id followed by a value"))
+      (when (contains? result key) (throw (str "sampler/load: duplicate " key)))
+      (options (drop 2 args) (assoc result key value)))))
+
+(defn smaller [a b] (if (< a b) a b))
+(defn larger [a b] (if (> a b) a b))
+
+(defn common-divisor [a b]
+  (if (= b 0) a (common-divisor b (mod a b))))
+
+(defn phase-extreme [values index stride extreme choose]
+  (if (>= index (count values)) extreme
+    (phase-extreme values (+ index stride) stride
+      (choose extreme (nth values index)) choose)))
+
+(defn valid-phases? [starts ends stride phase frames minimum]
+  (if (>= phase stride) true
+    (let [start (phase-extreme starts (+ phase stride) stride (nth starts phase) larger)
+          end (phase-extreme ends (+ phase stride) stride (nth ends phase) smaller)]
+      (and (>= (* (- end start) frames) minimum)
+           (valid-phases? starts ends stride (inc phase) frames minimum)))))
+
+(defn valid-bounds? [starts ends frames minimum]
+  ;; Both vectors use the same step counter. A pair can meet exactly when its
+  ;; indices agree modulo their lengths' GCD. Visit each value once instead of
+  ;; expanding the full repeat cycle, which can be much longer than either list.
+  (valid-phases? starts ends (common-divisor (count starts) (count ends)) 0 frames minimum))
+
+(defn validate [info values]
+  (let [starts (fx/values-of (get values :start))
+        ends (fx/values-of (get values :end))
+        frames (get info :frames)
+        minimum (smaller 64 (- frames 2))
+        rate-scale (* 4 (get info :sample-rate))
+        rate-limit (* minimum (get info :engine-rate))]
+    (when-not (and (fx/in-range? (get values :amp) 0 4)
+                  (fx/in-range? (get values :rate) 0 16)
+                  ;; Compare products because MAL's / truncates its result.
+                  (every? (fn [rate] (<= (* rate rate-scale) rate-limit))
+                    (fx/values-of (get values :rate)))
+                  (fx/in-range? (get values :start) 0 1)
+                  (fx/in-range? (get values :end) 0 1)
+                  (valid-bounds? starts ends frames minimum)
+                  (fx/in-range? (get values :cross) 0 30)
+                  (fx/in-range? (get values :pan) -1 1))
+      (throw "sampler: amp 0..4, nonnegative rate within the sample's safe limit, start/end 0..1 with at least 64 frames (or the whole short file), cross 0..30 seconds, pan -1..1"))))
+
+(defn graph [info mode bindings]
+  (eval (list 'let bindings
+    (list 'panaeolus.sampler/player-node (get info :table)
+      'amp 'rate 'start 'end 'cross mode 'pan))))
+
+(defn load [path & args]
+  (when-not (and (string? path) (not (empty? path)))
+    (throw "sampler/load: supply a sound-file path"))
+  (let [settings (options args {})
+        mode (if (contains? settings :mode) (get settings :mode) :forward)
+        id (if (contains? settings :id) (get settings :id) (str "sample/" path))]
+    (when-not (contains? modes mode)
+      (throw "sampler/load: :mode must be :forward, :reverse, or :pingpong"))
+    (when-not (or (keyword? id) (string? id))
+      (throw "sampler/load: :id must be a keyword or string"))
+    ;; File I/O happens once during preparation, never in the clock callback.
+    ;; A path keeps its table for this session; import a new path to change audio.
+    (let [info (loop/native-value "PanaeolusSampleLoad" {:path path})
+          direction (get modes mode)
+          signal (graph info direction (csound/param-bindings parameters))
+          held (graph info direction
+                 (vec (concat (csound/param-bindings [])
+                   (instrument/held-bindings parameters 0))))
+          voice (instrument/define-instrument id parameters signal {:signal held})
+          spec (assoc (instrument/descriptor voice)
+                 :duration (get info :duration)
+                 :sample (assoc info :path path :mode mode)
+                 :validate (partial validate info))]
+      (instrument/make-instrument spec))))
+
+(ns user)

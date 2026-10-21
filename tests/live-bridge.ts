@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 // A real loop callback enters routing while a live edit owns a pending request.
 // Force that overlap so the test does not depend on a lucky event time.
 Object.assign(globalThis, { self: globalThis, window: globalThis });
-const { libcsound } = await import("../node_modules/@csound/browser/dist/csound.js");
+const { libcsound } = await import("../dist/web/csound.js");
 const api = await libcsound();
 const engine = api.csoundCreate();
 const root = resolve(import.meta.dir, "..");

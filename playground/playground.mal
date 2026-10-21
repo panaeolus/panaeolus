@@ -74,6 +74,26 @@
 ;;   (p/pattern drone :every [1 2] :hz [110 165 220])))
 ;; (held-section) ; stops the held voice at eight beats
 
+;; The playground supplies a two-second stereo sample at engine startup.
+;; Import sample copies your own WAV/AIFF/FLAC and prints a load form.
+;; Loading is silent; the result accepts patterns, effects, and compositions.
+;; (require '[panaeolus.sampler :as sampler] '[panaeolus.fx :refer [bbcut]])
+;; (def drums (sampler/load "panaeolus-demo.wav"))
+;; (p/stop-all!)
+;; (drums) ; one note at half gain, lasting the file's duration
+;; (drums :every [1] :dur 0.45 :start [0 0.25 0.5 0.75] :rate [1 0.75])
+;; (drums :every [4] :dur 2 :fx (bbcut :bpm 120 :subdiv 8 :repeats [1 2]))
+;; (def backward (sampler/load "panaeolus-demo.wav" :mode :reverse :id :backward))
+;; (backward :every [2] :dur 1 :start 0.5 :end 1)
+;; (p/stop-all!)
+;; (drums :legato true :start 0.25 :end 0.5 :cross 0.01)
+;; (drums :legato true :rate 0.5 :pan -0.5) ; omitted controls use defaults
+;; (p/stop! drums)
+;; :start/:end are file fractions, :cross is seconds, :pan is -1..1.
+;; :mode is fixed when loading: :forward, :reverse, or :pingpong.
+;; flooper2 applies new bounds/crossfade at the next wrap. Cutter edits restart
+;; its phrase. :bpm controls cuts explicitly; sample playback follows :rate.
+
 ;; To record: start a fresh engine, click Record take, then Evaluate all.
 ;; Finish take and Download CSD save a standalone orchestra + score.
 ;; Or select these calls separately, at the same points:

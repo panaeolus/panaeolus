@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
 import { appendCsoundSource } from "../tools/build";
+import { createDemoSample, DEMO_SAMPLE_PATH } from "../playground/demo-sample";
 
 Object.assign(globalThis, { self: globalThis, window: globalThis });
-const { libcsound } = await import("../node_modules/@csound/browser/dist/csound.js");
+const { libcsound } = await import("../dist/web/csound.js");
 const api = await libcsound();
 const engine = api.csoundCreate();
 const root = resolve(import.meta.dir, "..");
@@ -45,11 +46,28 @@ opcode BundleEval(source:S):i
   chnset status, "__bundle_status"
   xout status
 endop
+opcode BundleRead(path:S):i
+  contents:MalValue init MalSlurpFile(path)
+  chnset contents.string, "__bundle_file"
+  status:i = 0
+  xout status
+endop
 `), 0);
   assert.equal(api.csoundStart(engine), 0);
+  // A short final WASI read must not report unused bytes from an earlier read.
+  // Vary file length so a bundle layout change cannot hide a stale EOF tail.
+  for (const length of [0, 1, 63, 1023, 1024, 1025, 4095, 4096, 4097, 8190, 8191, 8192, 8193, 17]) {
+    const contents = "abcdefghijklmnopqrstuvwxyz\n".repeat(Math.ceil(length / 27)).slice(0, length);
+    api.writeFile(engine, "reader-tail.txt", new TextEncoder().encode(contents));
+    assert.equal(api.csoundEvalCode(engine, 'return BundleRead("reader-tail.txt")'), 0);
+    assert.equal(api.csoundGetStringChannel(engine, "__bundle_file"), contents,
+      `readfi changed file contents at ${length} bytes`);
+    checks++;
+  }
+  api.csoundSetStringChannel(engine, "__bundle_file", "");
   // Force a macro name across chunks, then cover undefined names and escapes.
   // Both chunks must survive the intermediate compiler without expansion.
-  const sourceChunks = ["$MAL_HASH_MAP_", 'TYPE $undefined \\$literal "quote"\nhljóð'];
+  const sourceChunks = ["$MAL_HASH_MAP_", 'TYPE $undefined \\$literal "quote"\nhljóð', "\\", "\"\\\n$undefined"];
   for (const chunk of sourceChunks) {
     evaluate(`(csound/eval ${JSON.stringify(appendCsoundSource(chunk, "__bundle_chunks"))})`);
   }
@@ -67,6 +85,22 @@ endop
   evaluate("(require '[panaeolus.instrument :as p] '[panaeolus.fx :refer [flanger]])");
   check("(fn? p/stop-all!)");
   check("(fn? flanger)");
+  evaluate("(require '[panaeolus.sampler :as sampler])");
+  check("(fn? sampler/load)");
+  api.writeFile(engine, DEMO_SAMPLE_PATH, createDemoSample());
+  evaluate(`(def sample (sampler/load "${DEMO_SAMPLE_PATH}" :id :bundle-sample))
+    (sample :every [0.1] :dur 0.02 :amp 0.2)`);
+  let samplePeak = 0;
+  for (let block = 0; block < 60; block++) {
+    assert.equal(api.csoundPerformKsmps(engine), 0);
+    for (const value of new Float64Array(api.getMemory().buffer, api.csoundGetSpout(engine), 128)) {
+      assert.ok(Number.isFinite(value));
+      samplePeak = Math.max(samplePeak, Math.abs(value));
+    }
+  }
+  assert.ok(samplePeak > 0.001 && samplePeak <= 1, `MAL bundle sampler audio peak: ${samplePeak}`);
+  evaluate("(p/stop! :bundle-sample)");
+  for (let block = 0; block < 30; block++) assert.equal(api.csoundPerformKsmps(engine), 0);
   evaluate(`
     (def hits (atom []))
     (p/definst pulse [hz 440 amp 0.04] (csound/poscil amp hz))

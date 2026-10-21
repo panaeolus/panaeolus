@@ -39,6 +39,13 @@ main { padding: 24px 32px 16px; max-width: 1800px; margin: 0 auto; }
 .tempo-controls input { width: 66px; padding: 8px 8px; border: 1px solid #bcc8bb; border-radius: 4px; background: #f9faf5; color: var(--ink); font-family: var(--mono); font-size: 12px; }
 .tempo-controls .unit { color: #667460; margin-right: 3px; font-size: 10px; }
 #stop-loops { margin-left: 9px; }
+.sample-controls { font-size: 12px; }
+.sample-controls .transport-group { flex-wrap: wrap; }
+#sample-file { max-width: 280px; font-size: 11px; }
+#sample-file::file-selector-button { margin-right: 8px; border: 1px solid #bcc8bb; border-radius: 4px; padding: 7px 10px; background: #f9faf5; color: var(--ink); cursor: pointer; }
+#sample-file:disabled { opacity: .4; }
+#sample-file:disabled::file-selector-button { cursor: default; }
+.sample-note { color: #667460; font-size: 11px; }
 .workspace { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(320px, 1fr); min-height: 570px; height: calc(100dvh - 256px); max-height: 1200px; border: 1px solid #bcc8bb; border-radius: 7px; overflow: hidden; box-shadow: 0 5px 25px #263f2110; }
 .editor-panel { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: #fcfcf7; }
 .panel-heading { flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 48px; padding: 0 18px; border-bottom: 1px solid #dce1d7; }

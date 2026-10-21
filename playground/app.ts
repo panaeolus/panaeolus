@@ -1,4 +1,5 @@
 import Csound, { type CsoundObj } from "@csound/browser";
+import { createDemoSample, DEMO_SAMPLE_PATH, importedSamplePath, sampleLoadForm } from "./demo-sample";
 
 type EngineState = "stopped" | "loading" | "running" | "stopping" | "error";
 type LogKind = "output" | "info" | "input" | "error";
@@ -13,11 +14,15 @@ const evaluateAllButton = element<HTMLButtonElement>("evaluate-all");
 const tempoButton = element<HTMLButtonElement>("set-tempo");
 const stopLoopsButton = element<HTMLButtonElement>("stop-loops");
 const tempo = element<HTMLInputElement>("tempo");
+const sampleInput = element<HTMLInputElement>("sample-file");
+const importButton = element<HTMLButtonElement>("import-sample");
 const draftKey = "panaeolus.playground.source.v1";
 
 let recording = false;
 let hasTake = false;
 let evaluating = false;
+let importing = false;
+let sampleNumber = 0;
 let stopRequested = false;
 let state: EngineState = "stopped";
 let engine: CsoundObj | undefined;
@@ -42,13 +47,15 @@ function log(message: unknown, kind: LogKind = "output") {
 
 function updateControls() {
   const running = state === "running";
-  const ready = running && !evaluating && !stopRequested;
+  const ready = running && !evaluating && !importing && !stopRequested;
   startButton.disabled = state === "loading" || state === "stopping" || running;
   stopButton.disabled = !running;
   evaluateButton.disabled = !ready || source.selectionStart === source.selectionEnd;
   evaluateAllButton.disabled = !ready;
   tempoButton.disabled = !ready;
   stopLoopsButton.disabled = !ready;
+  sampleInput.disabled = !ready;
+  importButton.disabled = !ready || !sampleInput.files?.length;
   element<HTMLButtonElement>("record").disabled = !ready || recording;
   element<HTMLButtonElement>("finish").disabled = !ready || !recording;
   element<HTMLButtonElement>("export").disabled = !ready || recording || !hasTake;
@@ -59,7 +66,7 @@ function setState(next: EngineState) {
   const labels: Record<EngineState, string> = {
     stopped: "Engine stopped",
     loading: "Starting engine…",
-    running: evaluating ? "Evaluating… audio running" : "Engine running",
+    running: evaluating ? "Evaluating… audio running" : importing ? "Importing sample… audio running" : "Engine running",
     stopping: "Stopping engine…",
     error: "Engine error",
   };
@@ -142,6 +149,7 @@ function start(): Promise<void> {
       engine.removeListener("message", console.log);
       engine.on("message", activeMessageListener);
       engine.on("realtimePerformanceEnded", activeEndedListener);
+      await engine.fs.writeFile(DEMO_SAMPLE_PATH, createDemoSample());
       log("Loading make-a-lisp.orc + panaeolus.orc…", "info");
       const [lisp, panaeolus] = await Promise.all([
         readText("/dist/make-a-lisp.orc"),
@@ -186,6 +194,7 @@ f 0 z
       setState("running");
       element("audio-mode").textContent = "SharedArrayBuffer · AudioWorklet · 48 kHz";
       log(`Audio transport: ${engine.name} (cross-origin isolated).`, "info");
+      log(`Demo sample ready: ${DEMO_SAMPLE_PATH} (two seconds, four beats at 120 BPM).`, "info");
       log("Engine ready. Evaluate the file to start the example loop.", "info");
     } catch (error) {
       try { await dispose(); } catch (cleanupError) { report(cleanupError); }
@@ -248,6 +257,31 @@ function evaluate(code: string): Promise<void> {
       throw error;
     } finally {
       evaluating = false;
+      if (engine === currentEngine && state === "running") setState("running");
+    }
+  });
+}
+
+function importSample(file: File): Promise<void> {
+  return serialize(async () => {
+    if (stopRequested) return;
+    if (!engine || state !== "running") throw new Error("Start the engine before importing a sample.");
+    const currentEngine = engine;
+    const path = importedSamplePath(file.name, file.size, crypto.randomUUID());
+    importing = true;
+    setState("running");
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      if (stopRequested) return;
+      await currentEngine.fs.writeFile(path, bytes);
+      if (stopRequested) return;
+      const name = `sample-${++sampleNumber}`;
+      log(`Imported ${JSON.stringify(file.name)}. This file stays in the current engine session.`, "info");
+      log(`(require '[panaeolus.sampler :as sampler])\n(def ${name} ${sampleLoadForm(path)})`, "input");
+      log(`Evaluate these forms, then (${name}) to play.`, "info");
+      sampleInput.value = "";
+    } finally {
+      importing = false;
       if (engine === currentEngine && state === "running") setState("running");
     }
   });
@@ -343,6 +377,11 @@ evaluateAllButton.addEventListener("click", () => { void evaluate(source.value).
 tempoButton.addEventListener("click", setTempo);
 tempo.addEventListener("keydown", (event) => { if (event.key === "Enter") setTempo(); });
 stopLoopsButton.addEventListener("click", () => { void evaluate("(panaeolus.event-loop/stop-all!)").catch(report); });
+sampleInput.addEventListener("change", updateControls);
+importButton.addEventListener("click", () => {
+  const file = sampleInput.files?.[0];
+  if (file) void importSample(file).catch(report);
+});
 element("clear").addEventListener("click", () => output.replaceChildren());
 element("reset").addEventListener("click", () => { void loadFile(false).catch(report); });
 source.addEventListener("input", saveDraft);

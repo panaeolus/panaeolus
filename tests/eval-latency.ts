@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 // cross Csound's synchronous message callback so JavaScript can time evalstr;
 // the WASM rtclock opcode does not supply a useful clock for this measurement.
 Object.assign(globalThis, { self: globalThis, window: globalThis });
-const { libcsound } = await import("../node_modules/@csound/browser/dist/csound.js");
+const { libcsound } = await import("../dist/web/csound.js");
 const root = resolve(import.meta.dir, "..");
 const nativeLog = console.log.bind(console);
 type Span = { kind: string; ms: number };

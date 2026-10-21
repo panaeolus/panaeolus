@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 // Route cleanup must finish even when a later user hook never returns.
 Object.assign(globalThis, { self: globalThis, window: globalThis });
-const { libcsound } = await import("../node_modules/@csound/browser/dist/csound.js");
+const { libcsound } = await import("../dist/web/csound.js");
 const api = await libcsound();
 const engine = api.csoundCreate();
 const root = resolve(import.meta.dir, "..");

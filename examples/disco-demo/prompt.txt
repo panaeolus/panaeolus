@@ -1,0 +1,24 @@
+Make a 30-second house / electro / disco performance for Panaeolus, a Lisp live-coding environment running in one Csound engine. Use only sampled instruments. At 128 BPM, 64 beats last exactly 30 seconds.
+
+Read README.md, examples/disco-demo/demo.ts, and src/panaeolus/sampler.mal first. Use the existing sample-based demo as a working example, not as a fixed arrangement. Aim for a punchy kick, offbeat hats, claps on beats 2 and 4, syncopated octave bass, warm minor-seventh chord stabs, a short melodic hook, a breakdown, and a final return. Use original generated samples or files whose license permits redistribution. Do not download copyrighted song recordings.
+
+Actual API:
+  (require '[panaeolus.instrument :as p]
+           '[panaeolus.sampler :as sampler]
+           '[panaeolus.fx :refer [flanger bbcut]])
+  (def kick (p/with-defaults
+    (sampler/load "samples/kick.wav" :id :kick) :cross 0))
+  (kick) ; one shot, default parameters and file duration
+  (kick :every [1] :amp 0.8 :offset 0)
+  (bass :every [0.75 0.25 0.5 0.5]
+    :dur 0.19 :rate [1 2 1 1.4983] :amp 0.5)
+  (hat :every [0.25] :amp [0.1 0.2 0.1 0.3]
+    :fx (bbcut :bpm 128 :subdiv 8 :repeats 2))
+  (p/stop! bass)
+  (p/stop-all!)
+
+Durations in :every and :offset are beats; :dur and :cross are seconds. :rate changes both speed and pitch. :start and :end are fractions of the sample. All parameter vectors cycle independently. Repeating an instrument call replaces that instrument's named loop. Omitting :fx removes its effects from new notes. Each call starts from defaults; omitted parameters do not retain the last call's values. Valid modes at load time are :forward, :reverse, :pingpong. There are no negative-duration rests. Use separate loops, amplitude zero, or stop! for gaps. For one-shots, use :cross 0 and keep :dur within the sample's duration at the chosen playback rate. Resolve sample paths relative to the demo folder, and create the same samples/ paths in the browser engine. Do not invent filters, effects, sequencing functions, or keyword arguments.
+
+The output is a staged presentation demo. Generate a stereo 48 kHz PCM16 WAV with exactly 1,440,000 frames, no clipping, and a quiet ending. Render the real Panaeolus forms through tools/render-demo.ts; the soundtrack must come from those sampler calls. Keep the slide independent of a running engine. Provide timeline.json with title, bpm, duration, sampleRate, setup, setupDisplay, and 6–10 cues. Each cue has start (typing starts in seconds), eval (evaluation time in seconds), label, code, and log. Type each form before its musical change; keep code lines under 62 characters. Logs may describe actions but must not invent measured latency or claim a real live engine is running in the slideshow. Keep setup and sample loads off the performance clock. Mark the result as a prerecorded demonstration in the presentation.
+
+Listen to the result and check the complete arrangement, exact duration, sample bounds, and alignment between code cues and audible changes. Include the reproducible sources, generated samples, rendered WAV, timeline, and complete performance.mal. Do not commit or push unless asked.

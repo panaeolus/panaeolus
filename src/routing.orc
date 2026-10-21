@@ -516,6 +516,7 @@ opcode PanaeolusRecordStop():i
     if (panaeolusRecordFailed == 0) ithen
       panaeolusTakeReady = 1
       panaeolusTakeDefinitions = panaeolusDefinitionCount
+      panaeolusTakeSamples = panaeolusSampleCount
       chnset 1, "__panaeolus_take_ready"
     else
       result = PanaeolusRoutingFailure("record: recording stopped after an error; the incomplete take cannot be exported")
@@ -544,9 +545,17 @@ opcode PanaeolusExport():i
     if (base < 0) ithen
       result = PanaeolusRoutingFailure("export: routing support has not been registered")
     else
+      sampleFiles:S init PanaeolusSampleFiles()
+      sampleStatus:i chnget "__panaeolus_sample_export_status"
+      if (sampleStatus < 0) ithen
+        chnset "", "__panaeolus_export"
+        result = PanaeolusRoutingFailure(chnget:S("__panaeolus_error"))
+        igoto EXPORT_DONE
+      endif
       document:S init sprintf("<CsoundSynthesizer>\n<CsOptions>\n-d -m0\n</CsOptions>\n<CsInstruments>\nsr = %.17g\nksmps = %d\nnchnls = %d\n0dbfs = %.17g\nseed %.17g\n", sr, ksmps, nchnls, 0dbfs, panaeolusRecordSeed)
       document strcat document, panaeolusDefinitionSources[base]
       document strcat document, "\n"
+      document strcat document, PanaeolusSampleOrchestra()
       if (panaeolusTakeDefinitions > 0) ithen
         for index in [0 ... panaeolusTakeDefinitions - 1] do
           if (index != base && panaeolusRecordedUsed[panaeolusDefinitionNumbers[index]] == 1) ithen
@@ -563,9 +572,12 @@ opcode PanaeolusExport():i
       endif
       document strcat document, panaeolusRecordedScore
       duration:i = max(ksmps / sr, panaeolusRecordEnd - panaeolusRecordOrigin + ksmps / sr)
-      document strcat document, sprintf("f 0 %.17g\ne\n</CsScore>\n</CsoundSynthesizer>\n", duration)
+      document strcat document, sprintf("f 0 %.17g\ne\n</CsScore>\n", duration)
+      document strcat document, sampleFiles
+      document strcat document, "</CsoundSynthesizer>\n"
       chnset document, "__panaeolus_export"
     endif
   endif
+EXPORT_DONE:
   xout result
 endop

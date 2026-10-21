@@ -8,7 +8,7 @@ const routes: Record<string, string> = {
   "/playground/playground.mal": "playground/playground.mal",
   "/dist/make-a-lisp.orc": "dist/make-a-lisp.orc",
   "/dist/panaeolus.orc": "dist/panaeolus.orc",
-  "/vendor/csound.js": "node_modules/@csound/browser/dist/csound.js",
+  "/vendor/csound.js": "dist/web/csound.js",
 };
 
 export async function serveRequest(request: Request): Promise<Response> {
