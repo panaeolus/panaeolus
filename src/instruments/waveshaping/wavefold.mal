@@ -1,0 +1,5 @@
+(ns panaeolus.instruments.waveshaping (:require [panaeolus.catalog :as catalog]))
+(def wavefold (catalog/voice "panaeolus.instruments.waveshaping/wavefold"
+  '[note 60 db -6 folds 1.4 bias 0.1 body 0.3 motion 0.2 rate 0.3 width 8 cutoff 10000 attack 0.01 decay 0.15 sustain 0.8 release 0.2 glide 0.03 pan 0 amp 1]
+  wavefold-node 1 {:note [24 96] :folds [0 8] :bias [-0.8 0.8] :body [0 1] :motion [0 1] :rate [0.05 12] :width [0 30] :cutoff [200 18000] :attack [0.001 8] :decay [0.001 8] :sustain [0 1] :release [0.001 4] :glide [0 2]} true))
+(ns user)

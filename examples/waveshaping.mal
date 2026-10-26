@@ -1,0 +1,27 @@
+;; Evaluate calls separately; each stop ends the preceding example.
+(require '[panaeolus.instruments.waveshaping :as ws])
+(require '[panaeolus.instrument :as p])
+(require '[panaeolus.fx :as fx])
+
+(ws/cheby)
+(ws/cheby :every [0.25 0.5] :note [48 55 60] :index [0.4 0.8 1]
+  :odd 0.8 :even 0.4 :tilt 0.7 :dur 0.3 :db -9)
+(p/stop! ws/cheby)
+
+(ws/wavefold :every [0.25 0.5] :note [36 43 48] :folds [0.5 2 4]
+  :bias [0 0.3] :body 0.2 :dur 0.3 :db -9)
+(p/stop! ws/wavefold)
+
+(ws/power :every [0.5] :note [48 55 60] :curve [0.3 1 3]
+  :rectify [0 0.5] :dur 0.4 :db -9
+  :fx (fx/formant :vowel [0 2 4] :mix 0.4))
+(p/stop! ws/power)
+
+;; These edits keep the oscillator phases and the existing envelope.
+(ws/phasewarp :legato true :note 48 :bend -0.6 :attack 0.4 :db -9)
+(ws/phasewarp :legato true :note 55 :bend 0.4 :skew -0.3 :db -9)
+(p/stop! ws/phasewarp)
+
+;; A silent plan for higher-order composition.
+(def phrase (p/pattern ws/wavefold :every [0.25 0.5]
+  :note [36 43 48] :folds [0.5 2 4] :dur 0.3 :db -9))

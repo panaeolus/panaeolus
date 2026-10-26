@@ -377,6 +377,45 @@ state; a new note starts with fresh tables, which Csound frees when it ends.
 See `examples/scanned.mal`. Run `bun run build` then `bun run scanned:render`
 for a six-note WAV preview of each voice.
 
+## Waveshaping instruments
+
+`panaeolus.instruments.waveshaping` adds four voices. All support patterns,
+held edits, composition, FX, and CSD export, with the same −18 LUFS reference
+at `:db 0` and a default of `:db -6`.
+
+| Voice | Shaping method | Main controls |
+| --- | --- | --- |
+| `cheby` | [Chebyshev polynomials](https://csound.com/manual/opcodes/chebyshevpoly/), up to eight harmonics | index 0.1..1, odd/even 0..1, tilt 0..3 |
+| `wavefold` | Sine folding | folds 0..8, bias −0.8..0.8, body 0..1 |
+| `power` | [Signed power curve](https://csound.com/manual/opcodes/powershape/) | curve 0.25..4, bias −0.8..0.8, rectify/body 0..1 |
+| `phasewarp` | [Phase distortion](https://csound.com/manual/opcodes/pdhalf/) | bend −0.8..0.8, skew −0.6..0.6, sub 0..1 |
+
+`motion` (0..1) moves each voice's main shape control at `rate` Hz (0.05..12).
+`width` (0..30 cents) detunes the two channels; zero gives mono. Each has
+`cutoff` (200..18000 Hz), MIDI note, ADSR, glide, pan, and amp.
+`body` blends in the original sine; `rectify` blends towards full-wave
+rectification. `sub` adds a sine one octave below. Higher `tilt` softens Cheby's
+upper harmonics; changing `index` changes its spectrum nonlinearly.
+
+Cheby fades harmonics before Nyquist. The other three shape at four times the
+host sample rate and filter before downsampling, even when Csound has no sinc
+converter. This reduces aliasing; it does not remove every alias at extreme
+settings. Gain follows the shaper, so `db` and `amp` do not change its tone.
+Shape changes and overlapping notes can change perceived loudness.
+
+```clojure
+(require '[panaeolus.instruments.waveshaping :as ws])
+(ws/cheby)
+(ws/wavefold :every [0.25 0.5] :note [36 43 48]
+  :folds [0.5 2 4] :bias [0 0.3] :dur 0.3 :db -9)
+(ws/phasewarp :legato true :note 48 :bend -0.6 :attack 0.4)
+(ws/phasewarp :legato true :note 55 :bend 0.4 :skew -0.3)
+(p/stop! ws/phasewarp)
+```
+
+See `examples/waveshaping.mal`. Run `bun run build` then
+`bun run waveshaping:render` for a six-note WAV preview per voice.
+
 ## Playground
 
 Requires [Bun](https://bun.sh) 1.3.13 or later.
