@@ -35,10 +35,23 @@
     (= [:a :a] (csound/type signal)) (csound/outs signal)
     :else (throw "definst: return mono audio or a stereo pair; Panaeolus adds the output")))
 
-(defn descriptor [instrument]
+(defn resolve-descriptor [reference]
+  (let [spec @reference]
+    (if (get spec :factory)
+      (let [resolved (instrument-spec ((get spec :factory)))]
+        (when-not (= (get spec :id) (get resolved :id))
+          (throw "defer: factory changed instrument identity"))
+        (reset! reference resolved))
+      spec)))
+
+(defn instrument-spec [instrument]
   (let [reference (get (get (meta instrument) :panaeolus/instrument) :descriptor)]
-    (if (and (fn? instrument) (atom? reference)) @reference
+    (if (and (fn? instrument) (atom? reference)) (resolve-descriptor reference)
       (throw "expected a Panaeolus instrument"))))
+
+(defn descriptor [instrument]
+  (let [spec (instrument-spec instrument)]
+    (assoc spec :signal @(get spec :signal))))
 
 (defn put-argument [supplied key value]
   (if (contains? supplied key)
@@ -161,7 +174,7 @@
 
 ;; Preparing a value validates it without starting playback or opening buses.
 (defn prepare [instrument args]
-  (let [spec (descriptor instrument)
+  (let [spec (instrument-spec instrument)
         values (arguments spec args true)]
     ;; A timed pattern needs its compiled voice, not copies of both DSP graphs
     ;; in every repeated segment. Held graphs stay frozen until first compiled.
@@ -218,14 +231,23 @@
                 (throw error))))))))
 
 (defn invoke-reference [reference & args]
-  (invoke (dissoc @reference :signal) args))
+  (invoke (dissoc (resolve-descriptor reference) :signal) args))
 
 (defn make-instrument [spec]
   ;; Callables travel through namespaces, arguments, and plans. Keep one
   ;; descriptor behind a small reference, including in the partial's closure.
-  (let [reference (atom spec)]
+  (let [stored (if (or (not (contains? spec :signal)) (atom? (get spec :signal)))
+                 spec (assoc spec :signal (atom (get spec :signal))))
+        reference (atom stored)]
     (with-meta (partial invoke-reference reference)
       {:panaeolus/instrument {:id (get spec :id) :descriptor reference}})))
+
+;; A catalogue can publish callables without compiling unused graphs. Cache
+;; only a successful result; a failed factory remains safe to retry.
+(defn defer [id factory]
+  (when-not (and (or (string? id) (keyword? id)) (fn? factory))
+    (throw "defer: expected an identity and an instrument factory"))
+  (make-instrument {:id id :factory factory}))
 
 (defn define-instrument [id params signal held]
   (let [schema (parameter-schema params [] {})
@@ -264,7 +286,7 @@
           (list 'catch* 'error (list 'hash-map :error 'error)))))))
 
 (defn with-defaults [instrument & args]
-  (let [spec (descriptor instrument)
+  (let [spec (instrument-spec instrument)
         values (arguments spec args false)]
     (make-instrument
       (assoc spec :defaults (select-keys values (get spec :params))
@@ -273,12 +295,12 @@
 
 (defn with-validator [instrument validate]
   (when-not (fn? validate) (throw "with-validator: expected a function"))
-  (make-instrument (assoc (descriptor instrument) :validate validate)))
+  (make-instrument (assoc (instrument-spec instrument) :validate validate)))
 
 ;; Opt in only when the held DSP honors Csound's release flag. Timed voices
 ;; keep their release inside :dur; the route reserves this tail only on stop.
 (defn with-release [instrument parameter]
-  (let [spec (descriptor instrument)]
+  (let [spec (instrument-spec instrument)]
     (when-not (and (keyword? parameter) (contains? (get spec :defaults) parameter)
                   (not (get (get spec :held) :error)))
       (throw "with-release: expected a held voice and a release parameter"))
@@ -291,7 +313,10 @@
     (if (fn? instrument-or-id)
       (if (get (meta instrument-or-id) :panaeolus/plan)
         (get (get (meta instrument-or-id) :panaeolus/plan) :id)
-        (get (descriptor instrument-or-id) :id))
+        (let [handle (get (meta instrument-or-id) :panaeolus/instrument)]
+          (when-not (atom? (get handle :descriptor))
+            (throw "expected a Panaeolus instrument"))
+          (get handle :id)))
       instrument-or-id)))
 
 (def record! routing/record!)

@@ -1,0 +1,5 @@
+(ns panaeolus.instruments.synth (:require [panaeolus.catalog :as catalog]))
+(def pulser (catalog/voice "panaeolus.instruments.synth/pulser"
+  '[note 60 db -6 harmonics 24 cutoff 2800 resonance 0.3 env 3 env-decay 0.3 attack 0.01 decay 0.2 sustain 0.75 release 0.15 glide 0.02 pan 0 amp 1]
+  pulser-node 1 {:note [24 96] :harmonics [1 64 true] :cutoff [40 18000] :resonance [0 0.8] :env [0 6] :env-decay [0.01 4] :attack [0.001 8] :decay [0.001 8] :sustain [0 1] :release [0.001 4] :glide [0 2]} true))
+(ns user)

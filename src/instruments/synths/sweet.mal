@@ -1,0 +1,5 @@
+(ns panaeolus.instruments.synth (:require [panaeolus.catalog :as catalog]))
+(def sweet (catalog/voice "panaeolus.instruments.synth/sweet"
+  '[note 60 db -6 detune 6 pulse 0.4 motion 0.15 rate 0.3 cutoff 3800 resonance 0.15 attack 0.01 decay 0.2 sustain 0.75 release 0.15 glide 0.02 pan 0 amp 1]
+  sweet-node 1 {:note [24 96] :detune [0 30] :pulse [0.05 0.95] :motion [0 0.4] :rate [0.01 10] :cutoff [40 18000] :resonance [0 0.8] :attack [0.001 8] :decay [0.001 8] :sustain [0 1] :release [0.001 4] :glide [0 2]} true))
+(ns user)

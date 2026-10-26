@@ -3,8 +3,8 @@ import { peak } from "../tools/audio-level";
 Object.assign(globalThis, { self: globalThis, window: globalThis });
 const { libcsound } = await import("../dist/web/csound.js");
 const api = await libcsound();
-const source = await Bun.file(new URL("../src/levels.orc", import.meta.url)).text() + "\n" +
-  await Bun.file(new URL("../src/synths.orc", import.meta.url)).text();
+const source = await Bun.file(new URL("../src/instruments/common/levels.orc", import.meta.url)).text() + "\n" +
+  await Bun.file(new URL("../src/instruments/synths/voices.orc", import.meta.url)).text();
 let count = 0;
 for (const rate of [44100, 48000]) for (const scale of [1, 0.5]) {
   const engine = api.csoundCreate();

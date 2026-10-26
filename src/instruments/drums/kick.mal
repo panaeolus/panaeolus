@@ -1,0 +1,5 @@
+(ns panaeolus.instruments.drums (:require [panaeolus.catalog :as catalog]))
+(def kick (catalog/voice "panaeolus.instruments.drums/kick"
+  '[note 36 db -6 decay 0.65 sweep 24 sweep-time 0.035 click 0.15 drive 1.5 pan 0 amp 1]
+  kick-node 1 {:note [24 96] :decay [0.03 4] :sweep [0 48] :sweep-time [0.005 0.5] :click [0 1] :drive [1 10]} false))
+(ns user)

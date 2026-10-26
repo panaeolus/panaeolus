@@ -9,6 +9,16 @@
 
 (p/tempo! 120)
 
+;; Built-in drums, synths and brass; select forms to audition them.
+;; (require '[panaeolus.instruments.drums :as drums])
+;; (require '[panaeolus.instruments.synth :as synth])
+;; (require '[panaeolus.instruments.brass :as brass])
+;; (drums/kick :every [1])
+;; (drums/clap-808 :every [2] :offset 1 :db -9)
+;; (synth/tb303 :every [0.25] :note [36 43 48] :dur 0.12 :cutoff [350 700])
+;; (brass/bass-trombone :note 36 :growl 0.3)
+;; See examples/catalog.mal for the full library and sampler/stretch.
+
 ;; Return audio; Panaeolus adds the output. Defining a voice is silent.
 ;; p3 is the note's :dur in seconds.
 (p/definst pulse [hz 440 amp 0.08]

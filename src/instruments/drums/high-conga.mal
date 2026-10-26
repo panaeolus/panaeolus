@@ -1,0 +1,5 @@
+(ns panaeolus.instruments.drums (:require [panaeolus.catalog :as catalog]))
+(def high-conga (catalog/voice "panaeolus.instruments.drums/high-conga"
+  '[note 65 db -6 decay 0.45 tone 0.45 bend 3 slap 0.12 pan 0 amp 1]
+  high-conga-node 1 {:note [24 96] :decay [0.03 3] :tone [0 1] :bend [0 12] :slap [0 1]} false))
+(ns user)

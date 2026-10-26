@@ -1,0 +1,5 @@
+(ns panaeolus.instruments.brass (:require [panaeolus.catalog :as catalog]))
+(def bass-trombone (catalog/voice "panaeolus.instruments.brass/bass-trombone"
+  '[note 36 db -6 breath 0.15 bite 0.5 formant 700 brilliance 4000 vibrato 8 vibrato-rate 5 growl 0.1 attack 0.01 decay 0.2 sustain 0.75 release 0.15 glide 0.02 pan 0 amp 1]
+  bass-trombone-node 1 {:note [22 96] :breath [0 1] :bite [0 1] :formant [200 2400] :brilliance [200 12000] :vibrato [0 50] :vibrato-rate [0.1 12] :growl [0 1] :attack [0.001 8] :decay [0.001 8] :sustain [0 1] :release [0.001 4] :glide [0 2]} true))
+(ns user)

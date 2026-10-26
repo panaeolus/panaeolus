@@ -1,0 +1,67 @@
+(ns panaeolus.sampler
+  (:require [panaeolus.instrument :as instrument]
+            [panaeolus.event-loop :as loop]
+            [panaeolus.fx :as fx]
+            [panaeolus.catalog :as catalog]))
+
+(def spectral-parameters
+  '[amp 1 db -6 note 60 root 60 stretch 1 speed 1 start 0 end 1 position 0 lock 1
+    attack 0.005 decay 0.01 sustain 1 release 0.05 pan 0])
+(def spectral-ranges
+  {:note [24 96] :root [24 96] :stretch [0.125 64] :speed [-4 4]
+   :start [0 1] :end [0 1] :position [0 1] :lock [0 1 true]
+   :attack [0.001 8] :decay [0.001 8] :sustain [0 1] :release [0.001 4]})
+
+(defn spectral-options [args result]
+  (if (empty? args) result
+    (let [key (first args)]
+      (when-not (and (>= (count args) 2) (contains? {:id true :fft true :normalize true} key))
+        (throw "sampler: expected :id, :fft, or :normalize followed by a value"))
+      (when (contains? result key) (throw (str "sampler: duplicate " key)))
+      (spectral-options (drop 2 args) (assoc result key (second args))))))
+
+(defn validate-spectral [info values]
+  (catalog/validate "spectral sampler" spectral-ranges values)
+  (when-not (valid-bounds? (fx/values-of (get values :start))
+                         (fx/values-of (get values :end)) (get info :frames) 64)
+    (throw "sampler: start/end must leave at least 64 frames")))
+
+(defn spectral-graph [info fft normalized bindings]
+  (let [arguments (concat [(get info :left-table) (get info :right-table)
+                          (get info :frames) (get info :sample-rate) fft
+                          (if normalized (get info :level-gain) 1)]
+                         (catalog/parameter-names spectral-parameters))]
+    (eval (list 'let bindings (cons 'panaeolus.sampler/spectral-node arguments)))))
+
+(defn load-spectral [kind initial-stretch path args]
+  (when-not (and (string? path) (not (empty? path)))
+    (throw "sampler: supply a sound-file path"))
+  (let [settings (spectral-options args {})
+        fft (if (contains? settings :fft) (get settings :fft) 2048)
+        normalized (if (contains? settings :normalize) (get settings :normalize) true)
+        id (if (contains? settings :id) (get settings :id) (str "sample/" kind "/" path))]
+    (when-not (contains? {512 true 1024 true 2048 true 4096 true 8192 true} fft)
+      (throw "sampler: :fft must be 512, 1024, 2048, 4096, or 8192"))
+    (when-not (or (= normalized true) (= normalized false))
+      (throw "sampler: :normalize must be true or false"))
+    (when-not (or (keyword? id) (string? id))
+      (throw "sampler: :id must be a keyword or string"))
+    (let [loaded (loop/native-value "PanaeolusSampleLoad" {:path path})]
+      (when (< (get loaded :frames) fft)
+        (throw "sampler: file must contain at least one FFT window"))
+      (let [info (loop/native-value "PanaeolusSampleSplit" {:table (get loaded :table)})
+            params spectral-parameters
+            signal (spectral-graph info fft normalized (csound/param-bindings params))
+            held (spectral-graph info fft normalized
+                   (vec (concat (csound/param-bindings []) (instrument/held-bindings params 0))))
+            voice (instrument/define-instrument id params signal {:signal held})
+            spec (assoc (instrument/descriptor voice)
+                   :sample (assoc info :path path :mode kind :fft fft :normalize normalized)
+                   :validate (partial validate-spectral info))]
+        (instrument/with-release
+          (instrument/with-defaults (instrument/make-instrument spec)
+            :stretch initial-stretch :dur (* initial-stretch (get info :duration))) :release)))))
+
+(defn pitched [path & args] (load-spectral :pitched 1 path args))
+(defn stretch [path & args] (load-spectral :stretch 4 path args))
+(ns user)

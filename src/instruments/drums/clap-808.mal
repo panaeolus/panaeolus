@@ -1,0 +1,5 @@
+(ns panaeolus.instruments.drums (:require [panaeolus.catalog :as catalog]))
+(def clap-808 (catalog/voice "panaeolus.instruments.drums/clap-808"
+  '[note 60 db -6 decay 0.24 tone 1500 width 0.7 spacing 0.012 tail 0.65 seed 73 pan 0 amp 1]
+  clap-808-node 1 {:note [24 96] :decay [0.04 2] :tone [300 6000] :width [0.1 2] :spacing [0.004 0.03] :tail [0 1] :seed [1 999999 true]} false))
+(ns user)

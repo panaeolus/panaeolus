@@ -1,0 +1,5 @@
+(ns panaeolus.instruments.drums (:require [panaeolus.catalog :as catalog]))
+(def maraca (catalog/voice "panaeolus.instruments.drums/maraca"
+  '[note 60 db -6 decay 0.22 tone 6500 bandwidth 5000 roughness 0.4 seed 97 pan 0 amp 1]
+  maraca-node 1 {:note [24 96] :decay [0.03 2] :tone [1000 14000] :bandwidth [500 12000] :roughness [0 1] :seed [1 999999 true]} false))
+(ns user)

@@ -9,8 +9,8 @@ const { libcsound } = await import("../dist/web/csound.js");
 const api = await libcsound();
 const root = resolve(import.meta.dir, "..");
 const rate = 48000;
-const support = await Bun.file(resolve(root, "src/levels.orc")).text();
-const synths = await Bun.file(resolve(root, "src/synths.orc")).text();
+const support = await Bun.file(resolve(root, "src/instruments/common/levels.orc")).text();
+const synths = await Bun.file(resolve(root, "src/instruments/synths/voices.orc")).text();
 const notes = [48, 55, 60, 67, 72, 79];
 const renders: Float64Array[] = [];
 for (const [name, opcode, controls] of [

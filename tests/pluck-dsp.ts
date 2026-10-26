@@ -4,8 +4,8 @@ import { peak } from "../tools/audio-level";
 Object.assign(globalThis, { self: globalThis, window: globalThis });
 const { libcsound } = await import("../dist/web/csound.js");
 const api = await libcsound();
-const source = await Bun.file(new URL("../src/levels.orc", import.meta.url)).text() + "\n" +
-  await Bun.file(new URL("../src/plucks.orc", import.meta.url)).text();
+const source = await Bun.file(new URL("../src/instruments/common/levels.orc", import.meta.url)).text() + "\n" +
+  await Bun.file(new URL("../src/instruments/plucks/voices.orc", import.meta.url)).text();
 let count = 0;
 // Exercise parameter extremes below and above the reference register, at both
 // common engine rates and a non-unit 0dbfs. No Lisp state is needed for DSP.

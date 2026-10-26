@@ -2,7 +2,7 @@ Panaeolus
 Copyright (C) 2026 Hlöðver Sigurðsson.
 SPDX-License-Identifier: GPL-3.0-only
 
-src/flanger.orc adapts the earlier Panaeolus stereo flanger, which credits
+src/effects/flanger.orc adapts the earlier Panaeolus stereo flanger, which credits
 Iain McCurdy. It retains the original project's GPL v3 terms.
 
 vendor/make-a-lisp.orc contains Csound MAL, copyright (C) 2026 Hlöðver

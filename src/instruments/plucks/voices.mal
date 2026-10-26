@@ -1,0 +1,8 @@
+(ns panaeolus.instruments.pluck (:require [panaeolus.catalog :as catalog]))
+(def pluck (catalog/voice "panaeolus.instruments.pluck/pluck"
+  '[note 60 db -6 decay 0.8 tone 0.5 position 0.23 pan 0 amp 1]
+  string-node 1 {:note [24 96] :decay [0.02 8] :tone [0 1] :position [0.05 0.95]} false))
+(def fmpluck (catalog/voice "panaeolus.instruments.pluck/fmpluck"
+  '[note 60 db -6 decay 0.8 ratio 1.5 index 2.5 pan 0 amp 1]
+  fm-node 1 {:note [24 96] :decay [0.02 8] :ratio [0.25 8] :index [0 8]} false))
+(ns user)

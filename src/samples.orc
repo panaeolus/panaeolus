@@ -3,6 +3,8 @@
 ;; 64 MiB text limit because Base64 expands the embedded double-precision WAVs.
 panaeolusSamplePaths@global:S[] init 256
 panaeolusSampleTables@global:i[] init 256
+panaeolusSampleLeft@global:i[] init 256
+panaeolusSampleRight@global:i[] init 256
 panaeolusSampleFrames@global:i[] init 256
 panaeolusSampleChannels@global:i[] init 256
 panaeolusSampleRates@global:i[] init 256
@@ -20,6 +22,8 @@ panaeolusSampleExportOccupied@global:i[] init 16
 opcode PanaeolusSampleInfo(index:i):MalValue
   result:MalValue init MalMkValue($MAL_HASH_MAP_TYPE)
   result init MalMapAssoc(result, MalMkKeyword("table"), MalMkNumber(panaeolusSampleTables[index]))
+  result init MalMapAssoc(result, MalMkKeyword("left-table"), MalMkNumber(panaeolusSampleLeft[index]))
+  result init MalMapAssoc(result, MalMkKeyword("right-table"), MalMkNumber(panaeolusSampleRight[index]))
   result init MalMapAssoc(result, MalMkKeyword("frames"), MalMkNumber(panaeolusSampleFrames[index]))
   result init MalMapAssoc(result, MalMkKeyword("channels"), MalMkNumber(panaeolusSampleChannels[index]))
   result init MalMapAssoc(result, MalMkKeyword("sample-rate"), MalMkNumber(panaeolusSampleRates[index]))
@@ -120,6 +124,39 @@ opcode PanaeolusSampleLoad(token:i):i
   PanaeolusLoopReply(token, result)
   status:i = 0
   xout status
+endop
+
+opcode PanaeolusSampleSplit(token:i):i
+  request:MalValue init PanaeolusLoopRequest(token)
+  table:MalValue init MalMapGet(request, MalMkKeyword("table"))
+  result:MalValue init MalMkError("sample: unknown table")
+  if (panaeolusSampleCount > 0) ithen
+    for index in [0 ... panaeolusSampleCount - 1] do
+      if (table.type == $MAL_NUMBER_TYPE && table.number == panaeolusSampleTables[index]) ithen
+        frames:i = panaeolusSampleFrames[index]
+        channels:i = panaeolusSampleChannels[index]
+        if (panaeolusSampleLeft[index] > 0) ithen
+          result init PanaeolusSampleInfo(index)
+        elseif (frames * channels > 10000000 - panaeolusSampleValues) ithen
+          result init MalMkError("sample: spectral channel tables exceed ten million stored sample values")
+        else
+          PanaeolusLoopReply(token, MalMkError("sample: could not split audio channels"))
+          left:i = PanaeolusSampleChannel(table.number, 0, frames, channels, 0)
+          right:i = left
+          if (channels == 2) ithen
+            right = PanaeolusSampleChannel(table.number, 0, frames, channels, 1)
+          endif
+          panaeolusSampleLeft[index] = left
+          panaeolusSampleRight[index] = right
+          panaeolusSampleValues += frames * channels
+          result init PanaeolusSampleInfo(index)
+        endif
+        break
+      endif
+    od
+  endif
+  PanaeolusLoopReply(token, result)
+  xout 0
 endop
 
 opcode PanaeolusSampleExportFailure(message:S):void
@@ -300,6 +337,14 @@ opcode PanaeolusSampleOrchestra():S
     for index in [0 ... panaeolusTakeSamples - 1] do
       result strcat result, sprintf("panaeolusSample%d@global:i ftgen %d, 0, 0, -1, \"%s\", 0, 0, 0\n", \
         index, panaeolusSampleTables[index], panaeolusSampleNames[index])
+      if (panaeolusSampleLeft[index] > 0) ithen
+        result strcat result, sprintf("panaeolusLeft%d@global:i = PanaeolusSampleChannel(%d, %d, %d, %d, 0)\n", \
+          index, panaeolusSampleTables[index], panaeolusSampleLeft[index], panaeolusSampleFrames[index], panaeolusSampleChannels[index])
+        if (panaeolusSampleChannels[index] == 2) ithen
+          result strcat result, sprintf("panaeolusRight%d@global:i = PanaeolusSampleChannel(%d, %d, %d, 2, 1)\n", \
+            index, panaeolusSampleTables[index], panaeolusSampleRight[index], panaeolusSampleFrames[index])
+        endif
+      endif
     od
   endif
   xout result

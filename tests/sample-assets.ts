@@ -10,7 +10,8 @@ const source = await Bun.file(resolve(import.meta.dir, "../src/samples.orc")).te
 const loader = source.indexOf("opcode PanaeolusSampleInfo(");
 const exporter = source.indexOf("opcode PanaeolusSampleExportFailure(");
 assert.ok(loader >= 0 && exporter > loader);
-const nativeSource = source.slice(0, loader) + source.slice(exporter);
+const nativeSource = await Bun.file(new URL("../src/instruments/samplers/channels.orc", import.meta.url)).text() +
+  source.slice(0, loader) + source.slice(exporter);
 
 function wave(data: number[], channels: number, rate: number, bits: 32 | 64) {
   const bytes = Buffer.alloc(44 + data.length * bits / 8);

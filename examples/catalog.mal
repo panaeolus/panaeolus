@@ -1,0 +1,51 @@
+;; Evaluate the setup, then individual calls. p/stop-all! stops the arrangement.
+(ns catalogue
+  (:require [panaeolus.instrument :as p]
+            [panaeolus.instruments.drums :as drums]
+            [panaeolus.instruments.synth :as synth]
+            [panaeolus.instruments.brass :as brass]
+            [panaeolus.sampler :as sampler]
+            [panaeolus.fx :as fx]))
+(p/tempo! 120)
+(drums/kick :every [1])
+(drums/clap-808 :every [2] :offset 1 :db -9)
+(drums/maraca :every [0.5] :offset 0.25 :db [-14 -18])
+(synth/tb303 :every [0.25 0.25 0.5] :note [36 36 43 48 46]
+  :dur 0.13 :cutoff [350 700 1400] :accent [0 0.8] :db -9)
+
+;; More drums, all with controllable pitch and decay:
+;; (drums/high-conga :every [0.5 0.25 0.75] :slap [0.1 0.3])
+;; (drums/mid-conga)
+;; (drums/low-conga)
+
+;; One-shot auditions:
+;; (synth/asfm :asymmetry 0.7 :index 4)
+;; (synth/nuclear :note 36 :detune 20 :drive 3)
+;; (synth/organ :sub 0.8 :fifth 0.4 :rotary 0.6)
+;; (synth/pm :ratio1 0.5 :ratio2 3 :index3 4)
+;; (synth/pulser :harmonics 12 :env 4)
+;; (synth/sweet :pulse 0.3 :motion 0.25)
+;; (synth/wobbly :note 36 :bpm 120 :division 0.5 :dur 2)
+;; (synth/pmdub :note 36 :spread 0.6 :depth 0.8)
+;; (brass/bass-trombone :note 36 :growl 0.4 :breath 0.2)
+
+;; Silent plans compose without playing during construction:
+;; (def opening (p/pattern synth/asfm :every [0.5] :note [60 67 72]))
+;; (def ending (p/pattern synth/sweet :every [1] :note [64 67] :dur 0.8))
+;; (def song (p/then (p/for-beats 4 opening) (p/for-beats 4 ending)))
+;; (song)
+
+;; Held effects stay attached across control edits:
+;; (synth/organ :id :drone :legato true :note 48 :attack 0.5 :release 1
+;;   :fx (fx/flanger :rate 0.2))
+;; (synth/organ :id :drone :legato true :note 55 :rotary 0.8 :release 1
+;;   :fx (fx/flanger :rate 0.2))
+;; (p/stop! :drone)
+
+;; Import a file into the playground first:
+;; (def sample (sampler/pitched "sample.wav"))
+;; (sample :every [0.5] :note [60 67 72] :dur 0.3)
+;; (def texture (sampler/stretch "sample.wav" :fft 4096))
+;; (texture :legato true :stretch 8 :note 48 :release 0.5)
+;; (texture :legato true :speed 0 :position 0.3 :release 0.5)
+;; (p/stop-all!)

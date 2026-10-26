@@ -1,0 +1,44 @@
+(ns panaeolus.catalog
+  (:require [panaeolus.instrument :as p]
+            [panaeolus.fx :as fx]
+            [panaeolus.level :as level]))
+
+(defn parameter-names [params]
+  (if (empty? params) [] (cons (first params) (parameter-names (drop 2 params)))))
+
+(defn graph [params node held]
+  (let [bindings (if held (vec (concat (csound/param-bindings []) (p/held-bindings params 0))) (csound/param-bindings params))]
+    (apply node (eval (list 'let (vec bindings) (vec (parameter-names params)))))))
+
+(defn bounded-value? [value bounds]
+  (and (>= value (first bounds)) (<= value (second bounds))
+       (or (not (= 3 (count bounds))) (= 0 (mod value 1)))))
+
+(defn bounded-sequence? [values bounds]
+  (if (empty? values) true
+    (and (bounded-value? (first values) bounds)
+         (bounded-sequence? (rest values) bounds))))
+
+(defn bounded-controls? [keys bounds values]
+  (if (empty? keys) true
+    (let [key (first keys) value (get values key) limits (get bounds key)]
+      (and (if (vector? value) (bounded-sequence? value limits) (bounded-value? value limits))
+           (bounded-controls? (rest keys) bounds values)))))
+
+(defn validate [id bounds values]
+  (level/validate values)
+  ;; Named recursion avoids retaining a new closure and all control vectors
+  ;; on every edit. The interpreter retains captured environments.
+  (when-not (bounded-controls? (keys bounds) bounds values)
+    (throw (str id ": controls outside ranges " (pr-str bounds)))))
+
+(defn realize [id params node duration bounds held]
+  (let [voice (p/define-instrument id params (graph params node false)
+                (if held {:signal (graph params node true)} {:error "this voice retriggers each note"}))
+        configured (p/with-validator (p/with-defaults voice :dur duration)
+                     (partial validate id bounds))]
+    (if held (p/with-release configured :release) configured)))
+
+(defn voice [id params node duration bounds held]
+  (p/defer id (partial realize id params node duration bounds held)))
+(ns user)

@@ -104,7 +104,7 @@ Both take `note` (MIDI 24..96), `db` (-96..12), `decay` (0.02..8 seconds to
 -60 dB), `pan` (-1..1), and linear `amp` (0..4). Defaults are note 60, db -6,
 decay 0.8, pan 0, amp 1, duration 1 second. String defaults: tone 0.5,
 position 0.23; FM defaults: ratio 1.5, index 2.5. Positional order follows the
-parameter declarations in `src/panaeolus/instruments/pluck.mal`. These are
+parameter declarations in `src/instruments/plucks/voices.mal`. These are
 retriggered voices, so `:legato true` is rejected. Patterns, composition, and
 FX use the same calls as other instruments.
 
@@ -157,6 +157,79 @@ Run `bun run synths:render` for `dist/synths-preview.wav`: hammer, then lush.
 Custom held voices can opt in with `(p/with-release voice :release)` when
 their DSP honors Csound's release flag and finishes within that control's
 duration. Other held voices keep their immediate stop behavior.
+
+## Instrument library
+
+Sources live in `src/instruments/{drums,plucks,synths,brass,samplers}`;
+shared controls live in `common`, and effects in `src/effects`. Built-in
+instruments compile on first use. Calling one without arguments plays its
+default note; `p/pattern` prepares it without playing. All accept `:every`,
+independent parameter vectors, named/positional arguments, composition, and FX.
+
+| Namespace suffix | Instruments | Main sound controls |
+| --- | --- | --- |
+| `instruments.drums` | `kick` | sweep, sweep-time, click, drive, decay |
+| | `clap-808` | tone, width, spacing, tail, seed |
+| | `high-conga`, `mid-conga`, `low-conga` | tone, bend, slap, decay |
+| | `maraca` | tone, bandwidth, roughness, seed, decay |
+| `instruments.synth` | `asfm` | ratio, index, asymmetry, cutoff |
+| | `nuclear` | detune, cutoff, resonance, sub, width, drive |
+| | `organ` | six drawbars, percussion, rotary, rotary-rate |
+| | `pm` | three ratios and indices, brightness |
+| | `pulser` | harmonics, cutoff, resonance, env, env-decay |
+| | `sweet` | detune, pulse, motion, rate, cutoff, resonance |
+| | `tb303` | wave, cutoff, resonance, env, env-decay, accent, drive |
+| | `wobbly` | bpm, division, depth, shape, cutoff, resonance, sub, drive |
+| | `pmdub` | ratio, index, spread, motion, depth, sub, drive |
+| `instruments.brass` | `bass-trombone` | breath, bite, formant, brilliance, vibrato, vibrato-rate, growl |
+
+These are new designs based on the old instruments' roles. The brass voice
+needs no external tables. Noise uses fixed seeds so recordings replay exactly.
+Each `.mal` file lists the parameter order, defaults, and bounds.
+The new synths and brass support `:legato true`, ADSR controls, and pitch glide;
+drums retrigger. A held edit keeps its oscillators and envelope running.
+For `wobbly`, `:division` is beats per wobble at its explicit `:bpm` setting;
+set that BPM when changing the session tempo.
+
+All default to `:db -6`, `:amp 1`, `:pan 0`, and a one-second note.
+The new voices use the same −18 LUFS reference at `:db 0`: six one-second
+notes at MIDI 48, 55, 60, 67, 72, 79; drums repeat their default pitch.
+Run `bun run catalog:render` for a WAV per voice. Changes to timbre, envelope,
+register, or overlapping notes can change loudness and peak level.
+
+```clojure
+(require '[panaeolus.instruments.drums :as drums])
+(require '[panaeolus.instruments.synth :as synth])
+(drums/kick :every [1])
+(drums/clap-808 :every [2] :offset 1)
+(synth/tb303 :every [0.25] :note [36 36 43 48] :dur 0.12
+  :cutoff [350 700 1400] :accent [0 0.8])
+```
+
+`sampler/pitched` and `sampler/stretch` load stereo or mono files for independent
+pitch and time control with `mincer`. `pitched` starts at normal speed;
+`stretch` starts four times slower. Both return the same callable instrument:
+
+```clojure
+(def texture (sampler/stretch "texture.wav" :fft 2048))
+(texture :legato true :note 60 :root 60 :stretch 8)
+(texture :legato true :speed 0 :position 0.4)
+(p/stop! texture)
+```
+
+`note` and `root` are MIDI pitches (24..96). `stretch` is 0.125..64;
+`speed` is −4..4, with negative values reversing and zero freezing playback.
+`start`, `end`, and `position` are fractions (0..1); position is an offset
+within the selected region. FFT windows can include audio just outside that
+region. `lock` is phase locking (0 or 1).
+ADSR and `:release` work as for synths. `:fft` is a load option:
+512, 1024, 2048, 4096, or 8192; larger windows soften transients and add latency.
+The player briefly feeds silence at startup to clear old phase history.
+A file must contain one full window. Normalization follows the sampler's
+shared reference; spectral edits can change the result. Split channel tables
+are cached once, count toward the sample memory limit, and export with the CSD.
+
+See `examples/catalog.mal` for a small arrangement and individual calls.
 
 ## Playground
 

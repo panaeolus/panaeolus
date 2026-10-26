@@ -1,6 +1,6 @@
 Make a 30-second house / electro / disco performance for Panaeolus, a Lisp live-coding environment running in one Csound engine. Use only sampled instruments. At 128 BPM, 64 beats last exactly 30 seconds.
 
-Read README.md, examples/disco-demo/demo.ts, and src/panaeolus/sampler.mal first. Use the existing sample-based demo as a working example, not as a fixed arrangement. Aim for a punchy kick, offbeat hats, claps on beats 2 and 4, syncopated octave bass, warm minor-seventh chord stabs, a short melodic hook, a breakdown, and a final return. Use original generated samples or files whose license permits redistribution. Do not download copyrighted song recordings.
+Read README.md, examples/disco-demo/demo.ts, and src/instruments/samplers/flooper.mal first. Use the existing sample-based demo as a working example, not as a fixed arrangement. Aim for a punchy kick, offbeat hats, claps on beats 2 and 4, syncopated octave bass, warm minor-seventh chord stabs, a short melodic hook, a breakdown, and a final return. Use original generated samples or files whose license permits redistribution. Do not download copyrighted song recordings.
 
 Actual API:
   (require '[panaeolus.instrument :as p]

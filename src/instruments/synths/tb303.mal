@@ -1,0 +1,5 @@
+(ns panaeolus.instruments.synth (:require [panaeolus.catalog :as catalog]))
+(def tb303 (catalog/voice "panaeolus.instruments.synth/tb303"
+  '[note 40 db -6 wave 0.2 cutoff 500 resonance 0.65 env 3.5 env-decay 0.25 accent 0.2 drive 2 attack 0.01 decay 0.2 sustain 0.75 release 0.15 glide 0.02 pan 0 amp 1]
+  tb303-node 1 {:note [24 96] :wave [0 1] :cutoff [40 12000] :resonance [0 0.85] :env [0 6] :env-decay [0.01 4] :accent [0 1] :drive [1 12] :attack [0.001 8] :decay [0.001 8] :sustain [0 1] :release [0.001 4] :glide [0 2]} true))
+(ns user)

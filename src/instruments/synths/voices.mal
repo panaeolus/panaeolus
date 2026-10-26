@@ -1,0 +1,11 @@
+(ns panaeolus.instruments.synth (:require [panaeolus.catalog :as catalog]))
+(def hammer (catalog/voice "panaeolus.instruments.synth/hammer"
+  '[note 48 db -6 decay 1.2 hardness 0.5 metal 0.3 pan 0 amp 1]
+  hammer-node 1 {:note [24 96] :decay [0.02 8] :hardness [0 1] :metal [0 1]} false))
+(def lush (catalog/voice "panaeolus.instruments.synth/lush"
+  '[note 60 db -6 cutoff 3500 resonance 0.2 detune 8 width 0.7
+    attack 0.04 decay 0.2 sustain 0.75 release 0.2 glide 0.02 pan 0 amp 1]
+  lush-node 1 {:note [24 96] :cutoff [20 20000] :resonance [0 0.8] :detune [0 40]
+    :width [0 1] :attack [0.001 8] :decay [0.001 8] :sustain [0 1]
+    :release [0.001 4] :glide [0 2]} true))
+(ns user)

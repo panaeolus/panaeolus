@@ -40,6 +40,9 @@ opcode PanaeolusBoot():MalEnv
   sampler:MalValue init MalMkCsoundOpcode("PanaeolusSampler", "a,a")
   sampler init MalAppendValue(sampler, MalCsoundSignature("a,a", "i,k,k,k,k,k,i,k", 8, "", 0))
   env init MalEnvSet(env, "panaeolus.sampler/player-node", sampler)
+  spectral:MalValue init MalMkCsoundOpcode("PanaeolusSpectral", "a,a")
+  spectral init MalAppendValue(spectral, MalCsoundSignature("a,a", "i,i,i,i,i,i,k,k,k,k,k,k,k,k,k,k,k,k,k,k,k", 21, "", 0))
+  env init MalEnvSet(env, "panaeolus.sampler/spectral-node", spectral)
   pluckNs:i = MalNsEnsure(env, "panaeolus.instruments.pluck", 1)
   pluck:MalValue init MalMkCsoundOpcode("PanaeolusPluck", "a,a")
   pluck init MalAppendValue(pluck, MalCsoundSignature("a,a", "i,i,i,i,i,i,i", 7, "", 0))
@@ -54,16 +57,12 @@ opcode PanaeolusBoot():MalEnv
   lush:MalValue init MalMkCsoundOpcode("PanaeolusLush", "a,a")
   lush init MalAppendValue(lush, MalCsoundSignature("a,a", "k,k,k,k,k,k,k,k,k,k,k,k,k", 13, "", 0))
   env init MalEnvSet(env, "panaeolus.instruments.synth/lush-node", lush)
+  @@PANAEO_CATALOG@@
   routingNs:i = MalNsEnsure(env, "panaeolus.routing", 1)
   heldGuard:MalValue init MalMkCsoundOpcode("PanaeolusHeldGuard", "")
   heldGuard init MalAppendValue(heldGuard, MalCsoundSignature("", "i", 1, "", 0))
   env init MalEnvSet(env, "panaeolus.routing/held-guard-node", heldGuard)
-  source:S init @@PANAEO_LISP@@
-  result:MalValue, env = MalEvalFormsEnv(source, env)
-  if (result.type == $MAL_ERROR_TYPE) ithen
-    prints "Panaeolus bootstrap failed: %s\n", result.string
-    exitnow(1)
-  endif
+  @@PANAEO_LISP@@
   xout env
 endop
 
