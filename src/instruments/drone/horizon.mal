@@ -1,0 +1,5 @@
+(ns panaeolus.instruments.drone (:require [panaeolus.catalog :as catalog]))
+(def horizon (catalog/voice "panaeolus.instruments.drone/horizon"
+  '[note 48 db -6 detune 14 drift 5 color 0.55 motion 0.35 rate 0.12 cutoff 3500 width 0.8 attack 0.25 decay 0.5 sustain 0.85 release 1 glide 0.15 pan 0 amp 1]
+  horizon-node 1 {:note [24 96] :detune [0 40] :drift [0 20] :color [0 1] :motion [0 1] :rate [0.02 2] :cutoff [200 14000] :width [0 1] :attack [0.001 8] :decay [0.001 8] :sustain [0 1] :release [0.001 4] :glide [0 2]} true))
+(ns user)

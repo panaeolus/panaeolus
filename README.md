@@ -416,6 +416,38 @@ Shape changes and overlapping notes can change perceived loudness.
 See `examples/waveshaping.mal`. Run `bun run build` then
 `bun run waveshaping:render` for a six-note WAV preview per voice.
 
+## Drone instruments
+
+`panaeolus.instruments.drone` contains three held-voice designs:
+
+| Voice | Sound | Main controls |
+| --- | --- | --- |
+| `horizon` | Detuned saw/triangle layers with slow drift | detune 0..40 cents, drift 0..20 cents, color/motion/width 0..1, cutoff 200..14000 Hz |
+| `undertow` | Slowly changing FM with a clean sub | index 0..6, ratio 0.25..5, motion/sub 0..1, detune 0..30 cents, cutoff 200..16000 Hz |
+| `aether` | Seeded noise and sines through a pitched resonator bank | focus/air/motion 0..1, stretch 0.8..1.3, bandwidth 0.01..0.5, detune 0..30 cents |
+
+`rate` is slow motion in Hz (0.02..2). Horizon's `color` blends triangle to
+saw. Aether's `focus` raises the upper resonators, `stretch` changes their
+spacing, and `bandwidth` is a fraction of each resonator's frequency.
+Undertow filters its FM output before downsampling from four times the host
+rate. Each voice keeps its phases and filter state during held edits.
+
+All accept note, db, ADSR, glide, pan, and amp; defaults use a 0.25-second
+attack and one-second release. A plain call plays a one-second note; use
+`:legato true` to hold it. Patterns, composition, FX, and CSD export work as
+usual. The default-sound reference remains −18 LUFS at `:db 0`, with `:db -6`
+as the default. Long sustains and timbre changes can change loudness.
+
+```clojure
+(require '[panaeolus.instruments.drone :as drone])
+(drone/horizon :legato true :note 36 :attack 2 :db -12)
+(drone/horizon :legato true :note 43 :color 0.8 :drift 12 :db -12)
+(p/stop! drone/horizon)
+```
+
+See `examples/drone.mal`. Run `bun run build` then `bun run drone:render`
+for previews.
+
 ## Playground
 
 Requires [Bun](https://bun.sh) 1.3.13 or later.

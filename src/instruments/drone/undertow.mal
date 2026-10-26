@@ -1,0 +1,5 @@
+(ns panaeolus.instruments.drone (:require [panaeolus.catalog :as catalog]))
+(def undertow (catalog/voice "panaeolus.instruments.drone/undertow"
+  '[note 48 db -6 index 2.4 ratio 1.5 motion 0.6 rate 0.09 detune 9 sub 0.35 cutoff 6000 attack 0.25 decay 0.5 sustain 0.85 release 1 glide 0.15 pan 0 amp 1]
+  undertow-node 1 {:note [24 96] :index [0 6] :ratio [0.25 5] :motion [0 1] :rate [0.02 2] :detune [0 30] :sub [0 1] :cutoff [200 16000] :attack [0.001 8] :decay [0.001 8] :sustain [0 1] :release [0.001 4] :glide [0 2]} true))
+(ns user)

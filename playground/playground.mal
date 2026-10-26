@@ -186,3 +186,15 @@
 ;; (ws/phasewarp :legato true :note 48 :bend -0.6 :attack 0.4)
 ;; (ws/phasewarp :legato true :note 55 :bend 0.4 :skew -0.3)
 ;; (p/stop! ws/phasewarp)
+
+;; Drone voices: select edits separately while the note stays held.
+;; (require '[panaeolus.instruments.drone :as drone])
+;; (p/stop-all!)
+;; (drone/horizon :legato true :note 36 :attack 2 :db -12)
+;; (drone/horizon :legato true :note 43 :color 0.8 :drift 12 :db -12)
+;; (p/stop! drone/horizon)
+;; (drone/undertow :legato true :note 36 :ratio 1.5 :index 3 :db -12)
+;; (drone/undertow :legato true :note 36 :ratio 2.03 :index 5 :db -12)
+;; (p/stop! drone/undertow)
+;; (drone/aether :legato true :note 48 :air 0.8 :stretch 1.2 :attack 2 :db -12)
+;; (p/stop! drone/aether)
