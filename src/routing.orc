@@ -521,6 +521,7 @@ opcode PanaeolusRecordStop():i
       panaeolusTakeReady = 1
       panaeolusTakeDefinitions = panaeolusDefinitionCount
       panaeolusTakeSamples = panaeolusSampleCount
+      panaeolusTakeAnalyses = panaeolusAnalysisCount
       chnset 1, "__panaeolus_take_ready"
     else
       result = PanaeolusRoutingFailure("record: recording stopped after an error; the incomplete take cannot be exported")
@@ -550,6 +551,7 @@ opcode PanaeolusExport():i
       result = PanaeolusRoutingFailure("export: routing support has not been registered")
     else
       sampleFiles:S init PanaeolusSampleFiles()
+      analysisFiles:S init PanaeolusAnalysisExport()
       sampleStatus:i chnget "__panaeolus_sample_export_status"
       if (sampleStatus < 0) ithen
         chnset "", "__panaeolus_export"
@@ -560,6 +562,7 @@ opcode PanaeolusExport():i
       document strcat document, panaeolusDefinitionSources[base]
       document strcat document, "\n"
       document strcat document, PanaeolusSampleOrchestra()
+      document strcat document, chnget:S("__panaeolus_analysis_orchestra")
       if (panaeolusTakeDefinitions > 0) ithen
         for index in [0 ... panaeolusTakeDefinitions - 1] do
           if (index != base && panaeolusRecordedUsed[panaeolusDefinitionNumbers[index]] == 1) ithen
@@ -578,6 +581,7 @@ opcode PanaeolusExport():i
       duration:i = max(ksmps / sr, panaeolusRecordEnd - panaeolusRecordOrigin + ksmps / sr)
       document strcat document, sprintf("f 0 %.17g\ne\n</CsScore>\n", duration)
       document strcat document, sampleFiles
+      document strcat document, analysisFiles
       document strcat document, "</CsoundSynthesizer>\n"
       chnset document, "__panaeolus_export"
     endif

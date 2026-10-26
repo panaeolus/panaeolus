@@ -265,9 +265,13 @@ function evaluate(code: string): Promise<void> {
 function importSample(file: File): Promise<void> {
   return serialize(async () => {
     if (stopRequested) return;
-    if (!engine || state !== "running") throw new Error("Start the engine before importing a sample.");
+    if (!engine || state !== "running") throw new Error("Start the engine before importing a file.");
     const currentEngine = engine;
-    const path = importedSamplePath(file.name, file.size, crypto.randomUUID());
+    const module = file.name.toLowerCase().endsWith(".mal");
+    if (module && (file.size <= 0 || file.size > 2 * 1024 * 1024))
+      throw new Error("Choose a nonempty MAL module up to 2 MiB.");
+    const path = module ? `panaeolus-module-${crypto.randomUUID()}.mal`
+      : importedSamplePath(file.name, file.size, crypto.randomUUID());
     importing = true;
     setState("running");
     try {
@@ -275,10 +279,15 @@ function importSample(file: File): Promise<void> {
       if (stopRequested) return;
       await currentEngine.fs.writeFile(path, bytes);
       if (stopRequested) return;
-      const name = `sample-${++sampleNumber}`;
       log(`Imported ${JSON.stringify(file.name)}. This file stays in the current engine session.`, "info");
-      log(`(require '[panaeolus.sampler :as sampler])\n(def ${name} ${sampleLoadForm(path)})`, "input");
-      log(`Evaluate these forms, then (${name}) to play.`, "info");
+      if (module) {
+        log(`(load-file ${JSON.stringify(path)})`, "input");
+        log("Evaluate this form before starting loops, then call the instrument named in the module.", "info");
+      } else {
+        const name = `sample-${++sampleNumber}`;
+        log(`(require '[panaeolus.sampler :as sampler])\n(def ${name} ${sampleLoadForm(path)})`, "input");
+        log(`Evaluate these forms, then (${name}) to play.`, "info");
+      }
       sampleInput.value = "";
     } finally {
       importing = false;

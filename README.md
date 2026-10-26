@@ -87,6 +87,66 @@ synchronously in Csound. File sample rates above 384 kHz are rejected.
 Samples loaded before finishing a take are embedded in the exported CSD,
 including unused samples. Exports allow up to 64 MiB of embedded sample text.
 
+## Additive voices
+
+```clojure
+(require '[panaeolus.instruments.additive :refer [harmonic formant glass prism]])
+(harmonic :every [0.25 0.5] :note [36 43 48] :tilt [0.8 1.5] :dur 0.2)
+(formant :legato true :note 48 :formant 900 :bandwidth 450 :attack 0.4)
+(glass :every [0.5 0.75] :note [60 67 72] :stretch 1.4 :dur 1.5)
+(prism :every [2] :note [48 55] :stretch [1 1.04] :motion 0.3 :dur 1.8)
+```
+
+| Voice | Sound and controls |
+| --- | --- |
+| `harmonic` | 24 partials; spectral `tilt`, `odd` balance, stereo `detune` in cents, `width`. |
+| `formant` | 32 partials; `formant` and `bandwidth` in Hz, low harmonic `body`, `vibrato` in cents, `rate` in Hz, `width`. |
+| `glass` | 16 struck partials; frequency `stretch`, upper-partial `damping`, spectral `color`, `beating` in Hz, `width`. |
+| `prism` | 32 partials; frequency `stretch`, spectral `tilt`, comb `spacing` in partials, `motion` in cycles/second, `depth`, `width`. |
+
+All take MIDI `note`, `db`, ADSR in seconds (`sustain` is a level), `glide`,
+`pan`, and `amp`. Width runs from 0 to 1. Each partial fades out before Nyquist.
+`harmonic`, `formant`, and `prism` support held edits; `glass` retriggers its
+decay. The declarations in `src/instruments/additive` list positional order,
+defaults, and ranges. See `examples/additive.mal` for FX and composition.
+`bun run additive:render` writes four preview WAVs to `dist/`.
+
+Analyze a steady pitched recording with native Csound's
+[HETRO utility](https://csound.com/docs/manual/hetro.html), then play it with
+[adsyn](https://csound.com/docs/manual/adsyn.html) in the browser:
+
+```sh
+bun run build
+bun run hetro brass.wav brass.mal --name brass --root 60 --duration 3 --partials 24
+```
+
+Use a source whose pitch matches MIDI `--root`. Options also include `--begin`
+in seconds, `--channel` (one-based), and `--points` (breakpoints per track).
+Analysis takes 0.05–30 seconds of one channel. Set `CSOUND_BIN` to choose a
+native Csound executable. The local September 22 Csound 7 build has a HETRO
+writer bounds bug; an affected build must be fixed before using this command.
+An existing text `.het` input skips native analysis and still measures gain.
+`examples/analysed-brass.mal` is ready to import without running the analyzer;
+it defines `resynth` from an original synthesized source.
+
+Import the generated `.mal` with the playground's **Import file**, then
+evaluate the printed `load-file` form before starting loops:
+
+```clojure
+(brass) ; one note at the source pitch and duration
+(brass :every [1] :note [60 67 72] :speed [0.5 1 2] :dur 0.8)
+```
+
+The module includes its analysis and measured gain. Pitch and positive
+`speed` are independent; `:dur` stays in seconds. These finite tracks
+retrigger, so they reject legato, reverse, and zero speed. Pitch is limited
+by the highest analyzed frequency and engine sample rate. Very small control
+blocks also raise the minimum speed to fit adsyn's time resolution. ADSR, `pan`, `amp`,
+FX, and composition work as usual. Gain targets -18 LUFS at `db 0`, capped at
+24 dB of boost and 3 dB of peak headroom. Imports are silent and cached;
+recorded CSDs embed analyses loaded before the take finishes, including
+unused ones. Limits: 64 analyses, 256 KiB per analysis, 8 MiB of embedded text.
+
 ## Plucks and levels
 
 ```clojure

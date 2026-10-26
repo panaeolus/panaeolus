@@ -1,0 +1,5 @@
+(ns panaeolus.instruments.additive (:require [panaeolus.catalog :as catalog]))
+(def formant (catalog/voice "panaeolus.instruments.additive/formant"
+  '[note 60 db -6 formant 1200 bandwidth 700 body 0.3 vibrato 8 rate 4.8 width 0.6 attack 0.01 decay 0.2 sustain 0.75 release 0.15 glide 0.02 pan 0 amp 1]
+  formant-node 1 {:note [24 96] :formant [150 8000] :bandwidth [50 4000] :body [0 1] :vibrato [0 50] :rate [0.05 15] :width [0 1] :attack [0.001 8] :decay [0.001 8] :sustain [0 1] :release [0.001 4] :glide [0 2]} true))
+(ns user)

@@ -1,0 +1,19 @@
+(ns panaeolus.instruments.additive
+  (:require [panaeolus.catalog :as catalog] [panaeolus.instrument :as p]))
+
+;; Used by modules from tools/hetro.ts. Analysis runs offline; loading this
+;; callable is silent. Each note restarts the file's finite breakpoint tracks.
+(defn analysis-voice [path root trim duration top]
+  (let [params '[note 60 db -6 speed 1 attack 0.005 decay 0.01 sustain 1 release 0.05 pan 0 amp 1]
+        maximum (csound/eval (str "return min(96, " root " + 12 * log(0.45 * sr / " top ") / log(2))"))
+        minimum-speed (csound/eval "return max(0.01, kr / 512000)")
+        bounds {:note [24 maximum] :speed [minimum-speed 8] :attack [0.001 8] :decay [0.001 8]
+                :sustain [0 1] :release [0.001 4]}
+        arguments (concat [path root trim top] (catalog/parameter-names params))
+        graph (eval (list 'let (csound/param-bindings params)
+                     (cons 'panaeolus.instruments.additive/adsyn-node arguments)))
+        voice (p/define-instrument (str "analysis/" path) params graph
+                {:error "adsyn plays finite analysis tracks; retrigger with :every"})]
+    (p/with-validator (p/with-defaults voice :note root :dur duration)
+      (partial catalog/validate "adsyn" bounds))))
+(ns user)

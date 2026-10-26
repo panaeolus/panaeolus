@@ -5,6 +5,10 @@
 /.cache/
 /.worktrees/
 
+# Native analysis imports and CSD extraction use these reserved file names.
+panaeolus-hetro-*.het
+__panaeolus_analysis_*.het
+
 # Local configuration and editor files. Keep examples and bun.lock tracked.
 .env
 .env.*

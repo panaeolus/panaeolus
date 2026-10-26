@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { catalog, render, root } from "./catalog-audio";
 import { loudness, peak, pcmWave } from "./audio-level";
-for (const voice of catalog) {
+for (const voice of catalog.filter(v => !process.env.CATALOG_CATEGORY || v.category === process.env.CATALOG_CATEGORY)) {
   const audio = await render(voice);
   console.log(`${voice.name}: ${loudness(audio, 48000).toFixed(2)} LUFS, peak ${peak(audio).toFixed(4)} at :db 0`);
   if (process.argv.includes("--calibrate")) {

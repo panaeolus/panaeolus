@@ -1,0 +1,62 @@
+;; Independent partial banks; each note owns its oscillator phases.
+PanaeolusFormantTrim@global:i init -18.195
+
+opcode PanaeolusFormantBank(hz:k, formant:k, bandwidth:k, body:k, vibrato:k, rate:k, width:k, partial:i):(a,a)
+  center:k = exp(-0.5 * pow((hz * partial - formant) / bandwidth, 2))
+  weight:k = center / sqrt(partial) + body / pow(partial, 1.5)
+  movement:k poscil vibrato, rate, -1, frac(0.17 * partial)
+  hzL:k = hz * partial * cent(movement - width * 2)
+  hzR:k = hz * partial * cent(movement + width * 2)
+  ;; Fade partials before Nyquist instead of folding high notes into the bass.
+  gainL:k = weight * limit((sr * 0.45 - hzL) / (sr * 0.05), 0, 1)
+  gainR:k = weight * limit((sr * 0.45 - hzR) / (sr * 0.05), 0, 1)
+  left:a poscil gainL, min(hzL, sr * 0.45), -1, frac(partial * 0.61803398875)
+  right:a poscil gainR, min(hzR, sr * 0.45), -1, frac(partial * 0.61803398875)
+  xout left, right
+endop
+
+opcode PanaeolusFormant(note:k, db:k, formant:k, bandwidth:k, body:k, vibrato:k, rate:k, width:k, attack:k, decay:k, sustain:k, releaseTime:k, glide:k, pan:k, amp:k):(a,a)
+  hz:k = PanaeolusPitch(note, glide)
+  formant = PanaeolusSmooth(formant, 0.02, 0)
+  bandwidth = PanaeolusSmooth(bandwidth, 0.02, 0)
+  body = PanaeolusSmooth(body, 0.02, 0)
+  vibrato = PanaeolusSmooth(vibrato, 0.02, 0)
+  rate = PanaeolusSmooth(rate, 0.02, 0)
+  width = PanaeolusSmooth(width, 0.02, 0)
+  part1L:a, part1R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 1)
+  part2L:a, part2R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 2)
+  part3L:a, part3R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 3)
+  part4L:a, part4R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 4)
+  part5L:a, part5R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 5)
+  part6L:a, part6R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 6)
+  part7L:a, part7R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 7)
+  part8L:a, part8R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 8)
+  part9L:a, part9R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 9)
+  part10L:a, part10R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 10)
+  part11L:a, part11R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 11)
+  part12L:a, part12R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 12)
+  part13L:a, part13R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 13)
+  part14L:a, part14R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 14)
+  part15L:a, part15R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 15)
+  part16L:a, part16R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 16)
+  part17L:a, part17R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 17)
+  part18L:a, part18R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 18)
+  part19L:a, part19R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 19)
+  part20L:a, part20R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 20)
+  part21L:a, part21R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 21)
+  part22L:a, part22R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 22)
+  part23L:a, part23R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 23)
+  part24L:a, part24R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 24)
+  part25L:a, part25R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 25)
+  part26L:a, part26R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 26)
+  part27L:a, part27R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 27)
+  part28L:a, part28R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 28)
+  part29L:a, part29R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 29)
+  part30L:a, part30R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 30)
+  part31L:a, part31R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 31)
+  part32L:a, part32R:a = PanaeolusFormantBank(hz, formant, bandwidth, body, vibrato, rate, width, 32)
+  left:a = part1L + part2L + part3L + part4L + part5L + part6L + part7L + part8L + part9L + part10L + part11L + part12L + part13L + part14L + part15L + part16L + part17L + part18L + part19L + part20L + part21L + part22L + part23L + part24L + part25L + part26L + part27L + part28L + part29L + part30L + part31L + part32L
+  right:a = part1R + part2R + part3R + part4R + part5R + part6R + part7R + part8R + part9R + part10R + part11R + part12R + part13R + part14R + part15R + part16R + part17R + part18R + part19R + part20R + part21R + part22R + part23R + part24R + part25R + part26R + part27R + part28R + part29R + part30R + part31R + part32R
+  outputL:a, outputR:a = PanaeolusVoiceOut(left, right, db, amp, pan, attack, decay, sustain, releaseTime, PanaeolusFormantTrim)
+  xout outputL, outputR
+endop

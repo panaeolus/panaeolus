@@ -85,7 +85,7 @@
 ;; (held-section) ; stops the held voice at eight beats
 
 ;; The playground supplies a two-second stereo sample at engine startup.
-;; Import sample copies your own WAV/AIFF/FLAC and prints a load form.
+;; Import file copies your own WAV/AIFF/FLAC and prints a load form.
 ;; Loading is silent; the result accepts patterns, effects, and compositions.
 ;; (require '[panaeolus.sampler :as sampler] '[panaeolus.fx :refer [bbcut]])
 ;; (def drums (sampler/load "panaeolus-demo.wav"))
@@ -133,3 +133,15 @@
 ;; (p/record!)
 ;; (p/finish!)
 ;; (p/export!)
+
+;; Additive voices: select one example after stopping the starter.
+;; (require '[panaeolus.instruments.additive :refer [harmonic formant glass prism]])
+;; (p/stop-all!)
+;; (harmonic :every [0.25 0.5] :note [36 43 48] :tilt [0.8 1.5] :dur 0.2)
+;; (formant :legato true :note 48 :formant 900 :bandwidth 450 :attack 0.4)
+;; (formant :legato true :note 55 :formant 1800 :bandwidth 600 :release 0.3)
+;; (p/stop! formant)
+;; (glass :every [0.5 0.75] :note [60 67 72] :stretch 1.4 :dur 1.5 :db -12)
+;; (prism :every [2] :note [48 55] :stretch [1 1.04] :motion 0.3 :dur 1.8 :db -12)
+;; Import a HETRO .mal module with Import file, then evaluate its load-file form.
+;; (resynth :every [1] :note [60 67 72] :speed [0.5 1 2] :dur 0.8)

@@ -1,0 +1,5 @@
+(ns panaeolus.instruments.additive (:require [panaeolus.catalog :as catalog]))
+(def glass (catalog/voice "panaeolus.instruments.additive/glass"
+  '[note 60 db -6 stretch 1.38 damping 0.7 color 0.7 beating 1.2 width 0.8 attack 0.01 decay 0.2 sustain 0.75 release 0.15 glide 0.02 pan 0 amp 1]
+  glass-node 1 {:note [24 96] :stretch [1 2.1] :damping [0.05 4] :color [0.25 3] :beating [0 12] :width [0 1] :attack [0.001 8] :decay [0.001 8] :sustain [0 1] :release [0.001 4] :glide [0 2]} false))
+(ns user)

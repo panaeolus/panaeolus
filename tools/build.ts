@@ -52,7 +52,7 @@ export async function build() {
   const catalog: CatalogVoice[] = await Bun.file(resolve(root, "src/instruments/catalog.json")).json();
   const modules = ["src/panaeolus/event_loop.mal", "src/panaeolus/routing.mal",
     "src/panaeolus/fx.mal", "src/panaeolus/instrument.mal", "src/panaeolus/composition.mal",
-    "src/panaeolus/level.mal", "src/instruments/common/catalog.mal", "src/instruments/samplers/flooper.mal", "src/instruments/samplers/spectral.mal"];
+    "src/panaeolus/level.mal", "src/instruments/common/catalog.mal", "src/instruments/samplers/flooper.mal", "src/instruments/samplers/spectral.mal", "src/instruments/additive/adsyn.mal"];
   const lispModules = await Promise.all(modules.map(path => Bun.file(resolve(root, path)).text()));
   // Load callable definitions after the native registry and Lisp environment.
   const builtinModules = ["src/instruments/plucks/voices.mal", "src/instruments/synths/voices.mal",
@@ -87,12 +87,13 @@ export async function build() {
   const sampler = await Bun.file(resolve(root, "src/instruments/samplers/flooper.orc")).text();
   const sampleLevel = await Bun.file(resolve(root, "src/sample-level.orc")).text();
   const samples = await Bun.file(resolve(root, "src/samples.orc")).text();
+  const analyses = await Bun.file(resolve(root, "src/analyses.orc")).text();
   const levels = await Bun.file(resolve(root, "src/instruments/common/levels.orc")).text();
   const plucks = await Bun.file(resolve(root, "src/instruments/plucks/voices.orc")).text();
   const synths = await Bun.file(resolve(root, "src/instruments/synths/voices.orc")).text();
   const bbcut = await Bun.file(resolve(root, "src/effects/bbcut.orc")).text();
   const catalogSource = (await Promise.all(["src/instruments/common/catalog.orc", "src/instruments/samplers/channels.orc",
-    "src/instruments/samplers/spectral.orc",
+    "src/instruments/samplers/spectral.orc", "src/instruments/additive/adsyn.orc",
     ...catalog.map((voice: { source: string }) => voice.source)].map(path => Bun.file(resolve(root, path)).text()))).join("\n");
   const base = support + "\n" + bbcut + "\n" + flanger + "\n" + levels + "\n" + sampler + "\n" + plucks + "\n" + synths + "\n" + catalogSource;
   // Keep the large native source out of MAL values: Csound retains string
@@ -107,7 +108,7 @@ export async function build() {
   if (result.type == $MAL_ERROR_TYPE) ithen
     prints "Panaeolus bootstrap failed: %s\\n", result.string
     exitnow(1)
-  endif`).join("\n")) + "\n" + sampleLevel + "\n" + samples + "\n" + routing + "\n" + held + "\n" + composition +
+  endif`).join("\n")) + "\n" + sampleLevel + "\n" + samples + "\n" + analyses + "\n" + routing + "\n" + held + "\n" + composition +
     `\n${registerBase}` +
     builtins.map(source => `panaeolusBuiltins:i = PanaeolusEval(${csoundString(source)})\nif (panaeolusBuiltins < 0) ithen\n  exitnow(1)\nendif\n`).join("\n") +
     "schedule(90, 0, -1)\nschedule(30000, 0, -1, 0, 0)\n" +

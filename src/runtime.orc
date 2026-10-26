@@ -58,6 +58,9 @@ opcode PanaeolusBoot():MalEnv
   lush init MalAppendValue(lush, MalCsoundSignature("a,a", "k,k,k,k,k,k,k,k,k,k,k,k,k", 13, "", 0))
   env init MalEnvSet(env, "panaeolus.instruments.synth/lush-node", lush)
   @@PANAEO_CATALOG@@
+  analysis:MalValue init MalMkCsoundOpcode("PanaeolusAdsyn", "a,a")
+  analysis init MalAppendValue(analysis, MalCsoundSignature("a,a", "S,i,i,i,k,k,k,k,k,k,k,k,k", 13, "", 0))
+  env init MalEnvSet(env, "panaeolus.instruments.additive/adsyn-node", analysis)
   routingNs:i = MalNsEnsure(env, "panaeolus.routing", 1)
   heldGuard:MalValue init MalMkCsoundOpcode("PanaeolusHeldGuard", "")
   heldGuard init MalAppendValue(heldGuard, MalCsoundSignature("", "i", 1, "", 0))

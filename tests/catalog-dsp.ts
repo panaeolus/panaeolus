@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { catalog, render } from "../tools/catalog-audio";
 import { loudness, peak } from "../tools/audio-level";
-for (const voice of catalog) {
+for (const voice of catalog.filter(v => !process.env.CATALOG_CATEGORY || v.category === process.env.CATALOG_CATEGORY)) {
   const reference = await render(voice);
   assert.ok(Math.abs(loudness(reference, 48000) + 18) < 0.1, voice.name + " level reference");
   assert.ok(peak(reference) < 1, voice.name + " reference clips");

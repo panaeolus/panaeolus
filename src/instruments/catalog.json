@@ -446,5 +446,354 @@
       "amp": [0, 4]
     },
     "held": true
+  },
+  {
+    "name": "harmonic",
+    "category": "additive",
+    "namespace": "panaeolus.instruments.additive",
+    "opcode": "PanaeolusHarmonic",
+    "node": "harmonic-node",
+    "rate": "k",
+    "count": 13,
+    "source": "src/instruments/additive/harmonic.orc",
+    "mal": "src/instruments/additive/harmonic.mal",
+    "reference": [
+      60,
+      0,
+      1.2,
+      0.25,
+      5,
+      0.7,
+      0.01,
+      0.2,
+      0.75,
+      0.15,
+      0.02,
+      0,
+      1
+    ],
+    "ranges": {
+      "note": [
+        24,
+        96
+      ],
+      "db": [
+        -96,
+        12
+      ],
+      "tilt": [
+        0.25,
+        3
+      ],
+      "odd": [
+        0,
+        1
+      ],
+      "detune": [
+        0,
+        30
+      ],
+      "width": [
+        0,
+        1
+      ],
+      "attack": [
+        0.001,
+        8
+      ],
+      "decay": [
+        0.001,
+        8
+      ],
+      "sustain": [
+        0,
+        1
+      ],
+      "release": [
+        0.001,
+        4
+      ],
+      "glide": [
+        0,
+        2
+      ],
+      "pan": [
+        -1,
+        1
+      ],
+      "amp": [
+        0,
+        4
+      ]
+    },
+    "held": true
+  },
+  {
+    "name": "formant",
+    "category": "additive",
+    "namespace": "panaeolus.instruments.additive",
+    "opcode": "PanaeolusFormant",
+    "node": "formant-node",
+    "rate": "k",
+    "count": 15,
+    "source": "src/instruments/additive/formant.orc",
+    "mal": "src/instruments/additive/formant.mal",
+    "reference": [
+      60,
+      0,
+      1200,
+      700,
+      0.3,
+      8,
+      4.8,
+      0.6,
+      0.01,
+      0.2,
+      0.75,
+      0.15,
+      0.02,
+      0,
+      1
+    ],
+    "ranges": {
+      "note": [
+        24,
+        96
+      ],
+      "db": [
+        -96,
+        12
+      ],
+      "formant": [
+        150,
+        8000
+      ],
+      "bandwidth": [
+        50,
+        4000
+      ],
+      "body": [
+        0,
+        1
+      ],
+      "vibrato": [
+        0,
+        50
+      ],
+      "rate": [
+        0.05,
+        15
+      ],
+      "width": [
+        0,
+        1
+      ],
+      "attack": [
+        0.001,
+        8
+      ],
+      "decay": [
+        0.001,
+        8
+      ],
+      "sustain": [
+        0,
+        1
+      ],
+      "release": [
+        0.001,
+        4
+      ],
+      "glide": [
+        0,
+        2
+      ],
+      "pan": [
+        -1,
+        1
+      ],
+      "amp": [
+        0,
+        4
+      ]
+    },
+    "held": true
+  },
+  {
+    "name": "glass",
+    "category": "additive",
+    "namespace": "panaeolus.instruments.additive",
+    "opcode": "PanaeolusGlass",
+    "node": "glass-node",
+    "rate": "k",
+    "count": 14,
+    "source": "src/instruments/additive/glass.orc",
+    "mal": "src/instruments/additive/glass.mal",
+    "reference": [
+      60,
+      0,
+      1.38,
+      0.7,
+      0.7,
+      1.2,
+      0.8,
+      0.01,
+      0.2,
+      0.75,
+      0.15,
+      0.02,
+      0,
+      1
+    ],
+    "ranges": {
+      "note": [
+        24,
+        96
+      ],
+      "db": [
+        -96,
+        12
+      ],
+      "stretch": [
+        1,
+        2.1
+      ],
+      "damping": [
+        0.05,
+        4
+      ],
+      "color": [
+        0.25,
+        3
+      ],
+      "beating": [
+        0,
+        12
+      ],
+      "width": [
+        0,
+        1
+      ],
+      "attack": [
+        0.001,
+        8
+      ],
+      "decay": [
+        0.001,
+        8
+      ],
+      "sustain": [
+        0,
+        1
+      ],
+      "release": [
+        0.001,
+        4
+      ],
+      "glide": [
+        0,
+        2
+      ],
+      "pan": [
+        -1,
+        1
+      ],
+      "amp": [
+        0,
+        4
+      ]
+    },
+    "held": false
+  },
+  {
+    "name": "prism",
+    "category": "additive",
+    "namespace": "panaeolus.instruments.additive",
+    "opcode": "PanaeolusPrism",
+    "node": "prism-node",
+    "rate": "k",
+    "count": 15,
+    "source": "src/instruments/additive/prism.orc",
+    "mal": "src/instruments/additive/prism.mal",
+    "reference": [
+      60,
+      0,
+      1.01,
+      0.8,
+      5,
+      0.3,
+      0.8,
+      0.8,
+      0.01,
+      0.2,
+      0.75,
+      0.15,
+      0.02,
+      0,
+      1
+    ],
+    "ranges": {
+      "note": [
+        24,
+        96
+      ],
+      "db": [
+        -96,
+        12
+      ],
+      "stretch": [
+        0.75,
+        1.8
+      ],
+      "tilt": [
+        0.25,
+        3
+      ],
+      "spacing": [
+        1,
+        16
+      ],
+      "motion": [
+        0,
+        8
+      ],
+      "depth": [
+        0,
+        1
+      ],
+      "width": [
+        0,
+        1
+      ],
+      "attack": [
+        0.001,
+        8
+      ],
+      "decay": [
+        0.001,
+        8
+      ],
+      "sustain": [
+        0,
+        1
+      ],
+      "release": [
+        0.001,
+        4
+      ],
+      "glide": [
+        0,
+        2
+      ],
+      "pan": [
+        -1,
+        1
+      ],
+      "amp": [
+        0,
+        4
+      ]
+    },
+    "held": true
   }
 ]

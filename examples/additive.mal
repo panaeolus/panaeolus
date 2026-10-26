@@ -1,0 +1,33 @@
+(require '[panaeolus.instruments.additive :refer [harmonic formant glass prism]]
+         '[panaeolus.instrument :as p] '[panaeolus.fx :as fx])
+
+;; Classic bright bass: odd shifts the balance toward clarinet-like tones.
+(harmonic :every [0.25 0.25 0.5] :note [36 43 48] :dur 0.18
+          :tilt [0.8 1.2 1.8] :odd [0 0.8] :detune 7 :db -6)
+
+;; A slow vowel scan. Held edits keep the oscillators and envelope running.
+(formant :id :vowel :legato true :every [2] :note [48 55 60]
+         :formant [650 1200 2300] :bandwidth 450 :body 0.3
+         :attack 0.4 :release 0.4 :db -12 :fx (fx/flanger :rate 0.12))
+
+;; Inharmonic bells: damping makes the upper partials die away first.
+(glass :every [0.5 0.75] :note [60 67 72 79] :dur 1.6
+       :stretch [1.25 1.5] :damping 1.2 :beating 2 :db -12)
+
+;; Moving partial groups, from a soft pad to a metallic texture.
+(prism :every [2] :note [48 55] :dur 1.8 :attack 0.2
+       :stretch [1 1.015 1.12] :spacing [3 7] :motion 0.4
+       :depth 0.9 :tilt 1.2 :db -12)
+
+;; Build a finite arrangement without starting it:
+(def answer (p/then
+  (p/for-beats 4 (p/pattern harmonic :every [0.5] :note [48 55 60]))
+  (p/for-beats 4 (p/pattern glass :every [0.5] :note [72 67 60]))))
+;; (answer)
+;; (p/stop-all!)
+
+;; Import a module from bun run hetro, then load-file as printed by the UI.
+;; Its callable has the same pattern, FX, and composition interface:
+;; (resynth)
+;; (resynth :every [1] :note [60 67 72] :speed [0.5 1 2] :dur 0.8)
+;; :speed changes analysis time independently of pitch; :dur stays in seconds.

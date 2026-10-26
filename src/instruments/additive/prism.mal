@@ -1,0 +1,5 @@
+(ns panaeolus.instruments.additive (:require [panaeolus.catalog :as catalog]))
+(def prism (catalog/voice "panaeolus.instruments.additive/prism"
+  '[note 60 db -6 stretch 1.01 tilt 0.8 spacing 5 motion 0.3 depth 0.8 width 0.8 attack 0.01 decay 0.2 sustain 0.75 release 0.15 glide 0.02 pan 0 amp 1]
+  prism-node 1 {:note [24 96] :stretch [0.75 1.8] :tilt [0.25 3] :spacing [1 16] :motion [0 8] :depth [0 1] :width [0 1] :attack [0.001 8] :decay [0.001 8] :sustain [0 1] :release [0.001 4] :glide [0 2]} true))
+(ns user)
