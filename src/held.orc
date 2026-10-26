@@ -2,32 +2,36 @@
 ;; and processors alive; a new definition or FX chain gets a fresh route.
 
 opcode PanaeolusHeldStop(route:i, stopTime:i, stopLive:i):void
+  releaseTime:i = panaeolusHeldReleases[route]
+  endTime:i = stopTime + (releaseTime > 0 ? releaseTime + 2 * ksmps / sr : 0)
   if (stopLive == 1 && panaeolusHeldInstruments[route] > 0) ithen
     channel:S init PanaeolusVoiceChannel(route, -1)
     disabled:i = 0
     chnset disabled, channel
-    turnoff2i panaeolusHeldInstruments[route] + route / 1024, 4, 0
+    turnoff2i panaeolusHeldInstruments[route] + route / 1024, 4, (releaseTime > 0 ? 1 : 0)
+    panaeolusRouteLastNote[route] = max(panaeolusRouteLastNote[route], endTime)
     panaeolusHeldInstruments[route] = 0
   endif
   if (panaeolusRecording == 1 && panaeolusRecordedHeld[route] > 0) ithen
     line:S init sprintf("i 94 %.17g 0 %d -1 0\n", \
       max(0, stopTime - panaeolusRecordOrigin), route)
     PanaeolusRecordLine(line)
-    line init sprintf("i 92 %.17g 0 %.17g\n", \
-      max(0, stopTime - panaeolusRecordOrigin), panaeolusRecordedHeld[route])
+    line init sprintf("i 92 %.17g 0 %.17g %.17g\n", \
+      max(0, stopTime - panaeolusRecordOrigin), panaeolusRecordedHeld[route], releaseTime)
     PanaeolusRecordLine(line)
     panaeolusRecordedHeld[route] = 0
-    panaeolusRecordEnd = max(panaeolusRecordEnd, stopTime)
+    panaeolusRecordedEnds[route] = max(panaeolusRecordedEnds[route], endTime)
+    panaeolusRecordEnd = max(panaeolusRecordEnd, endTime)
   endif
 endop
 
 opcode PanaeolusHeldTick(routeValue:MalValue, controls:MalValue, instrument:MalValue, \
-                         values:MalValue, voiceDelay:i):i
+                         values:MalValue, voiceDelay:i, releaseTime:i):i
   route:i = routeValue.number
   result:i = -1
   valid:i = routeValue.type == $MAL_NUMBER_TYPE && route > 0 && route < 256 && \
     route == int(route) && instrument.type == $MAL_CSOUND_INSTRUMENT_TYPE && \
-    values.type == $MAL_VECTOR_TYPE
+    values.type == $MAL_VECTOR_TYPE && releaseTime >= 0 && releaseTime <= 4 && releaseTime - releaseTime == 0
   if (valid == 1 && values.length > 0) ithen
     for index in [0 ... values.length - 1] do
       value:MalValue init MalAt(values, index)
@@ -53,6 +57,7 @@ opcode PanaeolusHeldTick(routeValue:MalValue, controls:MalValue, instrument:MalV
     elseif (panaeolusHeldInstruments[route] > 0 && panaeolusHeldInstruments[route] != number) ithen
       result = PanaeolusRoutingFailure("held voice: a new definition needs its own route")
     else
+      panaeolusHeldReleases[route] = releaseTime
       now:i = times()
       PanaeolusRecordControls(route, controls, now)
       if (values.length > 0) ithen

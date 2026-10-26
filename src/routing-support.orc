@@ -9,6 +9,7 @@ panaeolusRouteCounts@global:i[] init 256
 panaeolusRouteStages@global:i[][] init 256, 8
 panaeolusLastVoiceEnd@global:i init 0
 panaeolusHeldInstruments@global:i[] init 256
+panaeolusHeldReleases@global:i[] init 256
 
 opcode PanaeolusAudioChannel(route:i, stage:i, side:S):S
   xout sprintf("panaeolus/r%d/s%d/%s", route, stage, side)
@@ -52,7 +53,7 @@ instr 91
 endin
 
 instr 92
-  turnoff2i p4, 4, 0
+  turnoff2i p4, 4, (p5 > 0 ? 1 : 0)
 endin
 
 instr 93

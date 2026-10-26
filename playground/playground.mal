@@ -106,6 +106,17 @@
 ;; :db 0 is the reference loudness; -6 is 6 dB quieter. :amp is linear.
 ;; :decay is seconds to -60 dB; :dur ends the note. Plucks retrigger each event.
 
+;; Struck hammer and a stereo pad, using the same :db reference as the plucks.
+;; (require '[panaeolus.instruments.synth :refer [hammer lush]])
+;; (p/stop-all!)
+;; (hammer :every [0.5 0.25] :note [48 55 60] :db -6 :metal 0.4)
+;; (lush :every [2] :note [60 67 64] :db -9 :dur 1.5 :cutoff 2500)
+;; (p/stop-all!)
+;; (lush :legato true :note 48 :attack 0.4 :release 0.3)
+;; (lush :legato true :note 55 :cutoff 1600 :release 0.3)
+;; (p/stop! lush) ; release first, then let the effects finish
+;; Held edits keep the envelope age. Omitted controls still use their defaults.
+
 ;; To record: start a fresh engine, click Record take, then Evaluate all.
 ;; Finish take and Download CSD save a standalone orchestra + score.
 ;; Or select these calls separately, at the same points:

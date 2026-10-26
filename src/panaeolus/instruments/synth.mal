@@ -1,0 +1,40 @@
+(ns panaeolus.instruments.synth
+  (:require [panaeolus.instrument :as p]
+            [panaeolus.fx :as fx]
+            [panaeolus.level :as level]))
+
+(defn validate-note [values]
+  (level/validate values)
+  (when-not (fx/in-range? (get values :note) 24 96)
+    (throw "synth: note must be MIDI 24..96")))
+
+(defn validate-hammer [values]
+  (validate-note values)
+  (when-not (and (fx/in-range? (get values :decay) 0.02 8)
+                (fx/in-range? (get values :hardness) 0 1)
+                (fx/in-range? (get values :metal) 0 1))
+    (throw "hammer: decay 0.02..8 seconds, hardness and metal 0..1")))
+
+(defn validate-lush [values]
+  (validate-note values)
+  (when-not (and (fx/in-range? (get values :cutoff) 20 20000)
+                (fx/in-range? (get values :resonance) 0 0.8)
+                (fx/in-range? (get values :detune) 0 40)
+                (fx/in-range? (get values :width) 0 1)
+                (fx/in-range? (get values :attack) 0.001 8)
+                (fx/in-range? (get values :decay) 0.001 8)
+                (fx/in-range? (get values :sustain) 0 1)
+                (fx/in-range? (get values :release) 0.001 4)
+                (fx/in-range? (get values :glide) 0 2))
+    (throw "lush: cutoff 20..20000 Hz, resonance 0..0.8, detune 0..40 cents, width/sustain 0..1, attack/decay 0.001..8 s, release 0.001..4 s, glide 0..2 s")))
+
+(p/definst hammer [note 48 db -6 decay 1.2 hardness 0.5 metal 0.3 pan 0 amp 1]
+  (hammer-node note db decay hardness metal pan amp))
+(def hammer (p/with-validator (p/with-defaults hammer :dur 1) validate-hammer))
+
+(p/definst lush [note 60 db -6 cutoff 3500 resonance 0.2 detune 8 width 0.7
+                 attack 0.04 decay 0.2 sustain 0.75 release 0.2 glide 0.02 pan 0 amp 1]
+  (lush-node note db cutoff resonance detune width attack decay sustain release glide pan amp))
+(def lush (p/with-release
+  (p/with-validator (p/with-defaults lush :dur 1) validate-lush) :release))
+(ns user)

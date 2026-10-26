@@ -12,8 +12,9 @@
     "dev": "bun tools/serve.ts",
     "demo:render": "bun run build && bun tools/render-demo.ts",
     "plucks:render": "bun run build && bun tools/render-plucks.ts",
+    "synths:render": "bun run build && bun tools/render-synths.ts",
     "test:unit": "bun test tests/unit",
-    "test:integration": "bun tests/server.ts && bun tests/csound-files.ts && bun tests/bundle.ts && bun tests/wasm.ts && bun tests/fx.ts && bun tests/sampler.ts && bun tests/plucks.ts && bun tests/pluck-dsp.ts && bun tests/sample-level.ts && bun tests/sample-assets.ts && bun tests/legato.ts && bun tests/composition.ts && bun tests/composition-scale.ts && bun tests/audio-timing.ts && bun tests/live-eval.ts && bun tests/atomic-routing.ts && bun tests/live-bridge.ts",
+    "test:integration": "bun tests/server.ts && bun tests/csound-files.ts && bun tests/bundle.ts && bun tests/wasm.ts && bun tests/fx.ts && bun tests/sampler.ts && bun tests/plucks.ts && bun tests/pluck-dsp.ts && bun tests/sample-level.ts && bun tests/synths.ts && bun tests/synth-dsp.ts && bun tests/sample-assets.ts && bun tests/legato.ts && bun tests/composition.ts && bun tests/composition-scale.ts && bun tests/audio-timing.ts && bun tests/live-eval.ts && bun tests/atomic-routing.ts && bun tests/live-bridge.ts",
     "test": "bun run build && bun run test:unit && bun run test:integration",
     "release:prepare": "bun tools/release.ts"
   },

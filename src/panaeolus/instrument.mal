@@ -36,8 +36,8 @@
     :else (throw "definst: return mono audio or a stereo pair; Panaeolus adds the output")))
 
 (defn descriptor [instrument]
-  (let [value (get (meta instrument) :panaeolus/instrument)]
-    (if (and (fn? instrument) (map? value)) value
+  (let [reference (get (get (meta instrument) :panaeolus/instrument) :descriptor)]
+    (if (and (fn? instrument) (atom? reference)) @reference
       (throw "expected a Panaeolus instrument"))))
 
 (defn put-argument [supplied key value]
@@ -108,6 +108,9 @@
     (when-not (valid-value? (get values :dur) pattern true)
       (throw "instrument: :dur needs positive seconds, or a nonempty vector when looping"))
     (validate-values (get spec :params) values pattern)
+    (when (and (get spec :held-release)
+               (not (fx/in-range? (get values (get spec :held-release)) 0.001 4)))
+      (throw "instrument: held release must be 0.001..4 seconds"))
     (when (get spec :validate) ((get spec :validate) values))
     (let [effects (fx/chain (get values :fx))]
       (when (and (not allow-pattern) (contains? supplied :fx))
@@ -147,12 +150,12 @@
        :panaeolus/tick {:route number :controls controls :instrument compiled
                         :duration duration :values values :callback callback}})))
 
-(defn make-held-callback [compiled values route effects once]
+(defn make-held-callback [compiled values route effects once release]
     (with-meta held-callback
       {:panaeolus/route route
        :panaeolus/route-plan route
        :panaeolus/tick {:route (get route :number) :instrument compiled
-                        :legato true :once once :duration 0.1 :values values
+                        :legato true :once once :release release :duration 0.1 :values values
                         :controls (mapv effect-values effects)
                         :callback held-callback}}))
 
@@ -163,7 +166,7 @@
     ;; A timed pattern needs its compiled voice, not copies of both DSP graphs
     ;; in every repeated segment. Held graphs stay frozen until first compiled.
     {:spec (select-keys spec (if (get values :legato)
-                              [:id :params :compiled :declaration :held]
+                              [:id :params :compiled :declaration :held :held-release]
                               [:params :compiled]))
      :values values}))
 
@@ -176,13 +179,14 @@
         ordered (vec (ordered-values (get spec :params) values))
         legato (get values :legato)
         compiled (if legato
-          (routing/held-voice! (get spec :id) (get spec :declaration) (get (get spec :held) :signal))
+          (routing/held-voice! (get spec :id) (get spec :declaration) @(get (get spec :held) :signal))
           (get spec :compiled))
         plan (assoc (routing/prepare id effects) :voice (when legato compiled))]
     {:durations (if (contains? values :every) (get values :every) [1])
      :offset (get values :offset)
      :callback (if legato
-       (make-held-callback compiled ordered plan effects (not (contains? values :every)))
+       (make-held-callback compiled ordered plan effects (not (contains? values :every))
+         (if (get spec :held-release) (get values (get spec :held-release)) 0))
        (make-callback compiled (get values :dur) ordered plan effects))}))
 
 (defn start-prepared! [id prepared at until]
@@ -213,14 +217,22 @@
             (do (when (> number 0) (routing/close! route))
                 (throw error))))))))
 
+(defn invoke-reference [reference & args]
+  (invoke (dissoc @reference :signal) args))
+
 (defn make-instrument [spec]
-  (let [runtime-spec (dissoc spec :signal)]
-    (with-meta (fn [& args] (invoke runtime-spec args))
-      {:panaeolus/instrument spec})))
+  ;; Callables travel through namespaces, arguments, and plans. Keep one
+  ;; descriptor behind a small reference, including in the partial's closure.
+  (let [reference (atom spec)]
+    (with-meta (partial invoke-reference reference)
+      {:panaeolus/instrument {:id (get spec :id) :descriptor reference}})))
 
 (defn define-instrument [id params signal held]
   (let [schema (parameter-schema params [] {})
-        compiled (routing/voice! id params signal)]
+        compiled (routing/voice! id params signal)
+        ;; A held graph repeats channel readers for every control. Keep one
+        ;; frozen copy instead of copying it through every callable and plan.
+        held (if (get held :error) held {:signal (atom (get held :signal))})]
     (make-instrument
       (assoc schema :id id :duration 0.1 :offset 0 :legato false
         :signal signal :compiled compiled :declaration params :held held))))
@@ -262,6 +274,17 @@
 (defn with-validator [instrument validate]
   (when-not (fn? validate) (throw "with-validator: expected a function"))
   (make-instrument (assoc (descriptor instrument) :validate validate)))
+
+;; Opt in only when the held DSP honors Csound's release flag. Timed voices
+;; keep their release inside :dur; the route reserves this tail only on stop.
+(defn with-release [instrument parameter]
+  (let [spec (descriptor instrument)]
+    (when-not (and (keyword? parameter) (contains? (get spec :defaults) parameter)
+                  (not (get (get spec :held) :error)))
+      (throw "with-release: expected a held voice and a release parameter"))
+    (let [updated (assoc spec :held-release parameter)]
+      (arguments updated [] false)
+      (make-instrument updated))))
 
 (defn stop! [instrument-or-id]
   (loop/stop!

@@ -14,7 +14,7 @@
 (check "instrument is callable" true (fn? pulse))
 (check "definition is silent" [] @played)
 (check "descriptor keeps audio before output" :a
-  (csound/type (get (get (meta pulse) :panaeolus/instrument) :signal)))
+  (csound/type (get (p/descriptor pulse) :signal)))
 (check "default loop ID uses caller namespace" "test.instruments/pulse"
   (get (get (meta pulse) :panaeolus/instrument) :id))
 (check "one-shot result" nil (pulse))

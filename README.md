@@ -125,6 +125,39 @@ below the target. Silence stays silent. Use `:normalize false` at load time
 to retain the old raw level and defaults (amp 0.5, db 0). The recorded disco
 example opts out so its existing mix stays the same.
 
+## Synths
+
+```clojure
+(require '[panaeolus.instruments.synth :refer [hammer lush]])
+(hammer) ; one struck note
+(hammer :every [0.5 0.25] :note [48 55 60] :db -6 :metal 0.4)
+(lush :every [2] :note [60 67 64] :db -6 :dur 1.5 :cutoff 2500)
+(lush :legato true :note 48 :attack 0.4)
+(lush :legato true :note 55 :cutoff 1600) ; edit without a new attack
+(p/stop! lush) ; fade out, then let the effects finish
+```
+
+`hammer` uses six decaying resonances. `hardness` (0..1) brightens the strike;
+`metal` (0..1) stretches the partials away from whole-number harmonics.
+Defaults: note 48, db -6, decay 1.2 seconds to -60 dB, hardness 0.5, metal 0.3.
+It retriggers each note and does not support legato.
+
+`lush` uses band-limited saws, a triangle sub, and a stereo low-pass filter.
+Defaults: note 60, db -6, cutoff 3500 Hz (20..20000), resonance 0.2 (0..0.8),
+detune ±8 cents (0..40), width 0.7 (0..1), attack 0.04 s, decay 0.2 s,
+sustain 0.75 (0..1), release 0.2 s, and glide 0.02 s (portamento half-time).
+Attack/decay accept 0.001..8 s, release 0.001..4 s, glide 0..2 s.
+Held edits preserve the voice and smooth pitch, filter, width, pan, and gain.
+Timed notes fade out within `:dur`; short notes may end during the attack.
+Stopping a held note starts its latest release; the route stays open for that fade and FX.
+
+Both use MIDI notes 24..96, pan 0 (-1..1), linear amp 1 (0..4), and duration
+1 second by default. Their dB reference matches the plucks and sampler.
+Run `bun run synths:render` for `dist/synths-preview.wav`: hammer, then lush.
+Custom held voices can opt in with `(p/with-release voice :release)` when
+their DSP honors Csound's release flag and finishes within that control's
+duration. Other held voices keep their immediate stop behavior.
+
 ## Playground
 
 Requires [Bun](https://bun.sh) 1.3.13 or later.
@@ -161,8 +194,8 @@ The build creates `dist/panaeolus.mal`, `dist/panaeolus.orc`, and
 with `(load-file "panaeolus.mal")` before starting patterns. This interpreter
 build reserves the routing instrument range at startup. The playground uses
 the two `.orc` files.
-Tests cover timing, composition, held voices, samplers, plucks, loudness, effects, CSD replay, live edits,
-bundle loading, and server isolation headers.
+Tests cover timing, composition, held voices, samplers, plucks, synths, loudness,
+effects, CSD replay, live edits, bundle loading, and server isolation headers.
 The build fixes Csound browser beta36's file sizes and reads in its copied
 module so embedded samples and MAL bundles load correctly; it leaves the
 installed package untouched.

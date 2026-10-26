@@ -1,7 +1,7 @@
 ;; The Lisp bridge owns no DSP. Recorded CSDs include only the registered
 ;; immutable definitions and routing-support.orc, never this file.
 
-declare PanaeolusHeldTick(route:MalValue, controls:MalValue, instrument:MalValue, values:MalValue, voiceDelay:i):i
+declare PanaeolusHeldTick(route:MalValue, controls:MalValue, instrument:MalValue, values:MalValue, voiceDelay:i, releaseTime:i):i
 declare PanaeolusHeldStop(route:i, stopTime:i, stopLive:i):void
 
 panaeolusDefinitionNumbers@global:i[] init 16384
@@ -126,12 +126,14 @@ opcode PanaeolusRecordRouteStop(route:i, endTime:i):void
     relative:i = max(0, endTime - panaeolusRecordOrigin)
     if (panaeolusRouteCounts[route] > 0) ithen
       for stage in [0 ... panaeolusRouteCounts[route] - 1] do
-        line:S init sprintf("i 92 %.17g 0 %.17g\n", relative, \
+        ;; Spell out p5: omitted score fields can carry forward a prior
+        ;; held voice's release flag. Processors have already drained here.
+        line:S init sprintf("i 92 %.17g 0 %.17g 0\n", relative, \
           panaeolusRouteStages[route][stage] + route / 1024)
         PanaeolusRecordLine(line)
       od
     endif
-    line init sprintf("i 92 %.17g 0 %.17g\n", relative, 30000 + route / 1024)
+    line init sprintf("i 92 %.17g 0 %.17g 0\n", relative, 30000 + route / 1024)
     PanaeolusRecordLine(line)
     panaeolusRecordEnd = max(panaeolusRecordEnd, endTime)
     panaeolusRecordedRoutes[route] = 0
@@ -408,7 +410,9 @@ opcode PanaeolusPrepareTick(entry:MalValue, eventMap:MalValue):i
     ;; following control block; controls already change in this block.
     legato:MalValue init MalMapGet(routing, MalMkKeyword("legato"))
     if (legato.type == $MAL_TRUE_TYPE) ithen
-      result = PanaeolusHeldTick(route, controls, instrument, values, ksmps / sr)
+      releaseValue:MalValue init PanaeolusSample(MalMapGet(routing, MalMkKeyword("release")), step)
+      releaseTime:i = (releaseValue.type == $MAL_NUMBER_TYPE ? releaseValue.number : 0)
+      result = PanaeolusHeldTick(route, controls, instrument, values, ksmps / sr, releaseTime)
       heldCallback:MalValue init MalMapGet(entry, MalMkKeyword("callback"))
       heldGenerated:MalValue init MalMapGet(routing, MalMkKeyword("callback"))
       if (result == 2 && (heldCallback.type != $MAL_FUNCTION_TYPE || \

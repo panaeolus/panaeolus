@@ -50,7 +50,7 @@ export async function build() {
   const lisp = (await Promise.all(modules.map(path => Bun.file(resolve(root, path)).text()))).join("\n");
   // Instrument definitions compile voices. Load them only after the native
   // registry and its Lisp environment have finished initializing.
-  const builtinModules = ["src/panaeolus/instruments/pluck.mal"];
+  const builtinModules = ["src/panaeolus/instruments/pluck.mal", "src/panaeolus/instruments/synth.mal"];
   const builtins = (await Promise.all(builtinModules.map(path => Bun.file(resolve(root, path)).text()))).join("\n");
   const runtime = await Bun.file(resolve(root, "src/runtime.orc")).text();
   const marker = "@@PANAEO_LISP@@";
@@ -67,7 +67,8 @@ export async function build() {
   const samples = await Bun.file(resolve(root, "src/samples.orc")).text();
   const levels = await Bun.file(resolve(root, "src/levels.orc")).text();
   const plucks = await Bun.file(resolve(root, "src/plucks.orc")).text();
-  const base = support + "\n" + flanger + "\n" + levels + "\n" + sampler + "\n" + plucks;
+  const synths = await Bun.file(resolve(root, "src/synths.orc")).text();
+  const base = support + "\n" + flanger + "\n" + levels + "\n" + sampler + "\n" + plucks + "\n" + synths;
   const registerBase = `(do (swap! panaeolus.routing/pending assoc 0 {:number 0 :source ${JSON.stringify(base)}}) nil)`;
   const native =
     ";; SPDX-License-Identifier: GPL-3.0-only\n" +

@@ -90,6 +90,9 @@ endop
   evaluate("(require '[panaeolus.instruments.pluck :as plucks])");
   check("(fn? plucks/pluck)");
   check("(fn? plucks/fmpluck)");
+  evaluate("(require '[panaeolus.instruments.synth :as synths])");
+  check("(fn? synths/hammer)");
+  check("(fn? synths/lush)");
   api.writeFile(engine, DEMO_SAMPLE_PATH, createDemoSample());
   evaluate(`(def sample (sampler/load "${DEMO_SAMPLE_PATH}" :id :bundle-sample))
     (sample :every [0.1] :dur 0.02 :amp 0.2)`);
