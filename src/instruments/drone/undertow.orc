@@ -2,7 +2,7 @@ opcode PanaeolusUndertowBank(hz:k, index:k, ratio:k, motion:k, rate:k, detune:k,
   oversample 4, 4, 4
   movement:k poscil motion * 0.45, rate
   amount:k = index * (1 - motion * 0.45 + movement)
-  safe:k = min(amount, max(0, sr * 0.35 / (hz * ratio * cent(detune * 0.5)) - 1))
+  safe:k = min(amount, max(0, sr * 0.35 / max(1, hz * ratio * cent(detune * 0.5)) - 1))
   hzL:k = hz * cent(-detune * 0.5)
   hzR:k = hz * cent(detune * 0.5)
   modL:a poscil 1, hzL * ratio

@@ -1,0 +1,26 @@
+;; Evaluate calls separately. Set the bass LFO BPM as well as the loop tempo.
+(require '[panaeolus.instruments.dubstep :as bass])
+(require '[panaeolus.instrument :as p])
+(require '[panaeolus.fx :as fx])
+(p/tempo! 140)
+
+(bass/reese)
+(bass/reese :every [0.5 0.25] :note [36 36 43 38] :dur 0.3 :db -9
+  :detune [16 28 42] :notch [600 1200 2400])
+(p/stop! bass/reese)
+
+(bass/growl :legato true :note 36 :bpm 140 :division 0.5 :db -9)
+(bass/growl :legato true :note 36 :bpm 140 :division 0.25 :vowel 1 :ratio 4 :db -9)
+(p/stop! bass/growl)
+
+(bass/wub :every [2] :legato true :note [36 43 38]
+  :bpm 140 :division [1 0.5 0.25] :sweep [3 5] :gate 0.5 :db -9)
+(p/stop! bass/wub)
+
+(bass/reese :every [1] :note [36 43] :dur 0.7 :db -12
+  :fx (fx/flanger :rate 0.1 :depth 0.001 :fback 0.2))
+(p/stop! bass/reese)
+
+;; A silent plan for higher-order composition.
+(def phrase (p/pattern bass/growl :every [0.5 0.25]
+  :note [36 43 38] :bpm 140 :division 0.5 :dur 0.3 :db -9))

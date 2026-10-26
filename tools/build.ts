@@ -93,7 +93,7 @@ export async function build() {
   const synths = await Bun.file(resolve(root, "src/instruments/synths/voices.orc")).text();
   const bbcut = await Bun.file(resolve(root, "src/effects/bbcut.orc")).text();
   const catalogSource = (await Promise.all(["src/instruments/common/catalog.orc", "src/instruments/samplers/channels.orc",
-    "src/instruments/samplers/spectral.orc", "src/instruments/additive/adsyn.orc", "src/instruments/vocal/support.orc", "src/instruments/scanned/support.orc", "src/effects/formant.orc",
+    "src/instruments/samplers/spectral.orc", "src/instruments/additive/adsyn.orc", "src/instruments/vocal/support.orc", "src/instruments/scanned/support.orc", "src/instruments/dubstep/support.orc", "src/effects/formant.orc",
     ...catalog.map((voice: { source: string }) => voice.source)].map(path => Bun.file(resolve(root, path)).text()))).join("\n");
   const base = support + "\n" + bbcut + "\n" + flanger + "\n" + levels + "\n" + sampler + "\n" + plucks + "\n" + synths + "\n" + catalogSource;
   // Keep the large native source out of MAL values: Csound retains string

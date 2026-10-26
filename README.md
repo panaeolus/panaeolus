@@ -448,6 +448,44 @@ as the default. Long sustains and timbre changes can change loudness.
 See `examples/drone.mal`. Run `bun run build` then `bun run drone:render`
 for previews.
 
+## Dubstep instruments
+
+`panaeolus.instruments.dubstep` adds three bass voices. Their upper layers run
+at four times the host rate with filtering before downsampling. A separate
+centered sine sub follows `note` at its fundamental frequency, not an octave
+below. `sub` (0..1) sets its amount before the final pan and gain controls.
+
+| Voice | Sound | Main controls |
+| --- | --- | --- |
+| `reese` | Detuned saw/pulse bass with moving stereo notches | detune 0..60 cents, color/depth/motion/width 0..1, notch 100..6000 Hz, rate 0.05..8 Hz, drive 1..5, cutoff 150..14000 Hz |
+| `growl` | FM through moving vowel filters | vowel/depth 0..4, index 0..8, ratio 0.5..6, shift −12..12 semitones, detune 0..30 cents, cutoff 200..14000 Hz |
+| `wub` | Rhythmic ladder-filter bass with amplitude pumping | cutoff 60..8000 Hz, sweep 0..6 octaves, resonance 0..0.85, drive 1..5, pulse 0.05..0.95, gate 0..1, detune 0..25 cents |
+
+Growl and Wub use `bpm` (20..400), `division` (0.125..8 beats per cycle),
+`phase` (0..1 cycle offset), and `sharpness` (0.25..4). Higher sharpness gives
+shorter openings. Their native LFO starts with each voice; held edits keep it
+running, and changing BPM or division preserves its phase. Set `:bpm` explicitly
+to match `p/tempo!`; these controls do not read the session tempo automatically.
+Growl sweeps from `vowel` upwards by `depth`, capped at vowel 4. Wub sweeps
+upwards from `cutoff`; `gate` adds amplitude movement. Reese uses its free-rate
+motion control instead.
+
+Each accepts note, db, ADSR, glide, pan, and amp, with patterns, held edits,
+composition, FX, and CSD export. Defaults use MIDI note 36, `:db -6`, a 10 ms
+attack, and 150 ms release. The six-note reference remains −18 LUFS at `:db 0`.
+
+```clojure
+(require '[panaeolus.instruments.dubstep :as bass])
+(p/tempo! 140)
+(bass/reese :every [0.5 0.25] :note [36 36 43 38] :dur 0.3 :db -9)
+(bass/growl :legato true :note 36 :bpm 140 :division 0.5 :db -9)
+(bass/growl :legato true :note 36 :bpm 140 :division 0.25 :vowel 1 :db -9)
+(p/stop! bass/growl)
+```
+
+See `examples/dubstep.mal`. Run `bun run build` then `bun run dubstep:render`
+for previews.
+
 ## Playground
 
 Requires [Bun](https://bun.sh) 1.3.13 or later.
