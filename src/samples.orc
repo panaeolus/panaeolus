@@ -6,6 +6,8 @@ panaeolusSampleTables@global:i[] init 256
 panaeolusSampleFrames@global:i[] init 256
 panaeolusSampleChannels@global:i[] init 256
 panaeolusSampleRates@global:i[] init 256
+panaeolusSampleGains@global:i[] init 256
+panaeolusSampleLoudness@global:i[] init 256
 panaeolusSampleNames@global:S[] init 256
 panaeolusSampleCount@global:i init 0
 panaeolusSampleValues@global:i init 0
@@ -24,6 +26,8 @@ opcode PanaeolusSampleInfo(index:i):MalValue
   result init MalMapAssoc(result, MalMkKeyword("engine-rate"), MalMkNumber(sr))
   result init MalMapAssoc(result, MalMkKeyword("duration"), \
     MalMkNumber(panaeolusSampleFrames[index] / panaeolusSampleRates[index]))
+  result init MalMapAssoc(result, MalMkKeyword("level-gain"), MalMkNumber(panaeolusSampleGains[index]))
+  result init MalMapAssoc(result, MalMkKeyword("loudness"), MalMkNumber(panaeolusSampleLoudness[index]))
   xout result
 endop
 
@@ -60,6 +64,9 @@ opcode PanaeolusSampleLoad(token:i):i
         result init MalMkError("sample: only mono and stereo files are supported")
       elseif (rate <= 0 || frames < 6) ithen
         result init MalMkError("sample: a file needs at least six frames and a valid sample rate")
+      elseif (rate > 384000) ithen
+        ;; Bound the normalization filter's 400 ms padding for short files.
+        result init MalMkError("sample: sample rates above 384000 Hz are not supported")
       elseif (values > 10000000 - panaeolusSampleValues) ithen
         result init MalMkError("sample: loading this file would exceed ten million stored sample values")
       else
@@ -92,7 +99,10 @@ opcode PanaeolusSampleLoad(token:i):i
         if (valid == 0) ithen
           ftfree number, 0
         else
+          levelGain:i, loudness:i = PanaeolusSampleLevel(number, frames, channels, rate)
           index:i = panaeolusSampleCount
+          panaeolusSampleGains[index] = levelGain
+          panaeolusSampleLoudness[index] = loudness
           panaeolusSamplePaths[index] init path.string
           panaeolusSampleTables[index] = number
           panaeolusSampleFrames[index] = frames

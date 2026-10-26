@@ -3,7 +3,7 @@
   "bpm": 128,
   "duration": 30,
   "sampleRate": 48000,
-  "setup": "(require '[panaeolus.instrument :as p]\n         '[panaeolus.sampler :as sampler]\n         '[panaeolus.fx :refer [flanger bbcut]])\n(defn shot [file id]\n  (p/with-defaults (sampler/load file :id id) :cross 0))\n(def kick (shot \"samples/kick.wav\" :kick))\n(def clap (shot \"samples/clap.wav\" :clap))\n(def hat (shot \"samples/hat.wav\" :hat))\n(def bass (shot \"samples/bass.wav\" :bass))\n(def chord (shot \"samples/chord.wav\" :chord))\n(def lead (shot \"samples/lead.wav\" :lead))",
+  "setup": "(require '[panaeolus.instrument :as p]\n         '[panaeolus.sampler :as sampler]\n         '[panaeolus.fx :refer [flanger bbcut]])\n(defn shot [file id]\n  (p/with-defaults (sampler/load file :id id :normalize false) :cross 0))\n(def kick (shot \"samples/kick.wav\" :kick))\n(def clap (shot \"samples/clap.wav\" :clap))\n(def hat (shot \"samples/hat.wav\" :hat))\n(def bass (shot \"samples/bass.wav\" :bass))\n(def chord (shot \"samples/chord.wav\" :chord))\n(def lead (shot \"samples/lead.wav\" :lead))",
   "setupDisplay": ";; samples ready: kick, clap, hat, bass, chord, lead",
   "cues": [
     {

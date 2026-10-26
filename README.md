@@ -66,7 +66,7 @@ Load a mono or stereo sample to get another callable instrument:
 ```
 
 The sampler uses `flooper2`. Positional controls are `amp`, `rate`, `start`,
-`end`, `cross`, `pan`, with defaults `0.5 1 0 1 0.005 0`. Start/end are file
+`end`, `cross`, `pan`, `db`, with defaults `1 1 0 1 0.005 0 -6`. Start/end are file
 fractions, crossfade is seconds, and pan runs from -1 to 1. Rate changes pitch
 and speed; zero holds the read position. Set `:mode :reverse` or
 `:mode :pingpong` when loading.
@@ -82,9 +82,48 @@ Loading is silent and caches each path for the engine's lifetime. Use a new
 path to load changed audio. The path also sets the default loop name; load with
 `:id :drums` to keep the same loop when switching files, or choose separate IDs
 to play two instances of one file.
-Load large files before starting loops; decoding runs synchronously in Csound.
+Load large files before starting loops; decoding and level measurement run
+synchronously in Csound. File sample rates above 384 kHz are rejected.
 Samples loaded before finishing a take are embedded in the exported CSD,
 including unused samples. Exports allow up to 64 MiB of embedded sample text.
+
+## Plucks and levels
+
+```clojure
+(require '[panaeolus.instruments.pluck :refer [pluck fmpluck]])
+(pluck) ; one note
+(pluck 60 -6 :tone 0.7) ; MIDI note, dB, then named controls
+(pluck :every [0.25 0.5] :note [60 67 72] :db [-6 -9])
+(fmpluck :every [0.5] :note [48 60 55] :db -6 :ratio 1.5 :index 3
+         :fx (flanger :rate 0.2))
+```
+
+`pluck` is a modal string with `tone` (0..1) and pick `position` (0.05..0.95).
+`fmpluck` uses a fading FM index, with `ratio` (0.25..8) and `index` (0..8).
+Both take `note` (MIDI 24..96), `db` (-96..12), `decay` (0.02..8 seconds to
+-60 dB), `pan` (-1..1), and linear `amp` (0..4). Defaults are note 60, db -6,
+decay 0.8, pan 0, amp 1, duration 1 second. String defaults: tone 0.5,
+position 0.23; FM defaults: ratio 1.5, index 2.5. Positional order follows the
+parameter declarations in `src/panaeolus/instruments/pluck.mal`. These are
+retriggered voices, so `:legato true` is rejected. Patterns, composition, and
+FX use the same calls as other instruments.
+
+Built-ins use **0 dB = about -18 LUFS** on a reference phrase, with unity `amp`.
+The default -6 dB gives about -24 LUFS. This is a shared mixing reference,
+not full scale or a promise for every pitch, tone, decay, or note density.
+Custom `definst` bodies still own their gain. New built-ins should use the
+shared level helpers and the six-pitch calibration in `bun run plucks:render`.
+That command also writes `dist/plucks-preview.wav`: string first, FM second.
+The meter uses [BS.1770 K weighting and gates](https://tech.ebu.ch/docs/tech/tech3341.pdf);
+no compressor runs on each voice.
+
+Samples normalize to the same reference when loaded. The gain stays fixed
+across playback and export; slicing, pitch changes, effects, and overlapping
+notes can change the result. Normalization caps boosts at 24 dB and leaves
+3 dB sample-peak headroom at db 0, amp 1. Very spiky or quiet files may stay
+below the target. Silence stays silent. Use `:normalize false` at load time
+to retain the old raw level and defaults (amp 0.5, db 0). The recorded disco
+example opts out so its existing mix stays the same.
 
 ## Playground
 
@@ -122,7 +161,7 @@ The build creates `dist/panaeolus.mal`, `dist/panaeolus.orc`, and
 with `(load-file "panaeolus.mal")` before starting patterns. This interpreter
 build reserves the routing instrument range at startup. The playground uses
 the two `.orc` files.
-Tests cover timing, composition, held voices, samplers, effects, CSD replay, live edits,
+Tests cover timing, composition, held voices, samplers, plucks, loudness, effects, CSD replay, live edits,
 bundle loading, and server isolation headers.
 The build fixes Csound browser beta36's file sizes and reads in its copied
 module so embedded samples and MAL bundles load correctly; it leaves the

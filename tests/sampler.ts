@@ -139,27 +139,27 @@ try {
   for (const form of [
     '(sampler/load "missing.wav")',
     '(sampler/load "")', '(sampler/load 1)',
-    `(sampler/load "${monoPath}" :mode :random)`,
-    `(sampler/load "${monoPath}" :id 123)`,
-    `(sampler/load "${monoPath}" :mode :forward :mode :reverse)`,
+    `(sampler/load "${monoPath}" :normalize false :mode :random)`,
+    `(sampler/load "${monoPath}" :normalize false :id 123)`,
+    `(sampler/load "${monoPath}" :normalize false :mode :forward :mode :reverse)`,
   ]) evaluate(form, -1);
-  evaluate(`(def mono (sampler/load "${monoPath}"))
-    (def stereo (sampler/load "${stereoPath}"))
-    (def reverse (sampler/load "${monoPath}" :mode :reverse :id :reverse))
-    (def pingpong (sampler/load "${monoPath}" :mode :pingpong :id :pingpong))`);
+  evaluate(`(def mono (sampler/load "${monoPath}" :normalize false))
+    (def stereo (sampler/load "${stereoPath}" :normalize false))
+    (def reverse (sampler/load "${monoPath}" :normalize false :mode :reverse :id :reverse))
+    (def pingpong (sampler/load "${monoPath}" :normalize false :mode :pingpong :id :pingpong))`);
   check("(fn? mono)");
   check("(= [6000 1 24000 48000 0.25] (mapv (fn [key] (get (get (p/descriptor mono) :sample) key)) [:frames :channels :sample-rate :engine-rate :duration]))");
   check("(= 2 (get (get (p/descriptor stereo) :sample) :channels))");
   check("(= 0.25 (get (p/descriptor mono) :duration))");
   // A high-rate source has a fractional safe speed limit (3.675 here).
   // MAL division truncates, so both the accepted and rejected sides matter.
-  evaluate("(sampler/validate {:frames 6000 :sample-rate 192000 :engine-rate 44100} {:amp 0.5 :rate 3.5 :start 0 :end 1 :cross 0.005 :pan 0})");
-  evaluate("(sampler/validate {:frames 6000 :sample-rate 192000 :engine-rate 44100} {:amp 0.5 :rate 3.7 :start 0 :end 1 :cross 0.005 :pan 0})", -1);
+  evaluate("(sampler/validate {:frames 6000 :sample-rate 192000 :engine-rate 44100} {:db 0 :amp 0.5 :rate 3.5 :start 0 :end 1 :cross 0.005 :pan 0})");
+  evaluate("(sampler/validate {:frames 6000 :sample-rate 192000 :engine-rate 44100} {:db 0 :amp 0.5 :rate 3.7 :start 0 :end 1 :cross 0.005 :pan 0})", -1);
   assert.equal(peak(advance(0.02)), 0, "Loading an instrument started playback");
   const table = number("(get (get (p/descriptor mono) :sample) :table)");
   // Replacing the file on disk must not change a loaded instrument's sample.
   api.writeFile(engine, monoPath, wave(1, () => -0.8));
-  evaluate(`(def cached (sampler/load "${monoPath}"))`);
+  evaluate(`(def cached (sampler/load "${monoPath}" :normalize false))`);
   assert.equal(number("(get (get (p/descriptor cached) :sample) :table)"), table);
 
   evaluate("(mono)");

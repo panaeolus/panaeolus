@@ -87,6 +87,9 @@ endop
   check("(fn? flanger)");
   evaluate("(require '[panaeolus.sampler :as sampler])");
   check("(fn? sampler/load)");
+  evaluate("(require '[panaeolus.instruments.pluck :as plucks])");
+  check("(fn? plucks/pluck)");
+  check("(fn? plucks/fmpluck)");
   api.writeFile(engine, DEMO_SAMPLE_PATH, createDemoSample());
   evaluate(`(def sample (sampler/load "${DEMO_SAMPLE_PATH}" :id :bundle-sample))
     (sample :every [0.1] :dur 0.02 :amp 0.2)`);

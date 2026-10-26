@@ -7,7 +7,7 @@ export const setup = `(require '[panaeolus.instrument :as p]
          '[panaeolus.sampler :as sampler]
          '[panaeolus.fx :refer [flanger bbcut]])
 (defn shot [file id]
-  (p/with-defaults (sampler/load file :id id) :cross 0))
+  (p/with-defaults (sampler/load file :id id :normalize false) :cross 0))
 (def kick (shot "samples/kick.wav" :kick))
 (def clap (shot "samples/clap.wav" :clap))
 (def hat (shot "samples/hat.wav" :hat))

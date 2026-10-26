@@ -1,0 +1,12 @@
+(ns panaeolus.level (:require [panaeolus.fx :as fx]))
+
+;; 0 dB is the built-in reference, not full scale. The render tests measure
+;; this target with BS.1770 K weighting; effects and overlapping voices add gain.
+(def reference-lufs -18)
+
+(defn validate [values]
+  (when-not (and (fx/in-range? (get values :db) -96 12)
+                (fx/in-range? (get values :amp) 0 4)
+                (fx/in-range? (get values :pan) -1 1))
+    (throw "level: db -96..12, amp 0..4 (linear), pan -1..1")))
+(ns user)

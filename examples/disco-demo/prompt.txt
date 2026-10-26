@@ -7,7 +7,7 @@ Actual API:
            '[panaeolus.sampler :as sampler]
            '[panaeolus.fx :refer [flanger bbcut]])
   (def kick (p/with-defaults
-    (sampler/load "samples/kick.wav" :id :kick) :cross 0))
+    (sampler/load "samples/kick.wav" :id :kick :normalize false) :cross 0))
   (kick) ; one shot, default parameters and file duration
   (kick :every [1] :amp 0.8 :offset 0)
   (bass :every [0.75 0.25 0.5 0.5]

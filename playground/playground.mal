@@ -80,7 +80,7 @@
 ;; (require '[panaeolus.sampler :as sampler] '[panaeolus.fx :refer [bbcut]])
 ;; (def drums (sampler/load "panaeolus-demo.wav"))
 ;; (p/stop-all!)
-;; (drums) ; one note at half gain, lasting the file's duration
+;; (drums) ; one note at -6 dB, lasting the file's duration
 ;; (drums :every [1] :dur 0.45 :start [0 0.25 0.5 0.75] :rate [1 0.75])
 ;; (drums :every [4] :dur 2 :fx (bbcut :bpm 120 :subdiv 8 :repeats [1 2]))
 ;; (def backward (sampler/load "panaeolus-demo.wav" :mode :reverse :id :backward))
@@ -93,6 +93,18 @@
 ;; :mode is fixed when loading: :forward, :reverse, or :pingpong.
 ;; flooper2 applies new bounds/crossfade at the next wrap. Cutter edits restart
 ;; its phrase. :bpm controls cuts explicitly; sample playback follows :rate.
+
+;; Built-in plucks: select/evaluate these forms after stopping the starter.
+;; (require '[panaeolus.instruments.pluck :refer [pluck fmpluck]])
+;; (p/stop-all!)
+;; (pluck) ; one note with defaults
+;; (pluck 60 -6 :tone 0.7) ; positional note and dB, then named controls
+;; (pluck :every [0.25 0.5] :note [60 67 72] :db [-6 -9] :tone 0.7)
+;; (fmpluck :every [0.5] :note [48 60 55] :db -6 :ratio 1.5 :index 3
+;;   :fx (flanger :rate 0.2))
+;; (p/stop-all!)
+;; :db 0 is the reference loudness; -6 is 6 dB quieter. :amp is linear.
+;; :decay is seconds to -60 dB; :dur ends the note. Plucks retrigger each event.
 
 ;; To record: start a fresh engine, click Record take, then Evaluate all.
 ;; Finish take and Download CSD save a standalone orchestra + score.

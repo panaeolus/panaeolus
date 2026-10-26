@@ -1,16 +1,17 @@
 (ns panaeolus.sampler
   (:require [panaeolus.instrument :as instrument]
             [panaeolus.event-loop :as loop]
-            [panaeolus.fx :as fx]))
+            [panaeolus.fx :as fx]
+            [panaeolus.level :as level]))
 
 (def modes {:forward 0 :reverse 1 :pingpong 2})
-(def parameters '[amp 0.5 rate 1 start 0 end 1 cross 0.005 pan 0])
+(def parameters '[amp 1 rate 1 start 0 end 1 cross 0.005 pan 0 db -6])
 
 (defn options [args result]
   (if (empty? args) result
     (let [key (first args) value (second args)]
-      (when-not (and (>= (count args) 2) (contains? {:mode true :id true} key))
-        (throw "sampler/load: expected :mode or :id followed by a value"))
+      (when-not (and (>= (count args) 2) (contains? {:mode true :id true :normalize true} key))
+        (throw "sampler/load: expected :mode, :id, or :normalize followed by a value"))
       (when (contains? result key) (throw (str "sampler/load: duplicate " key)))
       (options (drop 2 args) (assoc result key value)))))
 
@@ -39,6 +40,7 @@
   (valid-phases? starts ends (common-divisor (count starts) (count ends)) 0 frames minimum))
 
 (defn validate [info values]
+  (level/validate values)
   (let [starts (fx/values-of (get values :start))
         ends (fx/values-of (get values :end))
         frames (get info :frames)
@@ -57,17 +59,21 @@
                   (fx/in-range? (get values :pan) -1 1))
       (throw "sampler: amp 0..4, nonnegative rate within the sample's safe limit, start/end 0..1 with at least 64 frames (or the whole short file), cross 0..30 seconds, pan -1..1"))))
 
-(defn graph [info mode bindings]
+(defn graph [info mode normalized bindings]
   (eval (list 'let bindings
     (list 'panaeolus.sampler/player-node (get info :table)
-      'amp 'rate 'start 'end 'cross mode 'pan))))
+      (list '* (list '* 'amp (list 'csound/ampdb 'db)) (if normalized (get info :level-gain) 1))
+      'rate 'start 'end 'cross mode 'pan))))
 
 (defn load [path & args]
   (when-not (and (string? path) (not (empty? path)))
     (throw "sampler/load: supply a sound-file path"))
   (let [settings (options args {})
+        normalized (if (contains? settings :normalize) (get settings :normalize) true)
         mode (if (contains? settings :mode) (get settings :mode) :forward)
         id (if (contains? settings :id) (get settings :id) (str "sample/" path))]
+    (when-not (or (= true normalized) (= false normalized))
+      (throw "sampler/load: :normalize must be true or false"))
     (when-not (contains? modes mode)
       (throw "sampler/load: :mode must be :forward, :reverse, or :pingpong"))
     (when-not (or (keyword? id) (string? id))
@@ -75,15 +81,16 @@
     ;; File I/O happens once during preparation, never in the clock callback.
     ;; A path keeps its table for this session; import a new path to change audio.
     (let [info (loop/native-value "PanaeolusSampleLoad" {:path path})
+          params (if normalized parameters '[amp 0.5 rate 1 start 0 end 1 cross 0.005 pan 0 db 0])
           direction (get modes mode)
-          signal (graph info direction (csound/param-bindings parameters))
-          held (graph info direction
+          signal (graph info direction normalized (csound/param-bindings params))
+          held (graph info direction normalized
                  (vec (concat (csound/param-bindings [])
-                   (instrument/held-bindings parameters 0))))
-          voice (instrument/define-instrument id parameters signal {:signal held})
+                   (instrument/held-bindings params 0))))
+          voice (instrument/define-instrument id params signal {:signal held})
           spec (assoc (instrument/descriptor voice)
                  :duration (get info :duration)
-                 :sample (assoc info :path path :mode mode)
+                 :sample (assoc info :path path :mode mode :normalize normalized)
                  :validate (partial validate info))]
       (instrument/make-instrument spec))))
 
