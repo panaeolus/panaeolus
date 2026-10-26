@@ -1277,5 +1277,207 @@
       ]
     },
     "held": true
+  },
+  {
+    "name": "scanned",
+    "category": "scanned",
+    "namespace": "panaeolus.instruments.scanned",
+    "opcode": "PanaeolusScanned",
+    "node": "scanned-node",
+    "rate": "k",
+    "count": 17,
+    "source": "src/instruments/scanned/scanned.orc",
+    "mal": "src/instruments/scanned/scanned.mal",
+    "reference": [
+      60,
+      0,
+      1.4,
+      1,
+      0.7,
+      0.5,
+      0.35,
+      0.15,
+      0.35,
+      9000,
+      0.02,
+      0.15,
+      0.8,
+      0.3,
+      0.03,
+      0,
+      1
+    ],
+    "ranges": {
+      "note": [
+        24,
+        96
+      ],
+      "db": [
+        -96,
+        12
+      ],
+      "speed": [
+        0.1,
+        4
+      ],
+      "mass": [
+        0.5,
+        4
+      ],
+      "damping": [
+        0.1,
+        8
+      ],
+      "shape": [
+        0,
+        1
+      ],
+      "drive": [
+        0,
+        1
+      ],
+      "warp": [
+        0,
+        0.8
+      ],
+      "spread": [
+        0,
+        1
+      ],
+      "cutoff": [
+        200,
+        18000
+      ],
+      "attack": [
+        0.001,
+        8
+      ],
+      "decay": [
+        0.001,
+        8
+      ],
+      "sustain": [
+        0,
+        1
+      ],
+      "release": [
+        0.001,
+        4
+      ],
+      "glide": [
+        0,
+        2
+      ],
+      "pan": [
+        -1,
+        1
+      ],
+      "amp": [
+        0,
+        4
+      ]
+    },
+    "held": true
+  },
+  {
+    "name": "ripple",
+    "category": "scanned",
+    "namespace": "panaeolus.instruments.scanned",
+    "opcode": "PanaeolusRipple",
+    "node": "ripple-node",
+    "rate": "k",
+    "count": 17,
+    "source": "src/instruments/scanned/ripple.orc",
+    "mal": "src/instruments/scanned/ripple.mal",
+    "reference": [
+      60,
+      0,
+      2.2,
+      1,
+      0.7,
+      0.8,
+      0.5,
+      0.3,
+      0.65,
+      9000,
+      0.02,
+      0.15,
+      0.8,
+      0.3,
+      0.03,
+      0,
+      1
+    ],
+    "ranges": {
+      "note": [
+        24,
+        96
+      ],
+      "db": [
+        -96,
+        12
+      ],
+      "speed": [
+        0.1,
+        4
+      ],
+      "mass": [
+        0.5,
+        4
+      ],
+      "damping": [
+        0.1,
+        8
+      ],
+      "shape": [
+        0,
+        1
+      ],
+      "drive": [
+        0,
+        1
+      ],
+      "warp": [
+        0,
+        0.8
+      ],
+      "spread": [
+        0,
+        1
+      ],
+      "cutoff": [
+        200,
+        18000
+      ],
+      "attack": [
+        0.001,
+        8
+      ],
+      "decay": [
+        0.001,
+        8
+      ],
+      "sustain": [
+        0,
+        1
+      ],
+      "release": [
+        0.001,
+        4
+      ],
+      "glide": [
+        0,
+        2
+      ],
+      "pan": [
+        -1,
+        1
+      ],
+      "amp": [
+        0,
+        4
+      ]
+    },
+    "held": true
   }
 ]

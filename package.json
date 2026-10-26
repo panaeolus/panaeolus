@@ -23,7 +23,8 @@
     "additive:render": "CATALOG_CATEGORY=additive bun tools/render-catalog.ts",
     "vocal:render": "CATALOG_CATEGORY=vocal bun tools/render-catalog.ts",
     "catalog:render": "bun run build && bun tools/render-catalog.ts",
-    "test:catalog": "bun tests/catalog-dsp.ts && bun tests/vocal-dsp.ts && bun tests/formant-fx.ts && bun tests/spectral-dsp.ts && bun tests/adsyn-dsp.ts && bun tests/catalog.ts && bun tests/spectral.ts && bun tests/adsyn.ts"
+    "test:catalog": "bun tests/catalog-dsp.ts && bun tests/scanned-dsp.ts && bun tests/vocal-dsp.ts && bun tests/formant-fx.ts && bun tests/spectral-dsp.ts && bun tests/adsyn-dsp.ts && bun tests/catalog.ts && bun tests/spectral.ts && bun tests/adsyn.ts",
+    "scanned:render": "CATALOG_CATEGORY=scanned bun tools/render-catalog.ts"
   },
   "dependencies": {
     "@csound/browser": "7.0.0-beta36"

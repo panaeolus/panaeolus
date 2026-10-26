@@ -1,0 +1,23 @@
+;; Select calls separately; evaluating all of them will stop each example.
+(require '[panaeolus.instruments.scanned :as scan])
+(require '[panaeolus.instrument :as p])
+(require '[panaeolus.fx :as fx])
+
+(scan/scanned) ; one note with defaults
+(scan/scanned 48 -9 :every [0.5 0.25] :shape [0.2 0.8]
+  :speed [0.7 1.4 2.5] :cutoff 7000 :dur 0.4)
+(p/stop! scan/scanned)
+
+(scan/ripple :every [0.25 0.5] :note [48 55 60] :db -9
+  :warp [0 0.4 0.7] :mass [0.7 1.5] :dur 0.4
+  :fx (fx/formant :vowel [0 2 4] :mix 0.5))
+(p/stop! scan/ripple)
+
+;; Held edits change the existing model without a new attack.
+(scan/scanned :legato true :note 48 :speed 0.7 :attack 0.4 :db -9)
+(scan/scanned :legato true :note 55 :mass 2 :shape 0.9 :db -9)
+(p/stop! scan/scanned)
+
+;; This creates a silent plan for composition.
+(def phrase (p/pattern scan/ripple :every [0.25 0.5]
+  :note [48 55 60] :warp [0.1 0.6] :dur 0.4 :db -9))

@@ -338,6 +338,45 @@ For example, add `:fx (fx/formant :vowel [0 2 4] :mix 0.7)` to a loop.
 Removing `:fx` on the next call removes the filter; the old route can ring
 for up to two seconds. See `examples/vocal.mal` for more calls.
 
+## Scanned instruments
+
+`panaeolus.instruments.scanned` contains `scanned`, a smooth moving-string
+voice, and `ripple`, a brighter voice with uneven masses and springs.
+Both use Csound's [scantable](https://csound.com/manual/opcodes/scantable/)
+with private tables per note and cubic audio readers. They need no external
+matrix files. Patterns, composition, held edits, FX, and standalone CSD export
+work as for the other synths.
+
+| Control | Range | Effect |
+| --- | --- | --- |
+| `speed` | 0.1..4 | Speed of the model and its excitation, separate from note pitch |
+| `mass` | 0.5..4 | Heavier masses move more slowly |
+| `damping` | 0.1..8 | Velocity loss per second; higher values settle sooner |
+| `shape` | 0..1 | Harmonic content of the initial and driven shapes |
+| `drive` | 0..1 | Continuous excitation; zero lets the initial motion decay |
+| `warp` | 0..0.8 | Bends the audio scan path |
+| `spread` | 0..1 | Distance between stereo pickups; zero gives mono |
+| `cutoff` | 200..18000 Hz | Output low-pass filter |
+
+Both also take MIDI `note`, `db`, ADSR, glide, pan, and amp. They share the
+−18 LUFS default-sound reference at `:db 0`; `:db -6` lowers it by 6 dB.
+Changing the model or overlapping notes can change loudness. Large control
+blocks cap spring speed to keep the model stable. Held edits keep the moving
+state; a new note starts with fresh tables, which Csound frees when it ends.
+
+```clojure
+(require '[panaeolus.instruments.scanned :as scan])
+(scan/scanned)
+(scan/ripple :every [0.25 0.5] :note [48 55 60]
+  :shape [0.2 0.8] :warp [0 0.4 0.7] :dur 0.4 :db -9)
+(scan/scanned :legato true :note 48 :speed 0.7 :attack 0.4)
+(scan/scanned :legato true :note 55 :mass 2 :shape 0.9)
+(p/stop! scan/scanned)
+```
+
+See `examples/scanned.mal`. Run `bun run build` then `bun run scanned:render`
+for a six-note WAV preview of each voice.
+
 ## Playground
 
 Requires [Bun](https://bun.sh) 1.3.13 or later.

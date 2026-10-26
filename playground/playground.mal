@@ -162,3 +162,14 @@
 ;; (vocal/fm-voice :every [1] :vowel [0 1.5 4] :register [0 1] :dur 0.8)
 ;; Add :fx (fx/formant :vowel [0 2 4] :mix 0.7) to any loop, including samples.
 ;; (p/stop-all!)
+
+;; Scanned synthesis: private moving-string models for each note.
+;; (require '[panaeolus.instruments.scanned :as scan])
+;; (p/stop-all!)
+;; (scan/scanned :every [0.5 0.25] :note [48 55 60] :shape [0.2 0.8] :dur 0.4)
+;; (p/stop-all!)
+;; (scan/ripple :every [0.25 0.5] :note [48 55 60] :warp [0 0.4 0.7] :dur 0.4)
+;; (p/stop-all!)
+;; (scan/scanned :legato true :note 48 :speed 0.7 :attack 0.4)
+;; (scan/scanned :legato true :note 55 :mass 2 :shape 0.9)
+;; (p/stop! scan/scanned)
