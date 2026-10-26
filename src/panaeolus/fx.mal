@@ -140,4 +140,16 @@
   [left right]
   (bbcut-node left right bpm subdiv bar phrase repeats stutter chance envelope))
 (def bbcut (with-validator bbcut validate-bbcut))
+
+(defn validate-formant [values]
+  (when-not (and (in-range? (get values :vowel) 0 4)
+                (in-range? (get values :shift) -12 12)
+                (in-range? (get values :bandwidth) 0.25 4)
+                (in-range? (get values :ring) 0.25 4)
+                (in-range? (get values :mix) 0 1))
+    (throw "formant: vowel 0..4, shift -12..12 semitones, bandwidth/ring 0.25..4, mix 0..1")))
+
+(deffx formant [vowel 0 shift 0 bandwidth 1 ring 1 mix 1] [left right]
+  (formant-node left right vowel shift bandwidth ring mix))
+(def formant (with-validator (with-tail formant 2) validate-formant))
 (ns user)

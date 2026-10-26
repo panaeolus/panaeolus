@@ -291,6 +291,53 @@ are cached once, count toward the sample memory limit, and export with the CSD.
 
 See `examples/catalog.mal` for a small arrangement and individual calls.
 
+## Vocal instruments
+
+`panaeolus.instruments.vocal` adds five voices. All use `:vowel 0..4` for
+A, E, I, O, U; fractions blend adjacent vowels. These are timbre controls,
+not a text-to-speech system. Each voice supports patterns, composition,
+FX, and `:legato true` for held notes and live edits.
+
+| Voice | Csound source | Sound controls beyond vowel and pitch |
+| --- | --- | --- |
+| `priest` | [fof](https://csound.com/manual/opcodes/fof/) | shift, bandwidth, octave: a five-formant singer |
+| `cantor` | [fof2](https://csound.com/manual/opcodes/fof2/) | shift, bandwidth, grain, gliss, phase, octave: sliding vocal grains |
+| `talkbox` | [fofilter](https://csound.com/manual/opcodes/fofilter/) | shift, bandwidth, edge, breath, ring: filtered buzz and noise |
+| `vosim` | [vosim](https://csound.com/manual/opcodes/vosim/) | shift, pulses, damping, bend: pulse trains with five formants |
+| `fm-voice` | [fmvoice](https://csound.com/manual/opcodes/fmvoice/) | register, tilt: the built-in FMVoices model; no plugin needed |
+
+`shift` moves the formants by −12..12 semitones without changing the note.
+`bandwidth` (0.25..4) widens the resonances; `octave` (0..2, fractional)
+thins grain pulses by octaves. Cantor's `grain` is 0.01..0.08 seconds,
+`gliss` is −12..12 semitones per grain, and `phase` is 0..1.
+Talkbox's `edge` and `breath` are 0..1; `ring` (0.25..4) scales filter decay.
+VOSIM's `pulses` is an integer 1..8, `damping` is 0..1, and `bend`
+(0.5..2) multiplies each pulse's frequency. FM voice's `register` is an
+integer 0..3 and `tilt` is 0..99. Its vowel shapes differ from the other voices.
+
+All have `vibrato` in cents (0..50), `vibrato-rate` in Hz (0.1..12), ADSR,
+glide, pan, and amp. Defaults use the same six-note −18 LUFS reference at
+`:db 0` as the other instruments; `:db -6` lowers it by 6 dB. Timbre edits,
+effects, and overlapping notes can change loudness. Run `bun run build` then
+`bun run vocal:render` for previews.
+
+```clojure
+(require '[panaeolus.instruments.vocal :as vocal])
+(require '[panaeolus.fx :as fx])
+(vocal/priest) ; one note with defaults
+(vocal/cantor :every [0.25 0.5] :note [48 55 60]
+  :vowel [0 1.5 4] :gliss [-3 3 7] :dur 0.3)
+(vocal/talkbox :legato true :note 48 :vowel 0 :attack 0.4)
+(vocal/talkbox :legato true :note 55 :vowel 3.5 :breath 0.2)
+(p/stop! vocal/talkbox)
+```
+
+`fx/formant` applies the same five-vowel filter to any instrument or sample.
+It takes `vowel`, `shift`, `bandwidth`, `ring`, and `mix` (dry 0, wet 1).
+For example, add `:fx (fx/formant :vowel [0 2 4] :mix 0.7)` to a loop.
+Removing `:fx` on the next call removes the filter; the old route can ring
+for up to two seconds. See `examples/vocal.mal` for more calls.
+
 ## Playground
 
 Requires [Bun](https://bun.sh) 1.3.13 or later.

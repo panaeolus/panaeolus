@@ -795,5 +795,487 @@
       ]
     },
     "held": true
+  },
+  {
+    "name": "priest",
+    "category": "vocal",
+    "namespace": "panaeolus.instruments.vocal",
+    "opcode": "PanaeolusPriest",
+    "node": "priest-node",
+    "rate": "k",
+    "count": 15,
+    "source": "src/instruments/vocal/priest.orc",
+    "mal": "src/instruments/vocal/priest.mal",
+    "reference": [
+      60,
+      0,
+      0,
+      0,
+      1,
+      0,
+      8,
+      5,
+      0.02,
+      0.15,
+      0.8,
+      0.2,
+      0.03,
+      0,
+      1
+    ],
+    "ranges": {
+      "note": [
+        24,
+        96
+      ],
+      "db": [
+        -96,
+        12
+      ],
+      "vowel": [
+        0,
+        4
+      ],
+      "shift": [
+        -12,
+        12
+      ],
+      "bandwidth": [
+        0.25,
+        4
+      ],
+      "octave": [
+        0,
+        2
+      ],
+      "vibrato": [
+        0,
+        50
+      ],
+      "vibrato-rate": [
+        0.1,
+        12
+      ],
+      "attack": [
+        0.001,
+        8
+      ],
+      "decay": [
+        0.001,
+        8
+      ],
+      "sustain": [
+        0,
+        1
+      ],
+      "release": [
+        0.001,
+        4
+      ],
+      "glide": [
+        0,
+        2
+      ],
+      "pan": [
+        -1,
+        1
+      ],
+      "amp": [
+        0,
+        4
+      ]
+    },
+    "held": true
+  },
+  {
+    "name": "cantor",
+    "category": "vocal",
+    "namespace": "panaeolus.instruments.vocal",
+    "opcode": "PanaeolusCantor",
+    "node": "cantor-node",
+    "rate": "k",
+    "count": 18,
+    "source": "src/instruments/vocal/cantor.orc",
+    "mal": "src/instruments/vocal/cantor.mal",
+    "reference": [
+      60,
+      0,
+      0,
+      0,
+      1,
+      0.04,
+      3,
+      0,
+      0,
+      8,
+      5,
+      0.02,
+      0.15,
+      0.8,
+      0.2,
+      0.03,
+      0,
+      1
+    ],
+    "ranges": {
+      "note": [
+        24,
+        96
+      ],
+      "db": [
+        -96,
+        12
+      ],
+      "vowel": [
+        0,
+        4
+      ],
+      "shift": [
+        -12,
+        12
+      ],
+      "bandwidth": [
+        0.25,
+        4
+      ],
+      "grain": [
+        0.01,
+        0.08
+      ],
+      "gliss": [
+        -12,
+        12
+      ],
+      "phase": [
+        0,
+        1
+      ],
+      "octave": [
+        0,
+        2
+      ],
+      "vibrato": [
+        0,
+        50
+      ],
+      "vibrato-rate": [
+        0.1,
+        12
+      ],
+      "attack": [
+        0.001,
+        8
+      ],
+      "decay": [
+        0.001,
+        8
+      ],
+      "sustain": [
+        0,
+        1
+      ],
+      "release": [
+        0.001,
+        4
+      ],
+      "glide": [
+        0,
+        2
+      ],
+      "pan": [
+        -1,
+        1
+      ],
+      "amp": [
+        0,
+        4
+      ]
+    },
+    "held": true
+  },
+  {
+    "name": "talkbox",
+    "category": "vocal",
+    "namespace": "panaeolus.instruments.vocal",
+    "opcode": "PanaeolusTalkbox",
+    "node": "talkbox-node",
+    "rate": "k",
+    "count": 17,
+    "source": "src/instruments/vocal/talkbox.orc",
+    "mal": "src/instruments/vocal/talkbox.mal",
+    "reference": [
+      60,
+      0,
+      0,
+      0,
+      1,
+      0.6,
+      0.08,
+      1,
+      8,
+      5,
+      0.02,
+      0.15,
+      0.8,
+      0.2,
+      0.03,
+      0,
+      1
+    ],
+    "ranges": {
+      "note": [
+        24,
+        96
+      ],
+      "db": [
+        -96,
+        12
+      ],
+      "vowel": [
+        0,
+        4
+      ],
+      "shift": [
+        -12,
+        12
+      ],
+      "bandwidth": [
+        0.25,
+        4
+      ],
+      "edge": [
+        0,
+        1
+      ],
+      "breath": [
+        0,
+        1
+      ],
+      "ring": [
+        0.25,
+        4
+      ],
+      "vibrato": [
+        0,
+        50
+      ],
+      "vibrato-rate": [
+        0.1,
+        12
+      ],
+      "attack": [
+        0.001,
+        8
+      ],
+      "decay": [
+        0.001,
+        8
+      ],
+      "sustain": [
+        0,
+        1
+      ],
+      "release": [
+        0.001,
+        4
+      ],
+      "glide": [
+        0,
+        2
+      ],
+      "pan": [
+        -1,
+        1
+      ],
+      "amp": [
+        0,
+        4
+      ]
+    },
+    "held": true
+  },
+  {
+    "name": "vosim",
+    "category": "vocal",
+    "namespace": "panaeolus.instruments.vocal",
+    "opcode": "PanaeolusVosim",
+    "node": "vosim-node",
+    "rate": "k",
+    "count": 16,
+    "source": "src/instruments/vocal/vosim.orc",
+    "mal": "src/instruments/vocal/vosim.mal",
+    "reference": [
+      60,
+      0,
+      0,
+      0,
+      3,
+      0.3,
+      1,
+      8,
+      5,
+      0.02,
+      0.15,
+      0.8,
+      0.2,
+      0.03,
+      0,
+      1
+    ],
+    "ranges": {
+      "note": [
+        24,
+        96
+      ],
+      "db": [
+        -96,
+        12
+      ],
+      "vowel": [
+        0,
+        4
+      ],
+      "shift": [
+        -12,
+        12
+      ],
+      "pulses": [
+        1,
+        8,
+        1
+      ],
+      "damping": [
+        0,
+        1
+      ],
+      "bend": [
+        0.5,
+        2
+      ],
+      "vibrato": [
+        0,
+        50
+      ],
+      "vibrato-rate": [
+        0.1,
+        12
+      ],
+      "attack": [
+        0.001,
+        8
+      ],
+      "decay": [
+        0.001,
+        8
+      ],
+      "sustain": [
+        0,
+        1
+      ],
+      "release": [
+        0.001,
+        4
+      ],
+      "glide": [
+        0,
+        2
+      ],
+      "pan": [
+        -1,
+        1
+      ],
+      "amp": [
+        0,
+        4
+      ]
+    },
+    "held": true
+  },
+  {
+    "name": "fm-voice",
+    "category": "vocal",
+    "namespace": "panaeolus.instruments.vocal",
+    "opcode": "PanaeolusFMVoice",
+    "node": "fm-voice-node",
+    "rate": "k",
+    "count": 14,
+    "source": "src/instruments/vocal/fm-voice.orc",
+    "mal": "src/instruments/vocal/fm-voice.mal",
+    "reference": [
+      60,
+      0,
+      0,
+      1,
+      60,
+      8,
+      5,
+      0.02,
+      0.15,
+      0.8,
+      0.2,
+      0.03,
+      0,
+      1
+    ],
+    "ranges": {
+      "note": [
+        24,
+        96
+      ],
+      "db": [
+        -96,
+        12
+      ],
+      "vowel": [
+        0,
+        4
+      ],
+      "register": [
+        0,
+        3,
+        1
+      ],
+      "tilt": [
+        0,
+        99
+      ],
+      "vibrato": [
+        0,
+        50
+      ],
+      "vibrato-rate": [
+        0.1,
+        12
+      ],
+      "attack": [
+        0.001,
+        8
+      ],
+      "decay": [
+        0.001,
+        8
+      ],
+      "sustain": [
+        0,
+        1
+      ],
+      "release": [
+        0.001,
+        4
+      ],
+      "glide": [
+        0,
+        2
+      ],
+      "pan": [
+        -1,
+        1
+      ],
+      "amp": [
+        0,
+        4
+      ]
+    },
+    "held": true
   }
 ]

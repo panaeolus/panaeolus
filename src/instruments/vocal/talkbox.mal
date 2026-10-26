@@ -1,0 +1,5 @@
+(ns panaeolus.instruments.vocal (:require [panaeolus.catalog :as catalog]))
+(def talkbox (catalog/voice "panaeolus.instruments.vocal/talkbox"
+  '[note 60 db -6 vowel 0 shift 0 bandwidth 1 edge 0.6 breath 0.08 ring 1 vibrato 8 vibrato-rate 5 attack 0.02 decay 0.15 sustain 0.8 release 0.2 glide 0.03 pan 0 amp 1]
+  talkbox-node 1 {:note [24 96] :vowel [0 4] :shift [-12 12] :bandwidth [0.25 4] :edge [0 1] :breath [0 1] :ring [0.25 4] :vibrato [0 50] :vibrato-rate [0.1 12] :attack [0.001 8] :decay [0.001 8] :sustain [0 1] :release [0.001 4] :glide [0 2]} true))
+(ns user)

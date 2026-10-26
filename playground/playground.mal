@@ -145,3 +145,20 @@
 ;; (prism :every [2] :note [48 55] :stretch [1 1.04] :motion 0.3 :dur 1.8 :db -12)
 ;; Import a HETRO .mal module with Import file, then evaluate its load-file form.
 ;; (resynth :every [1] :note [60 67 72] :speed [0.5 1 2] :dur 0.8)
+
+;; Vocal voices: 0=A, 1=E, 2=I, 3=O, 4=U; fractions blend vowels.
+;; (require '[panaeolus.instruments.vocal :as vocal])
+;; (require '[panaeolus.fx :as fx])
+;; (p/stop-all!)
+;; (vocal/priest :every [0.5] :note [48 55 60] :vowel [0 1.5 4] :dur 0.4)
+;; (p/stop-all!)
+;; (vocal/cantor :every [0.25 0.5] :vowel [0 2 4] :gliss [-3 3 7] :dur 0.3)
+;; (p/stop-all!)
+;; (vocal/talkbox :legato true :note 48 :vowel 0 :attack 0.4)
+;; (vocal/talkbox :legato true :note 55 :vowel 3.5 :breath 0.2)
+;; (p/stop! vocal/talkbox)
+;; (vocal/vosim :every [0.5] :note [36 43 48] :vowel [0 4 2] :pulses [2 3 5])
+;; (p/stop-all!)
+;; (vocal/fm-voice :every [1] :vowel [0 1.5 4] :register [0 1] :dur 0.8)
+;; Add :fx (fx/formant :vowel [0 2 4] :mix 0.7) to any loop, including samples.
+;; (p/stop-all!)

@@ -1,0 +1,37 @@
+;; Evaluate one voice at a time. Vowels: 0=A, 1=E, 2=I, 3=O, 4=U.
+(require '[panaeolus.instruments.vocal :as vocal])
+(require '[panaeolus.instruments.synth :as synth])
+(require '[panaeolus.instrument :as p])
+(require '[panaeolus.fx :as fx])
+
+(vocal/priest)
+(vocal/priest :every [0.5 0.25] :note [48 55 60] :vowel [0 1.5 4]
+  :shift [-2 0 3] :dur 0.3 :db -9)
+(p/stop! vocal/priest)
+
+(vocal/cantor :every [0.25 0.5] :note [48 55 60]
+  :vowel [0 2 3.5] :grain 0.06 :gliss [-5 3 7] :dur 0.3 :db -9)
+(p/stop! vocal/cantor)
+
+;; Re-evaluate the same held voice to move its vowels without a new attack.
+(vocal/talkbox :legato true :note 48 :vowel 0 :attack 0.4 :db -9)
+(vocal/talkbox :legato true :note 55 :vowel 3.5 :breath 0.2 :db -9)
+(p/stop! vocal/talkbox)
+
+(vocal/vosim :every [0.5] :note [36 43 48] :vowel [0 4 2]
+  :pulses [2 3 5] :damping 0.5 :bend [0.9 1.1] :dur 0.4 :db -9)
+(p/stop! vocal/vosim)
+
+(vocal/fm-voice :every [1] :note [48 55 60] :vowel [0 1.5 3 4]
+  :register [0 1] :tilt [40 70] :dur 0.8 :db -9)
+(p/stop! vocal/fm-voice)
+
+;; A vowel filter for an ordinary synth. Re-evaluate without :fx to remove it.
+(synth/nuclear :every [0.5] :note [36 43 48] :dur 0.4 :db -12
+  :fx (fx/formant :vowel [0 1.5 4] :mix 0.7))
+(synth/nuclear :every [0.5] :note [36 43 48] :dur 0.4 :db -12)
+(p/stop! synth/nuclear)
+
+;; Planning a phrase returns a value; it does not play the voice.
+(def phrase (p/pattern vocal/priest :every [0.25 0.5]
+  :note [48 55 60] :vowel [0 2 4] :dur 0.3 :db -9))

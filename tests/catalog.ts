@@ -49,17 +49,29 @@ try {
   evaluate(`(${name})`);
   assert.ok(peak(advance(1.1)) > 0.005, `${name} default is silent`);
   const invalid = Object.entries(voice.ranges).map(([key, bounds]) => `(${name} :${key} ${bounds[1] + 1})`);
+  if (voice.category === "vocal") {
+    invalid.push(`(${name} :vowel -0.1)`);
+    for (const [key, bounds] of Object.entries(voice.ranges))
+      if (bounds.length === 3) invalid.push(`(${name} :${key} ${bounds[0] + 0.5})`);
+    evaluate(`(${name} :vowel 1.5 :dur 0.2)`);
+    advance(0.3);
+  }
   if (!voice.held) invalid.push(`(${name} :legato true)`);
+  if (name === "priest")
+    for (const args of [":vowel 4.1", ":shift -13", ":bandwidth 0", ":ring 0", ":mix 2"])
+      invalid.push(`(fx/formant ${args})`);
   evaluate(invalid.map(form => `(when-not (= :invalid (try* (do ${form} :valid) (catch* e :invalid)))
     (throw ${JSON.stringify(`Accepted ${form}`)}))`).join("\n"));
   // Record loops with independent parameter lengths, FX, and held edits. A
   // replay must use the same noise seeds and retained source definitions.
   evaluate('(p/record!)');
-  evaluate(`(${name} :id :test :every [0.25 0.5] :note [48 55 60]${voice.held ? "" : " :dur 0.2"} :fx (fx/flanger :rate 0.15)${voice.held ? " :legato true :release 0.05" : ""})`);
+  const effect = voice.category === "vocal" ? "(fx/formant :vowel [0 1.5 4] :mix 0.7)" : "(fx/flanger :rate 0.15)";
+  evaluate(`(${name} :id :test :every [0.25 0.5] :note [48 55 60]${voice.held ? "" : " :dur 0.2"} :fx ${effect}${voice.held ? " :legato true :release 0.05" : ""})`);
   const parts = [advance(0.6)];
   if (voice.held) {
     evaluate('(def route (get (routing/current-route :test) :number))');
-    evaluate(`(${name} :id :test :legato true :note 62 :release 0.05 :fx (fx/flanger :rate 0.15))`);
+    const heldEffect = voice.category === "vocal" ? "(fx/formant :vowel 2.5 :mix 0.7)" : effect;
+    evaluate(`(${name} :id :test :legato true :note 62 :release 0.05 :fx ${heldEffect})`);
     check('(= route (get (routing/current-route :test) :number))');
   }
   parts.push(advance(0.3));
