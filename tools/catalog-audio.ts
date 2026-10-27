@@ -9,7 +9,7 @@ export interface Voice {
 export const catalog: Voice[] = await Bun.file(resolve(root, "src/instruments/catalog.json")).json();
 export const support = (await Promise.all([
   "src/instruments/common/levels.orc", "src/instruments/plucks/voices.orc",
-  "src/instruments/synths/voices.orc", "src/instruments/common/catalog.orc", "src/instruments/vocal/support.orc", "src/instruments/scanned/support.orc", "src/instruments/dubstep/support.orc",
+  "src/instruments/synths/voices.orc", "src/instruments/common/catalog.orc", "src/instruments/vocal/support.orc", "src/instruments/scanned/support.orc", "src/instruments/common/bass-pulse.orc",
 ].map(path => Bun.file(resolve(root, path)).text()))).join("\n");
 Object.assign(globalThis, { self: globalThis, window: globalThis });
 const { libcsound } = await import("../dist/web/csound.js");

@@ -13,7 +13,7 @@ function sameAudio(actual: Float64Array, expected: Float64Array, message = "Audi
   // Oversampled filter arithmetic may differ by a few double-precision ULPs.
   assert.ok(difference < 1e-12, `${message}: first sample ${first}, max difference ${difference}`);
 }
-const voices = catalog.filter(v => ["drone", "dubstep"].includes(v.category) && (!process.env.CATALOG_CATEGORY || v.category === process.env.CATALOG_CATEGORY));
+const voices = catalog.filter(v => ["horizon", "undertow", "aether", "reese", "growl", "wub"].includes(v.name) && (!process.env.CATALOG_CATEGORY || v.category === process.env.CATALOG_CATEGORY));
 async function render(name: string, options: {
   rate?: number; block?: number; scale?: number; seconds?: number; schedule?: string;
   changing?: boolean; fixed?: boolean; extreme?: boolean; other?: boolean;

@@ -26,8 +26,9 @@
     "test:catalog": "bun tests/catalog-dsp.ts && bun tests/bass-pulse.ts && bun tests/texture-dsp.ts && bun tests/waveshaping-dsp.ts && bun tests/scanned-dsp.ts && bun tests/vocal-dsp.ts && bun tests/formant-fx.ts && bun tests/spectral-dsp.ts && bun tests/adsyn-dsp.ts && bun tests/catalog.ts && bun tests/spectral.ts && bun tests/adsyn.ts",
     "scanned:render": "CATALOG_CATEGORY=scanned bun tools/render-catalog.ts",
     "waveshaping:render": "CATALOG_CATEGORY=waveshaping bun tools/render-catalog.ts",
-    "drone:render": "CATALOG_CATEGORY=drone bun tools/render-catalog.ts",
-    "dubstep:render": "CATALOG_CATEGORY=dubstep bun tools/render-catalog.ts"
+    "subtractive:render": "CATALOG_CATEGORY=subtractive bun tools/render-catalog.ts",
+    "fm:render": "CATALOG_CATEGORY=fm bun tools/render-catalog.ts",
+    "resonant:render": "CATALOG_CATEGORY=resonant bun tools/render-catalog.ts"
   },
   "dependencies": {
     "@csound/browser": "7.0.0-beta36"

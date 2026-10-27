@@ -1,5 +1,5 @@
-(ns panaeolus.instruments.dubstep (:require [panaeolus.catalog :as catalog]))
-(def reese (catalog/voice "panaeolus.instruments.dubstep/reese"
+(ns panaeolus.instruments.subtractive (:require [panaeolus.catalog :as catalog]))
+(def reese (catalog/voice "panaeolus.instruments.subtractive/reese"
   '[note 36 db -6 detune 25 color 0.25 notch 900 depth 0.65 motion 0.5 rate 0.35 drive 2 cutoff 6000 sub 0.6 width 0.8 attack 0.01 decay 0.5 sustain 0.85 release 0.15 glide 0.15 pan 0 amp 1]
   reese-node 1 {:note [24 96] :detune [0 60] :color [0 1] :notch [100 6000] :depth [0 1] :motion [0 1] :rate [0.05 8] :drive [1 5] :cutoff [150 14000] :sub [0 1] :width [0 1] :attack [0.001 8] :decay [0.001 8] :sustain [0 1] :release [0.001 4] :glide [0 2]} true))
 (ns user)

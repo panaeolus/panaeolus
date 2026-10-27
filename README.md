@@ -293,7 +293,7 @@ See `examples/catalog.mal` for a small arrangement and individual calls.
 
 ## Vocal instruments
 
-`panaeolus.instruments.vocal` adds five voices. All use `:vowel 0..4` for
+`panaeolus.instruments.vocal` contains six voices. All use `:vowel 0..4` for
 A, E, I, O, U; fractions blend adjacent vowels. These are timbre controls,
 not a text-to-speech system. Each voice supports patterns, composition,
 FX, and `:legato true` for held notes and live edits.
@@ -305,6 +305,7 @@ FX, and `:legato true` for held notes and live edits.
 | `talkbox` | [fofilter](https://csound.com/manual/opcodes/fofilter/) | shift, bandwidth, edge, breath, ring: filtered buzz and noise |
 | `vosim` | [vosim](https://csound.com/manual/opcodes/vosim/) | shift, pulses, damping, bend: pulse trains with five formants |
 | `fm-voice` | [fmvoice](https://csound.com/manual/opcodes/fmvoice/) | register, tilt: the built-in FMVoices model; no plugin needed |
+| `growl` | FM and vowel filters | index, ratio, depth, shift, bpm, division: moving formants with a sine sub |
 
 `shift` moves the formants by −12..12 semitones without changing the note.
 `bandwidth` (0.25..4) widens the resonances; `octave` (0..2, fractional)
@@ -315,8 +316,9 @@ VOSIM's `pulses` is an integer 1..8, `damping` is 0..1, and `bend`
 (0.5..2) multiplies each pulse's frequency. FM voice's `register` is an
 integer 0..3 and `tilt` is 0..99. Its vowel shapes differ from the other voices.
 
-All have `vibrato` in cents (0..50), `vibrato-rate` in Hz (0.1..12), ADSR,
-glide, pan, and amp. Defaults use the same six-note −18 LUFS reference at
+All have ADSR, glide, pan, and amp. The first five also have `vibrato` in
+cents (0..50) and `vibrato-rate` in Hz (0.1..12). Growl uses the tempo controls
+described below. Defaults use the same six-note −18 LUFS reference at
 `:db 0` as the other instruments; `:db -6` lowers it by 6 dB. Timbre edits,
 effects, and overlapping notes can change loudness. Run `bun run build` then
 `bun run vocal:render` for previews.
@@ -416,50 +418,32 @@ Shape changes and overlapping notes can change perceived loudness.
 See `examples/waveshaping.mal`. Run `bun run build` then
 `bun run waveshaping:render` for a six-note WAV preview per voice.
 
-## Drone instruments
+## Layered, FM, and resonator voices
 
-`panaeolus.instruments.drone` contains three held-voice designs:
+These voices live under their synthesis methods. Their names, controls, and
+sound stay the same; imports from `instruments.drone` and `instruments.dubstep`
+now use the namespaces below.
 
-| Voice | Sound | Main controls |
-| --- | --- | --- |
-| `horizon` | Detuned saw/triangle layers with slow drift | detune 0..40 cents, drift 0..20 cents, color/motion/width 0..1, cutoff 200..14000 Hz |
-| `undertow` | Slowly changing FM with a clean sub | index 0..6, ratio 0.25..5, motion/sub 0..1, detune 0..30 cents, cutoff 200..16000 Hz |
-| `aether` | Seeded noise and sines through a pitched resonator bank | focus/air/motion 0..1, stretch 0.8..1.3, bandwidth 0.01..0.5, detune 0..30 cents |
+| Namespace (`panaeolus.instruments.*`) | Voice | Sound | Main controls |
+| --- | --- | --- | --- |
+| `subtractive` | `horizon` | Detuned saw/triangle layers with slow drift | detune 0..40 cents, drift 0..20 cents, color/motion/width 0..1, cutoff 200..14000 Hz |
+| `subtractive` | `reese` | Detuned saw/pulse layers with moving stereo notches | detune 0..60 cents, color/depth/motion/width 0..1, notch 100..6000 Hz, rate 0.05..8 Hz, drive 1..5, cutoff 150..14000 Hz |
+| `subtractive` | `wub` | Rhythmic ladder filtering with amplitude movement | cutoff 60..8000 Hz, sweep 0..6 octaves, resonance 0..0.85, drive 1..5, pulse 0.05..0.95, gate 0..1, detune 0..25 cents |
+| `fm` | `undertow` | Slowly changing FM with a clean sub | index 0..6, ratio 0.25..5, motion/sub 0..1, detune 0..30 cents, cutoff 200..16000 Hz |
+| `resonant` | `aether` | Seeded noise and sines through pitched resonators | focus/air/motion 0..1, stretch 0.8..1.3, bandwidth 0.01..0.5, detune 0..30 cents |
+| `vocal` | `growl` | FM through moving vowel filters | vowel/depth 0..4, index 0..8, ratio 0.5..6, shift −12..12 semitones, detune 0..30 cents, cutoff 200..14000 Hz |
 
-`rate` is slow motion in Hz (0.02..2). Horizon's `color` blends triangle to
-saw. Aether's `focus` raises the upper resonators, `stretch` changes their
-spacing, and `bandwidth` is a fraction of each resonator's frequency.
-Undertow filters its FM output before downsampling from four times the host
-rate. Each voice keeps its phases and filter state during held edits.
+Horizon, Undertow, and Aether use `rate` in Hz (0.02..2). Horizon's `color`
+blends triangle to saw. Aether's `focus` raises the upper resonators,
+`stretch` changes their spacing, and `bandwidth` is a fraction of each
+resonator's frequency. These three default to MIDI note 48, a 0.25-second
+attack, and one-second release.
 
-All accept note, db, ADSR, glide, pan, and amp; defaults use a 0.25-second
-attack and one-second release. A plain call plays a one-second note; use
-`:legato true` to hold it. Patterns, composition, FX, and CSD export work as
-usual. The default-sound reference remains −18 LUFS at `:db 0`, with `:db -6`
-as the default. Long sustains and timbre changes can change loudness.
-
-```clojure
-(require '[panaeolus.instruments.drone :as drone])
-(drone/horizon :legato true :note 36 :attack 2 :db -12)
-(drone/horizon :legato true :note 43 :color 0.8 :drift 12 :db -12)
-(p/stop! drone/horizon)
-```
-
-See `examples/drone.mal`. Run `bun run build` then `bun run drone:render`
-for previews.
-
-## Dubstep instruments
-
-`panaeolus.instruments.dubstep` adds three bass voices. Their upper layers run
-at four times the host rate with filtering before downsampling. A separate
-centered sine sub follows `note` at its fundamental frequency, not an octave
-below. `sub` (0..1) sets its amount before the final pan and gain controls.
-
-| Voice | Sound | Main controls |
-| --- | --- | --- |
-| `reese` | Detuned saw/pulse bass with moving stereo notches | detune 0..60 cents, color/depth/motion/width 0..1, notch 100..6000 Hz, rate 0.05..8 Hz, drive 1..5, cutoff 150..14000 Hz |
-| `growl` | FM through moving vowel filters | vowel/depth 0..4, index 0..8, ratio 0.5..6, shift −12..12 semitones, detune 0..30 cents, cutoff 200..14000 Hz |
-| `wub` | Rhythmic ladder-filter bass with amplitude pumping | cutoff 60..8000 Hz, sweep 0..6 octaves, resonance 0..0.85, drive 1..5, pulse 0.05..0.95, gate 0..1, detune 0..25 cents |
+Undertow, Reese, Growl, and Wub filter their output before downsampling from
+four times the host rate. Reese, Growl, and Wub add a centered sine at the
+note's fundamental frequency; Undertow's sub sits one octave below.
+`sub` (0..1) sets its amount. Reese, Growl, and Wub default to MIDI note 36,
+a 10 ms attack, and 150 ms release.
 
 Growl and Wub use `bpm` (20..400), `division` (0.125..8 beats per cycle),
 `phase` (0..1 cycle offset), and `sharpness` (0.25..4). Higher sharpness gives
@@ -470,21 +454,27 @@ Growl sweeps from `vowel` upwards by `depth`, capped at vowel 4. Wub sweeps
 upwards from `cutoff`; `gate` adds amplitude movement. Reese uses its free-rate
 motion control instead.
 
-Each accepts note, db, ADSR, glide, pan, and amp, with patterns, held edits,
-composition, FX, and CSD export. Defaults use MIDI note 36, `:db -6`, a 10 ms
-attack, and 150 ms release. The six-note reference remains −18 LUFS at `:db 0`.
+All six accept note, db, ADSR, glide, pan, and amp, with patterns, held edits,
+composition, FX, and CSD export. A plain call plays a one-second note;
+`:legato true` holds it. Held edits retain oscillator phases and filter state.
+The six-note reference remains −18 LUFS at `:db 0`, with `:db -6` as the default.
+Long sustains and timbre changes can change loudness.
 
 ```clojure
-(require '[panaeolus.instruments.dubstep :as bass])
+(require '[panaeolus.instruments.subtractive :as sub])
+(require '[panaeolus.instruments.vocal :as vocal])
+(sub/horizon :legato true :note 36 :attack 2 :db -12)
+(sub/horizon :legato true :note 43 :color 0.8 :drift 12 :db -12)
+(p/stop! sub/horizon)
 (p/tempo! 140)
-(bass/reese :every [0.5 0.25] :note [36 36 43 38] :dur 0.3 :db -9)
-(bass/growl :legato true :note 36 :bpm 140 :division 0.5 :db -9)
-(bass/growl :legato true :note 36 :bpm 140 :division 0.25 :vowel 1 :db -9)
-(p/stop! bass/growl)
+(sub/reese :every [0.5 0.25] :note [36 36 43 38] :dur 0.3 :db -9)
+(vocal/growl :legato true :note 36 :bpm 140 :division 0.5 :db -9)
+(p/stop! vocal/growl)
 ```
 
-See `examples/dubstep.mal`. Run `bun run build` then `bun run dubstep:render`
-for previews.
+See `examples/held-textures.mal` and `examples/modulated-voices.mal`.
+Run `bun run build` then `bun run subtractive:render`, `bun run fm:render`,
+`bun run resonant:render`, or `bun run vocal:render` for previews by category.
 
 ## Playground
 
